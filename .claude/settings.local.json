@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(venv/Scripts/python -c \"from django.core.management.utils import get_random_secret_key; print\\(get_random_secret_key\\(\\)\\)\")",
+      "Bash(venv/Scripts/python manage.py startapp accounts)",
+      "Bash(venv/Scripts/python manage.py tailwind init --no-input)",
+      "Bash(venv/Scripts/django-admin startapp:*)",
+      "Bash(venv/Scripts/python manage.py makemigrations accounts)",
+      "Bash(venv/Scripts/python manage.py migrate)",
+      "Bash(venv/Scripts/python manage.py shell -c \":*)",
+      "Bash(venv/Scripts/python manage.py check)"
+    ]
+  }
+}
