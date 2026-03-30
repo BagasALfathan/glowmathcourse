@@ -83,14 +83,14 @@
     {{ kelas.academic_period.name }}
   </div>
 
-  <!-- Edit link (optional) -->
+  <!-- Edit / Students links (shown when show_edit_link=True) -->
   {% if show_edit_link %}
   <div class="mt-auto border-t border-gray-50 px-5 py-3 flex gap-2">
-    <a href="{% url 'academics:teacher_class_edit' kelas.pk %}"
+    <a href="#"
        class="flex-1 text-center text-xs font-medium text-indigo-600 hover:text-indigo-700 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors">
       Edit
     </a>
-    <a href="{% url 'academics:teacher_class_students' kelas.pk %}"
+    <a href="#"
        class="flex-1 text-center text-xs font-medium text-gray-600 hover:text-gray-900 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
       Siswa
     </a>
