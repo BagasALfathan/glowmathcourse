@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Kelas Saya{% endblock %}
+{% block page_title %}Kelas Saya{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+  <!-- Top bar: filter tabs + create button -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+
+    <!-- Status filter tabs -->
+    <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1 w-fit">
+      <a href="{% url 'academics:teacher_classes' %}"
+         class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors
+                {% if not status_filter %}bg-white text-gray-900 shadow-sm{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+        Semua
+      </a>
+      <a href="?status=OPEN"
+         class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors
+                {% if status_filter == 'OPEN' %}bg-white text-gray-900 shadow-sm{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+        Buka
+      </a>
+      <a href="?status=FULL"
+         class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors
+                {% if status_filter == 'FULL' %}bg-white text-gray-900 shadow-sm{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+        Penuh
+      </a>
+      <a href="?status=CLOSED"
+         class="px-3 py-1.5 rounded-md text-sm font-medium transition-colors
+                {% if status_filter == 'CLOSED' %}bg-white text-gray-900 shadow-sm{% else %}text-gray-500 hover:text-gray-700{% endif %}">
+        Tutup
+      </a>
+    </div>
+
+    <!-- Create button -->
+    <a href="{% url 'academics:teacher_class_create' %}"
+       class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium
+              rounded-lg hover:bg-indigo-700 transition-colors shrink-0">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+           stroke-width="2" stroke="currentColor" class="w-4 h-4">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+      </svg>
+      Buat Kelas Baru
+    </a>
+  </div>
+
+  <!-- Class grid -->
+  {% if klasses %}
+  <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+    {% for kelas in klasses %}
+      {% include "components/_class_card.html" with kelas=kelas show_edit_link=True %}
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <!-- Empty state -->
+  <div class="flex flex-col items-center justify-center py-20 text-center">
+    <div class="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+           stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-gray-400">
+        <path stroke-linecap="round" stroke-linejoin="round"
+              d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+      </svg>
+    </div>
+    {% if status_filter %}
+      <p class="text-gray-600 font-medium mb-1">Tidak ada kelas dengan status ini.</p>
+      <p class="text-sm text-gray-400 mb-4">Coba pilih filter yang berbeda.</p>
+      <a href="{% url 'academics:teacher_classes' %}"
+         class="text-sm font-medium text-indigo-600 hover:text-indigo-700">
+        Tampilkan semua kelas
+      </a>
+    {% else %}
+      <p class="text-gray-600 font-medium mb-1">Belum ada kelas.</p>
+      <p class="text-sm text-gray-400 mb-4">Buat kelas pertama Anda!</p>
+      <a href="{% url 'academics:teacher_class_create' %}"
+         class="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium
+                rounded-lg hover:bg-indigo-700 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="2" stroke="currentColor" class="w-4 h-4">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+        Buat Kelas Baru
+      </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

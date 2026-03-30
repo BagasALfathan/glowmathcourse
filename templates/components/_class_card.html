@@ -1,0 +1,100 @@
+{% comment %}
+  Reusable class card component.
+  Required context: kelas (Kelas instance)
+  Optional context: show_edit_link (bool, default False)
+{% endcomment %}
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col">
+
+  <!-- Card header: name + status badge -->
+  <div class="px-5 pt-5 pb-3 flex items-start justify-between gap-3">
+    <div class="min-w-0">
+      <h3 class="text-sm font-semibold text-gray-900 truncate">{{ kelas.name }}</h3>
+      <p class="text-xs text-gray-500 mt-0.5 truncate">{{ kelas.subject.name }}</p>
+    </div>
+    <!-- Status badge -->
+    {% if kelas.status == 'OPEN' %}
+      <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+        Buka
+      </span>
+    {% elif kelas.status == 'FULL' %}
+      <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
+        Penuh
+      </span>
+    {% else %}
+      <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+        Tutup
+      </span>
+    {% endif %}
+  </div>
+
+  <!-- Divider -->
+  <div class="border-t border-gray-50 mx-5"></div>
+
+  <!-- Meta: level + capacity -->
+  <div class="px-5 py-3 flex items-center gap-3 flex-wrap">
+    <!-- Level badge -->
+    {% if kelas.level == 'SD' %}
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-50 text-teal-700">SD</span>
+    {% elif kelas.level == 'SMP' %}
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">SMP</span>
+    {% else %}
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700">SMA</span>
+    {% endif %}
+
+    <!-- Enrolled / Capacity -->
+    <span class="flex items-center gap-1 text-xs text-gray-500">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+           stroke-width="1.75" stroke="currentColor" class="w-3.5 h-3.5">
+        <path stroke-linecap="round" stroke-linejoin="round"
+              d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+      </svg>
+      {{ kelas.get_enrolled_count }}/{{ kelas.capacity }} siswa
+    </span>
+
+    <!-- Session count -->
+    <span class="flex items-center gap-1 text-xs text-gray-500">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+           stroke-width="1.75" stroke="currentColor" class="w-3.5 h-3.5">
+        <path stroke-linecap="round" stroke-linejoin="round"
+              d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+      </svg>
+      {{ kelas.total_sessions }} pertemuan
+    </span>
+  </div>
+
+  <!-- Schedule rows -->
+  {% if kelas.schedules.all %}
+  <div class="px-5 pb-3 space-y-1">
+    {% for sched in kelas.schedules.all %}
+    <div class="flex items-center gap-1.5 text-xs text-gray-600">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+           stroke-width="1.75" stroke="currentColor" class="w-3.5 h-3.5 shrink-0 text-gray-400">
+        <path stroke-linecap="round" stroke-linejoin="round"
+              d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span>{{ sched.get_day_display }} • {{ sched.start_time|time:"H:i" }}–{{ sched.end_time|time:"H:i" }}{% if sched.room %} • {{ sched.room }}{% endif %}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Period -->
+  <div class="px-5 pb-4 text-xs text-gray-400">
+    {{ kelas.academic_period.name }}
+  </div>
+
+  <!-- Edit link (optional) -->
+  {% if show_edit_link %}
+  <div class="mt-auto border-t border-gray-50 px-5 py-3 flex gap-2">
+    <a href="{% url 'academics:teacher_class_edit' kelas.pk %}"
+       class="flex-1 text-center text-xs font-medium text-indigo-600 hover:text-indigo-700 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors">
+      Edit
+    </a>
+    <a href="{% url 'academics:teacher_class_students' kelas.pk %}"
+       class="flex-1 text-center text-xs font-medium text-gray-600 hover:text-gray-900 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
+      Siswa
+    </a>
+  </div>
+  {% endif %}
+
+</div>

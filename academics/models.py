@@ -128,6 +128,12 @@ class Kelas(models.Model):
     def __str__(self):
         return self.name
 
+    def get_enrolled_count(self):
+        try:
+            return self.enrollments.filter(status='ACTIVE', is_deleted=False).count()
+        except Exception:
+            return 0
+
     def soft_delete(self):
         self.is_deleted = True
         self.deleted_at = timezone.now()
