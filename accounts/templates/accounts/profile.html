@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}Profil{% endblock %}
+{% block page_title %}Profil Saya{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+
+  <!-- User info card -->
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+      <h2 class="text-sm font-semibold text-gray-900">Informasi Akun</h2>
+      <a href="{% url 'accounts:profile_edit' %}"
+         class="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="1.75" stroke="currentColor" class="w-4 h-4">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+        </svg>
+        Edit Profil
+      </a>
+    </div>
+
+    <div class="px-6 py-5">
+      <!-- Avatar + name -->
+      <div class="flex items-center gap-4 mb-6">
+        <div class="w-14 h-14 rounded-full flex items-center justify-center shrink-0 font-bold text-lg
+          {% if user.role == 'STUDENT' %}bg-teal-100 text-teal-700
+          {% elif user.role == 'TEACHER' %}bg-orange-100 text-orange-700
+          {% else %}bg-purple-100 text-purple-700{% endif %}">
+          {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
+        </div>
+        <div>
+          <p class="text-base font-semibold text-gray-900">{{ user.get_full_name }}</p>
+          <span class="inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full mt-1
+            {% if user.role == 'STUDENT' %}bg-teal-100 text-teal-700
+            {% elif user.role == 'TEACHER' %}bg-orange-100 text-orange-700
+            {% else %}bg-purple-100 text-purple-700{% endif %}">
+            {{ user.get_role_display }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Fields -->
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
+        <div>
+          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Username</dt>
+          <dd class="text-gray-900">{{ user.username }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Email</dt>
+          <dd class="text-gray-900">{{ user.email }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Bergabung</dt>
+          <dd class="text-gray-900">{{ user.date_joined|date:"d M Y" }}</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+
+  <!-- Role-specific profile -->
+  {% if profile %}
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+
+    {% if user.role == 'STUDENT' %}
+    <div class="px-6 py-4 border-b border-gray-100">
+      <h2 class="text-sm font-semibold text-gray-900">Informasi Siswa</h2>
+    </div>
+    <div class="px-6 py-5">
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
+        <div>
+          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Jenjang</dt>
+          <dd class="text-gray-900">{{ profile.get_level_display }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Kelas</dt>
+          <dd class="text-gray-900">{% if profile.school_grade %}{{ profile.school_grade }}{% else %}-{% endif %}</dd>
+        </div>
+        <div class="sm:col-span-2">
+          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Nama Sekolah</dt>
+          <dd class="text-gray-900">{{ profile.school_name|default:"-" }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">No. HP Siswa</dt>
+          <dd class="text-gray-900">{{ profile.phone|default:"-" }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Nama Orang Tua</dt>
+          <dd class="text-gray-900">{{ profile.parent_name|default:"-" }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">No. HP Orang Tua</dt>
+          <dd class="text-gray-900">{{ profile.parent_phone|default:"-" }}</dd>
+        </div>
+        <div class="sm:col-span-2">
+          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Alamat</dt>
+          <dd class="text-gray-900 whitespace-pre-line">{{ profile.address|default:"-" }}</dd>
+        </div>
+      </dl>
+    </div>
+
+    {% elif user.role == 'TEACHER' %}
+    <div class="px-6 py-4 border-b border-gray-100">
+      <h2 class="text-sm font-semibold text-gray-900">Informasi Guru</h2>
+    </div>
+    <div class="px-6 py-5">
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
+        <div>
+          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Pendidikan Terakhir</dt>
+          <dd class="text-gray-900">{{ profile.get_education_display|default:"-" }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Pengalaman Mengajar</dt>
+          <dd class="text-gray-900">{{ profile.experience_years }} tahun</dd>
+        </div>
+        <div class="sm:col-span-2">
+          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Spesialisasi</dt>
+          <dd class="text-gray-900">{{ profile.specialization|default:"-" }}</dd>
+        </div>
+        <div class="sm:col-span-2">
+          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Bio</dt>
+          <dd class="text-gray-900 whitespace-pre-line">{{ profile.bio|default:"-" }}</dd>
+        </div>
+        <div>
+          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">No. HP</dt>
+          <dd class="text-gray-900">{{ profile.phone|default:"-" }}</dd>
+        </div>
+        <div class="sm:col-span-2">
+          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Alamat</dt>
+          <dd class="text-gray-900 whitespace-pre-line">{{ profile.address|default:"-" }}</dd>
+        </div>
+      </dl>
+    </div>
+
+    {% elif user.role == 'ADMIN' %}
+    <div class="px-6 py-4 border-b border-gray-100">
+      <h2 class="text-sm font-semibold text-gray-900">Informasi Admin</h2>
+    </div>
+    <div class="px-6 py-5">
+      <dl class="text-sm">
+        <div>
+          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">No. HP</dt>
+          <dd class="text-gray-900">{{ profile.phone|default:"-" }}</dd>
+        </div>
+      </dl>
+    </div>
+    {% endif %}
+
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

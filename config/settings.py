@@ -28,6 +28,9 @@ INSTALLED_APPS = [
     'django_htmx',
     # Local apps
     'accounts',
+    'dashboard',
+    'admin_panel',
+    'academics',
 ]
 
 MIDDLEWARE = [
@@ -55,6 +58,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'accounts.context_processors.pending_users_count',
             ],
         },
     },
@@ -91,6 +95,10 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGIN_URL = '/login/'
+LOGIN_REDIRECT_URL = '/dashboard/'  # router view redirects to role-specific page
+LOGOUT_REDIRECT_URL = '/login/'
 
 TAILWIND_APP_NAME = 'theme'
 INTERNAL_IPS = ['127.0.0.1']
