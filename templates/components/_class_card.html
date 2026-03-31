@@ -1,9 +1,55 @@
 {% comment %}
   Reusable class card component.
-  Required context: kelas (Kelas instance)
-  Optional context: show_edit_link (bool, default False)
+  Required context : kelas (Kelas instance, with schedules prefetched)
+  Optional context : show_edit_link (bool) — shows Edit / Hapus / Lihat Siswa buttons
 {% endcomment %}
-<div class="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col">
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col relative"
+     x-data="{ deleting: false }">
+
+  <!-- ── Delete confirmation overlay ─────────────────────────────────────── -->
+  <div x-show="deleting"
+       x-transition.opacity
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+       @click.self="deleting = false"
+       style="display: none;">
+    <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full"
+         @click.stop>
+      <div class="flex items-start gap-3 mb-4">
+        <div class="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+               stroke-width="1.75" stroke="currentColor" class="w-5 h-5 text-red-600">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-gray-900">Hapus Kelas</h3>
+          <p class="text-sm text-gray-500 mt-1">
+            Apakah Anda yakin ingin menghapus kelas
+            <span class="font-medium text-gray-700">{{ kelas.name }}</span>?
+            Tindakan ini tidak dapat dibatalkan.
+          </p>
+        </div>
+      </div>
+      <div class="flex gap-3 justify-end">
+        <button type="button"
+                @click="deleting = false"
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300
+                       rounded-lg hover:bg-gray-50 transition-colors">
+          Batal
+        </button>
+        <form method="post" action="{% url 'academics:teacher_class_delete' kelas.pk %}">
+          {% csrf_token %}
+          <button type="submit"
+                  class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg
+                         hover:bg-red-700 transition-colors">
+            Ya, Hapus
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <!-- ──────────────────────────────────────────────────────────────────────── -->
 
   <!-- Card header: name + status badge -->
   <div class="px-5 pt-5 pb-3 flex items-start justify-between gap-3">
@@ -13,26 +59,18 @@
     </div>
     <!-- Status badge -->
     {% if kelas.status == 'OPEN' %}
-      <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-        Buka
-      </span>
+      <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Buka</span>
     {% elif kelas.status == 'FULL' %}
-      <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
-        Penuh
-      </span>
+      <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">Penuh</span>
     {% else %}
-      <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-        Tutup
-      </span>
+      <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">Tutup</span>
     {% endif %}
   </div>
 
-  <!-- Divider -->
   <div class="border-t border-gray-50 mx-5"></div>
 
-  <!-- Meta: level + capacity -->
+  <!-- Level + enrolled/capacity + sessions -->
   <div class="px-5 py-3 flex items-center gap-3 flex-wrap">
-    <!-- Level badge -->
     {% if kelas.level == 'SD' %}
       <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-50 text-teal-700">SD</span>
     {% elif kelas.level == 'SMP' %}
@@ -41,7 +79,6 @@
       <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700">SMA</span>
     {% endif %}
 
-    <!-- Enrolled / Capacity -->
     <span class="flex items-center gap-1 text-xs text-gray-500">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
            stroke-width="1.75" stroke="currentColor" class="w-3.5 h-3.5">
@@ -51,7 +88,6 @@
       {{ kelas.get_enrolled_count }}/{{ kelas.capacity }} siswa
     </span>
 
-    <!-- Session count -->
     <span class="flex items-center gap-1 text-xs text-gray-500">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
            stroke-width="1.75" stroke="currentColor" class="w-3.5 h-3.5">
@@ -79,21 +115,27 @@
   {% endif %}
 
   <!-- Period -->
-  <div class="px-5 pb-4 text-xs text-gray-400">
-    {{ kelas.academic_period.name }}
-  </div>
+  <div class="px-5 pb-4 text-xs text-gray-400">{{ kelas.academic_period.name }}</div>
 
-  <!-- Edit / Students links (shown when show_edit_link=True) -->
+  <!-- Action buttons (teacher view only) -->
   {% if show_edit_link %}
-  <div class="mt-auto border-t border-gray-50 px-5 py-3 flex gap-2">
-    <a href="#"
-       class="flex-1 text-center text-xs font-medium text-indigo-600 hover:text-indigo-700 py-1.5 rounded-lg hover:bg-indigo-50 transition-colors">
+  <div class="mt-auto border-t border-gray-100 px-5 py-3 flex gap-1">
+    <a href="{% url 'academics:teacher_class_edit' kelas.pk %}"
+       class="flex-1 text-center text-xs font-medium text-indigo-600 hover:text-indigo-700
+              py-1.5 rounded-lg hover:bg-indigo-50 transition-colors">
       Edit
     </a>
-    <a href="#"
-       class="flex-1 text-center text-xs font-medium text-gray-600 hover:text-gray-900 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
-      Siswa
+    <a href="{% url 'academics:teacher_class_students' kelas.pk %}"
+       class="flex-1 text-center text-xs font-medium text-gray-600 hover:text-gray-900
+              py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
+      Lihat Siswa
     </a>
+    <button type="button"
+            @click="deleting = true"
+            class="flex-1 text-center text-xs font-medium text-red-500 hover:text-red-700
+                   py-1.5 rounded-lg hover:bg-red-50 transition-colors">
+      Hapus
+    </button>
   </div>
   {% endif %}
 
