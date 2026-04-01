@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto mt-16 text-center">
+  <div class="w-20 h-20 rounded-full bg-indigo-100 flex items-center justify-center mx-auto mb-6">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+         stroke-width="1.5" stroke="currentColor" class="w-10 h-10 text-indigo-600">
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+    </svg>
+  </div>
+  <h1 class="text-2xl font-bold text-gray-900 mb-2">
+    Halo, {{ user.first_name }}! 👋
+  </h1>
+  <p class="text-gray-500 mb-2">Anda berhasil masuk sebagai <strong>{{ user.get_role_display }}</strong>.</p>
+  <p class="text-sm text-gray-400">Dashboard lengkap akan tersedia setelah fitur dikembangkan.</p>
+</div>
+{% endblock %}

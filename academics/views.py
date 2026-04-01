@@ -163,22 +163,53 @@ def teacher_class_delete(request, pk):
     return redirect('academics:teacher_classes')
 
 
+# ── Student-facing views ───────────────────────────────────────────────────────
+
+@role_required('STUDENT')
+def class_browse(request):
+    """Browse all OPEN classes filtered by the student's level."""
+    student_level = request.user.student_profile.level
+    klasses = (
+        Kelas.objects
+        .filter(is_deleted=False, status=KelasStatus.OPEN, level=student_level)
+        .select_related('subject', 'academic_period', 'teacher')
+        .prefetch_related('schedules')
+        .order_by('name')
+    )
+    return render(request, 'academics/class_browse.html', {
+        'klasses': klasses,
+        'student_level': student_level,
+    })
+
+
+@role_required('STUDENT')
+def class_detail(request, pk):
+    """Class detail page for students. Shows enrollment state."""
+    kelas = get_object_or_404(Kelas, pk=pk, is_deleted=False)
+    from enrollments.models import Enrollment
+    enrollment = Enrollment.objects.filter(
+        student=request.user, kelas=kelas, is_deleted=False
+    ).first()
+    return render(request, 'academics/class_detail.html', {
+        'kelas': kelas,
+        'enrollment': enrollment,
+    })
+
+
 @role_required('TEACHER')
 def teacher_class_students(request, pk):
     kelas = get_object_or_404(Kelas, pk=pk, teacher=request.user, is_deleted=False)
-
-    try:
-        from enrollments.models import Enrollment
-        enrollments = (
-            Enrollment.objects
-            .filter(kelas=kelas, is_deleted=False)
-            .select_related('student', 'student__studentprofile')
-            .order_by('enrolled_at')
-        )
-    except ImportError:
-        enrollments = []
-
+    from enrollments.models import Enrollment, EnrollmentStatus
+    enrollments = (
+        Enrollment.objects
+        .filter(kelas=kelas, is_deleted=False)
+        .select_related('student', 'student__student_profile')
+        .order_by('enrolled_at')
+    )
+    active_count = enrollments.filter(status=EnrollmentStatus.ACTIVE).count()
     return render(request, 'academics/teacher_class_students.html', {
         'kelas': kelas,
         'enrollments': enrollments,
+        'active_count': active_count,
+        'EnrollmentStatus': EnrollmentStatus,
     })

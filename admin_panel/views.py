@@ -90,3 +90,54 @@ def change_status_view(request, user_id):
         messages.error(request, 'Status tidak valid.')
 
     return redirect('admin_panel:pending_users')
+
+
+# ── Admin stub views (to be replaced with full implementations) ────────────────
+
+def _admin_stub(request, feature_name):
+    return render(request, 'coming_soon.html', {'feature_name': feature_name})
+
+
+@role_required('ADMIN')
+def users_list(request):
+    return _admin_stub(request, 'Manajemen Pengguna')
+
+
+@role_required('ADMIN')
+def classes_list(request):
+    return _admin_stub(request, 'Manajemen Kelas')
+
+
+@role_required('ADMIN')
+def subjects_list(request):
+    return _admin_stub(request, 'Manajemen Mata Pelajaran')
+
+
+@role_required('ADMIN')
+def categories_list(request):
+    return _admin_stub(request, 'Manajemen Kategori')
+
+
+@role_required('ADMIN')
+def periods_list(request):
+    return _admin_stub(request, 'Periode Akademik')
+
+
+@role_required('ADMIN')
+def enrollments_list(request):
+    return _admin_stub(request, 'Manajemen Pendaftaran')
+
+
+@role_required('ADMIN')
+def grades_list(request):
+    return _admin_stub(request, 'Manajemen Nilai')
+
+
+@role_required('ADMIN')
+def ratings_list(request):
+    return _admin_stub(request, 'Manajemen Rating')
+
+
+@role_required('ADMIN')
+def logs_list(request):
+    return _admin_stub(request, 'Log Aktivitas')

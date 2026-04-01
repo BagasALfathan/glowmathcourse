@@ -28,7 +28,7 @@
   Kelas Saya
 </a>
 
-<a href="/my-grades/"
+<a href="{% url 'grades:my_grades' %}"
    class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
           {% if '/my-grades/' in path %}bg-teal-50 text-teal-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-5 h-5 shrink-0">
@@ -37,7 +37,7 @@
   Nilai Saya
 </a>
 
-<a href="/my-attendance/"
+<a href="{% url 'sessions:my_attendance' %}"
    class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
           {% if '/my-attendance/' in path %}bg-teal-50 text-teal-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-5 h-5 shrink-0">

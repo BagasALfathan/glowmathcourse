@@ -9,6 +9,12 @@ class Role(models.TextChoices):
     ADMIN = 'ADMIN', 'Admin'
 
 
+class ApprovalStatus(models.TextChoices):
+    PENDING = 'PENDING', 'Menunggu'
+    APPROVED = 'APPROVED', 'Disetujui'
+    REJECTED = 'REJECTED', 'Ditolak'
+
+
 class Level(models.TextChoices):
     SD = 'SD', 'SD'
     SMP = 'SMP', 'SMP'
@@ -23,6 +29,11 @@ class Education(models.TextChoices):
 
 class User(AbstractUser):
     role = models.CharField(max_length=10, choices=Role.choices, db_index=True)
+    approval_status = models.CharField(
+        max_length=10,
+        choices=ApprovalStatus.choices,
+        default=ApprovalStatus.PENDING,
+    )
     is_deleted = models.BooleanField(default=False)
     deleted_at = models.DateTimeField(null=True, blank=True)
 

@@ -9,4 +9,8 @@ urlpatterns = [
     path('dashboard/', include('dashboard.urls')),
     path('admin-panel/', include('admin_panel.urls')),
     path('', include('academics.urls')),
+    path('', include('enrollments.urls')),
+    path('', include('grades.urls')),
+    path('', include('sessions.urls')),
+    path('', include('ratings.urls')),
 ]

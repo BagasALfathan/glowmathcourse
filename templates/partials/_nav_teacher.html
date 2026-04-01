@@ -28,7 +28,7 @@
   Buat Kelas
 </a>
 
-<a href="/teacher/ratings/"
+<a href="{% url 'ratings:teacher_ratings' %}"
    class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
           {% if '/teacher/ratings/' in path %}bg-orange-50 text-orange-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-5 h-5 shrink-0">

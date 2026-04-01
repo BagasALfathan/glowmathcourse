@@ -1,12 +1,14 @@
 {% comment %}
   Reusable class card component.
   Required context : kelas (Kelas instance, with schedules prefetched)
-  Optional context : show_edit_link (bool) — shows Edit / Hapus / Lihat Siswa buttons
+  Optional context : show_edit_link (bool)   — teacher edit/delete/students buttons
+                     show_enroll_button (bool) — student "Daftar" button
+                     enrollment (Enrollment)   — if set, shows drop button instead
 {% endcomment %}
 <div class="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow flex flex-col relative"
-     x-data="{ deleting: false }">
+     x-data="{ deleting: false, dropping: false }">
 
-  <!-- ── Delete confirmation overlay ─────────────────────────────────────── -->
+  <!-- ── Delete confirmation overlay (teacher) ───────────────────────────── -->
   <div x-show="deleting"
        x-transition.opacity
        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -49,6 +51,51 @@
       </div>
     </div>
   </div>
+
+  <!-- ── Drop confirmation overlay (student) ─────────────────────────────── -->
+  {% if enrollment %}
+  <div x-show="dropping"
+       x-transition.opacity
+       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+       @click.self="dropping = false"
+       style="display: none;">
+    <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full"
+         @click.stop>
+      <div class="flex items-start gap-3 mb-4">
+        <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+               stroke-width="1.75" stroke="currentColor" class="w-5 h-5 text-orange-600">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+          </svg>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold text-gray-900">Keluar dari Kelas</h3>
+          <p class="text-sm text-gray-500 mt-1">
+            Apakah Anda yakin ingin keluar dari kelas
+            <span class="font-medium text-gray-700">{{ kelas.name }}</span>?
+          </p>
+        </div>
+      </div>
+      <div class="flex gap-3 justify-end">
+        <button type="button"
+                @click="dropping = false"
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300
+                       rounded-lg hover:bg-gray-50 transition-colors">
+          Batal
+        </button>
+        <form method="post" action="{% url 'enrollments:drop_class' enrollment.pk %}">
+          {% csrf_token %}
+          <button type="submit"
+                  class="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg
+                         hover:bg-orange-700 transition-colors">
+            Ya, Keluar
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
   <!-- ──────────────────────────────────────────────────────────────────────── -->
 
   <!-- Card header: name + status badge -->
@@ -56,6 +103,9 @@
     <div class="min-w-0">
       <h3 class="text-sm font-semibold text-gray-900 truncate">{{ kelas.name }}</h3>
       <p class="text-xs text-gray-500 mt-0.5 truncate">{{ kelas.subject.name }}</p>
+      {% if show_enroll_button or enrollment %}
+      <p class="text-xs text-gray-400 mt-0.5 truncate">{{ kelas.teacher.get_full_name }}</p>
+      {% endif %}
     </div>
     <!-- Status badge -->
     {% if kelas.status == 'OPEN' %}
@@ -117,7 +167,7 @@
   <!-- Period -->
   <div class="px-5 pb-4 text-xs text-gray-400">{{ kelas.academic_period.name }}</div>
 
-  <!-- Action buttons (teacher view only) -->
+  <!-- ── Teacher action buttons ─────────────────────────────────────────── -->
   {% if show_edit_link %}
   <div class="mt-auto border-t border-gray-100 px-5 py-3 flex gap-1">
     <a href="{% url 'academics:teacher_class_edit' kelas.pk %}"
@@ -136,6 +186,62 @@
                    py-1.5 rounded-lg hover:bg-red-50 transition-colors">
       Hapus
     </button>
+  </div>
+  {% endif %}
+
+  <!-- ── Student browse: Daftar button ─────────────────────────────────── -->
+  {% if show_enroll_button %}
+  <div class="mt-auto border-t border-gray-100 px-5 py-3 flex gap-2">
+    <a href="{% url 'academics:class_detail' kelas.pk %}"
+       class="flex-1 text-center text-xs font-medium text-gray-600 hover:text-gray-900
+              py-1.5 rounded-lg hover:bg-gray-50 transition-colors border border-gray-200">
+      Detail
+    </a>
+    {% if kelas.status == 'OPEN' %}
+    <form method="post" action="{% url 'enrollments:enroll' kelas.pk %}" class="flex-1">
+      {% csrf_token %}
+      <button type="submit"
+              class="w-full text-center text-xs font-medium text-white bg-indigo-600
+                     py-1.5 rounded-lg hover:bg-indigo-700 transition-colors">
+        Daftar
+      </button>
+    </form>
+    {% else %}
+    <span class="flex-1 text-center text-xs font-medium text-gray-400 py-1.5 rounded-lg bg-gray-50 cursor-not-allowed">
+      Penuh
+    </span>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <!-- ── Student my-classes: enrollment status + enrolled_at + drop button ── -->
+  {% if enrollment %}
+  <div class="mt-auto border-t border-gray-100 px-5 py-3 space-y-2">
+    <div class="flex items-center gap-2">
+      {% if enrollment.status == 'ACTIVE' %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Aktif</span>
+      {% elif enrollment.status == 'COMPLETED' %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">Selesai</span>
+      {% else %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">Keluar</span>
+      {% endif %}
+      <span class="text-xs text-gray-400">Daftar: {{ enrollment.enrolled_at|date:"d M Y" }}</span>
+    </div>
+    <div class="flex gap-1">
+      <a href="{% url 'academics:class_detail' kelas.pk %}"
+         class="text-xs font-medium text-gray-500 hover:text-gray-700 px-3 py-1.5 rounded-lg
+                hover:bg-gray-50 transition-colors border border-gray-200">
+        Detail
+      </a>
+      {% if enrollment.status == 'ACTIVE' %}
+      <button type="button"
+              @click="dropping = true"
+              class="text-xs font-medium text-orange-500 hover:text-orange-700 px-3 py-1.5
+                     rounded-lg hover:bg-orange-50 transition-colors">
+        Keluar
+      </button>
+      {% endif %}
+    </div>
   </div>
   {% endif %}
 
