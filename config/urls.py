@@ -12,5 +12,6 @@ urlpatterns = [
     path('', include('enrollments.urls')),
     path('', include('grades.urls')),
     path('', include('sessions.urls')),
+    path('', include('sessions_app.urls')),
     path('', include('ratings.urls')),
 ]

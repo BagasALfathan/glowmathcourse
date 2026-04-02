@@ -32,6 +32,7 @@ INSTALLED_APPS = [
     'admin_panel',
     'academics',
     'enrollments',
+    'sessions_app',
 ]
 
 MIDDLEWARE = [

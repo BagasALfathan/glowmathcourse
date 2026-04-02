@@ -169,23 +169,31 @@
 
   <!-- ── Teacher action buttons ─────────────────────────────────────────── -->
   {% if show_edit_link %}
-  <div class="mt-auto border-t border-gray-100 px-5 py-3 flex gap-1">
-    <a href="{% url 'academics:teacher_class_edit' kelas.pk %}"
-       class="flex-1 text-center text-xs font-medium text-indigo-600 hover:text-indigo-700
-              py-1.5 rounded-lg hover:bg-indigo-50 transition-colors">
-      Edit
-    </a>
-    <a href="{% url 'academics:teacher_class_students' kelas.pk %}"
-       class="flex-1 text-center text-xs font-medium text-gray-600 hover:text-gray-900
-              py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
-      Lihat Siswa
-    </a>
-    <button type="button"
-            @click="deleting = true"
-            class="flex-1 text-center text-xs font-medium text-red-500 hover:text-red-700
-                   py-1.5 rounded-lg hover:bg-red-50 transition-colors">
-      Hapus
-    </button>
+  <div class="mt-auto border-t border-gray-100 px-5 py-3 space-y-1">
+    <!-- Row 1: main actions -->
+    <div class="flex gap-1">
+      <a href="{% url 'sessions_app:teacher_sessions' kelas.pk %}"
+         class="flex-1 text-center text-xs font-medium text-teal-600 hover:text-teal-800
+                py-1.5 rounded-lg hover:bg-teal-50 transition-colors">
+        Sesi
+      </a>
+      <a href="{% url 'academics:teacher_class_students' kelas.pk %}"
+         class="flex-1 text-center text-xs font-medium text-gray-600 hover:text-gray-900
+                py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
+        Siswa
+      </a>
+      <a href="{% url 'academics:teacher_class_edit' kelas.pk %}"
+         class="flex-1 text-center text-xs font-medium text-indigo-600 hover:text-indigo-700
+                py-1.5 rounded-lg hover:bg-indigo-50 transition-colors">
+        Edit
+      </a>
+      <button type="button"
+              @click="deleting = true"
+              class="flex-1 text-center text-xs font-medium text-red-500 hover:text-red-700
+                     py-1.5 rounded-lg hover:bg-red-50 transition-colors">
+        Hapus
+      </button>
+    </div>
   </div>
   {% endif %}
 

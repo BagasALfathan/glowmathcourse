@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block title %}Buat Pertemuan — {{ kelas.name }}{% endblock %}
+{% block page_title %}Buat Pertemuan Baru{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto space-y-5">
+
+  <!-- Back link -->
+  <a href="{% url 'sessions_app:teacher_sessions' kelas.pk %}"
+     class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+         stroke-width="2" stroke="currentColor" class="w-4 h-4">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+    </svg>
+    Daftar Pertemuan
+  </a>
+
+  <!-- Context banner -->
+  <div class="bg-indigo-50 border border-indigo-100 rounded-xl px-5 py-3 flex items-center gap-3">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+         stroke-width="1.75" stroke="currentColor" class="w-4 h-4 text-indigo-500 shrink-0">
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+    </svg>
+    <p class="text-sm text-indigo-700">
+      {{ kelas.name }} &nbsp;·&nbsp;
+      Pertemuan ke-<span class="font-semibold">{{ next_number }}</span>
+      dari <span class="font-semibold">{{ kelas.total_sessions }}</span>
+    </p>
+  </div>
+
+  <!-- Form card -->
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-6 py-6">
+    <h2 class="text-sm font-semibold text-gray-900 mb-5">Detail Pertemuan</h2>
+    <form method="post" class="space-y-4">
+      {% csrf_token %}
+      {% crispy form %}
+      <div class="flex gap-3 pt-2">
+        <a href="{% url 'sessions_app:teacher_sessions' kelas.pk %}"
+           class="flex-1 text-center px-4 py-2 text-sm font-medium text-gray-700 bg-white
+                  border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+          Batal
+        </a>
+        <button type="submit"
+                class="flex-1 px-4 py-2 text-sm font-semibold text-white bg-indigo-600
+                       rounded-lg hover:bg-indigo-700 transition-colors">
+          Buat Pertemuan
+        </button>
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}
