@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Nilai — {{ kelas.name }}{% endblock %}
+{% block page_title %}Detail Nilai{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-5">
+
+  <!-- Back link -->
+  <a href="{% url 'grades:my_grades' %}"
+     class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+         stroke-width="2" stroke="currentColor" class="w-4 h-4">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+    </svg>
+    Nilai Saya
+  </a>
+
+  <!-- Class info banner -->
+  <div class="bg-indigo-50 border border-indigo-100 rounded-xl px-5 py-4">
+    <h2 class="text-sm font-semibold text-indigo-800">{{ kelas.name }}</h2>
+    <p class="text-xs text-indigo-600 mt-0.5">
+      {{ kelas.subject.name }}
+      {% if kelas.level == 'SD' %}&nbsp;·&nbsp;SD
+      {% elif kelas.level == 'SMP' %}&nbsp;·&nbsp;SMP
+      {% else %}&nbsp;·&nbsp;SMA{% endif %}
+      {% if kelas.teacher %}
+        &nbsp;·&nbsp;{{ kelas.teacher.get_full_name }}
+      {% endif %}
+    </p>
+  </div>
+
+  <!-- Summary stats -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+
+    <!-- Average -->
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-4 col-span-2 sm:col-span-1 flex flex-col items-center justify-center gap-1">
+      {% if avg is not None %}
+        <span class="text-3xl font-bold
+          {% if avg >= 80 %}text-green-600{% elif avg >= 60 %}text-yellow-500{% else %}text-red-500{% endif %}">
+          {{ avg }}
+        </span>
+        <span class="text-xs text-gray-500">rata-rata</span>
+      {% else %}
+        <span class="text-2xl font-bold text-gray-300">—</span>
+        <span class="text-xs text-gray-400">belum ada nilai</span>
+      {% endif %}
+    </div>
+
+    <!-- Total -->
+    <div class="bg-blue-50 border border-blue-100 rounded-xl px-4 py-4 flex flex-col items-center gap-1">
+      <span class="text-2xl font-bold text-blue-700">{{ total }}</span>
+      <span class="text-xs text-blue-600 font-medium">Total Nilai</span>
+    </div>
+
+    <!-- Highest -->
+    <div class="bg-green-50 border border-green-100 rounded-xl px-4 py-4 flex flex-col items-center gap-1">
+      {% if highest is not None %}
+        <span class="text-2xl font-bold text-green-700">{{ highest|floatformat:"-2" }}</span>
+      {% else %}
+        <span class="text-2xl font-bold text-gray-300">—</span>
+      {% endif %}
+      <span class="text-xs text-green-600 font-medium">Tertinggi</span>
+    </div>
+
+    <!-- Lowest -->
+    <div class="bg-red-50 border border-red-100 rounded-xl px-4 py-4 flex flex-col items-center gap-1">
+      {% if lowest is not None %}
+        <span class="text-2xl font-bold text-red-600">{{ lowest|floatformat:"-2" }}</span>
+      {% else %}
+        <span class="text-2xl font-bold text-gray-300">—</span>
+      {% endif %}
+      <span class="text-xs text-red-600 font-medium">Terendah</span>
+    </div>
+
+  </div>
+
+  <!-- Grade table -->
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-100">
+      <h3 class="text-sm font-semibold text-gray-900">Daftar Nilai</h3>
+    </div>
+    {% include "components/_grade_table.html" with grades=grades empty_message="Belum ada nilai untuk kelas ini." %}
+  </div>
+
+</div>
+{% endblock %}

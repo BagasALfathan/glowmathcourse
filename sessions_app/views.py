@@ -1,18 +1,25 @@
 from django.contrib import messages
+from django.db.models import Count
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
 from academics.models import Kelas
 from accounts.decorators import role_required
+from enrollments.models import Enrollment, EnrollmentStatus
 
 from .forms import SessionForm
-from .models import Session, SessionStatus
+from .models import Attendance, AttendanceStatus, Session, SessionStatus
 
 
 @role_required('TEACHER')
 def teacher_sessions(request, pk):
     kelas = get_object_or_404(Kelas, pk=pk, teacher=request.user, is_deleted=False)
-    sessions = Session.objects.filter(kelas=kelas).order_by('session_number')
+    sessions = (
+        Session.objects
+        .filter(kelas=kelas)
+        .annotate(attendance_count=Count('attendances'))
+        .order_by('session_number')
+    )
     completed_count = sessions.filter(status=SessionStatus.COMPLETED).count()
     next_number = sessions.count() + 1  # next session_number if all are created in order
 
@@ -92,9 +99,69 @@ def teacher_session_update_status(request, pk):
 
 @role_required('TEACHER')
 def teacher_attendance(request, pk):
-    """Attendance marking — stub, to be implemented in a later day."""
-    session = get_object_or_404(Session, pk=pk)
+    session = get_object_or_404(
+        Session.objects.select_related('kelas__teacher'),
+        pk=pk,
+    )
     if session.kelas.teacher != request.user:
-        messages.error(request, 'Akses ditolak.')
+        messages.error(request, 'Anda tidak memiliki akses untuk sesi ini.')
         return redirect('academics:teacher_classes')
-    return render(request, 'coming_soon.html', {'feature_name': 'Absensi Pertemuan'})
+
+    # All ACTIVE enrollments for this class
+    enrollments = (
+        Enrollment.objects
+        .filter(kelas=session.kelas, status=EnrollmentStatus.ACTIVE, is_deleted=False)
+        .select_related('student__student_profile')
+        .order_by('student__last_name', 'student__first_name')
+    )
+
+    # Existing attendance records for this session (keyed by enrollment_id)
+    existing = {
+        a.enrollment_id: a
+        for a in Attendance.objects.filter(session=session)
+    }
+
+    if request.method == 'POST':
+        saved = 0
+        for enrollment in enrollments:
+            key = f'attendance_{enrollment.pk}'
+            raw_status = request.POST.get(key, '').strip()
+            if raw_status not in AttendanceStatus.values:
+                raw_status = AttendanceStatus.PRESENT  # fallback
+
+            if enrollment.pk in existing:
+                att = existing[enrollment.pk]
+                if att.status != raw_status:
+                    att.status = raw_status
+                    att.save(update_fields=['status', 'updated_at'])
+            else:
+                Attendance.objects.create(
+                    enrollment=enrollment,
+                    session=session,
+                    status=raw_status,
+                )
+            saved += 1
+
+        messages.success(request, 'Kehadiran berhasil disimpan!')
+        # Reload existing after save so pre-fill is up-to-date
+        existing = {
+            a.enrollment_id: a
+            for a in Attendance.objects.filter(session=session)
+        }
+
+    # Build rows with pre-filled status for template
+    rows = []
+    for enrollment in enrollments:
+        att = existing.get(enrollment.pk)
+        rows.append({
+            'enrollment': enrollment,
+            'current_status': att.status if att else None,
+        })
+
+    return render(request, 'sessions_app/teacher_attendance.html', {
+        'session': session,
+        'kelas': session.kelas,
+        'rows': rows,
+        'AttendanceStatus': AttendanceStatus,
+        'already_marked': bool(existing),
+    })

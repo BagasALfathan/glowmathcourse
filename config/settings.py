@@ -32,7 +32,9 @@ INSTALLED_APPS = [
     'admin_panel',
     'academics',
     'enrollments',
+    'grades',
     'sessions_app',
+    'ratings',
 ]
 
 MIDDLEWARE = [

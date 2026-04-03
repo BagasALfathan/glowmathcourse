@@ -1,0 +1,73 @@
+{% comment %}
+  Reusable grade table component.
+  Expects: grades (list of Grade objects, each with .grade_type, .score, .session, .graded_at, .notes)
+  Optional: empty_message (string shown when grades is empty)
+{% endcomment %}
+{% if grades %}
+<div class="overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-100">
+      <tr>
+        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Jenis</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nilai</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Pertemuan</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Tanggal</th>
+        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Catatan</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-50">
+      {% for grade in grades %}
+      <tr class="hover:bg-gray-50 transition-colors">
+
+        <!-- Grade type badge -->
+        <td class="px-4 py-3">
+          {% if grade.grade_type == 'QUIZ' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">Kuis</span>
+          {% elif grade.grade_type == 'MIDTERM' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">UTS</span>
+          {% elif grade.grade_type == 'FINAL' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">UAS</span>
+          {% else %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Tugas</span>
+          {% endif %}
+        </td>
+
+        <!-- Score with colour -->
+        <td class="px-4 py-3">
+          <span class="font-semibold text-base
+            {% if grade.score >= 80 %}text-green-600
+            {% elif grade.score >= 60 %}text-yellow-600
+            {% else %}text-red-500{% endif %}">
+            {{ grade.score|floatformat:"-2" }}
+          </span>
+        </td>
+
+        <!-- Session -->
+        <td class="px-4 py-3 text-gray-500 hidden sm:table-cell">
+          {% if grade.session %}
+            Pertemuan {{ grade.session.session_number }}
+          {% else %}
+            <span class="text-gray-300">—</span>
+          {% endif %}
+        </td>
+
+        <!-- Date -->
+        <td class="px-4 py-3 text-gray-500 hidden md:table-cell text-xs">
+          {{ grade.graded_at|date:"d M Y" }}
+        </td>
+
+        <!-- Notes -->
+        <td class="px-4 py-3 text-gray-500 hidden md:table-cell">
+          {{ grade.notes|default:"—" }}
+        </td>
+
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="px-5 py-6 text-sm text-gray-400 italic text-center">
+  {{ empty_message|default:"Belum ada nilai." }}
+</div>
+{% endif %}
