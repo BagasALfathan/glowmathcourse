@@ -1,0 +1,27 @@
+{% extends "base_print.html" %}
+
+{% block title %}Jadwal Mengajar — {{ user.get_full_name }}{% endblock %}
+
+{% block content %}
+<style>
+  @page { size: landscape; margin: 1.5cm; }
+</style>
+
+<div class="mb-6 pb-4 border-b border-gray-200">
+  <h1 class="text-xl font-bold text-gray-900 mb-1">Jadwal Mengajar</h1>
+  <p class="text-sm text-gray-600">
+    <span class="font-medium">{{ user.get_full_name }}</span>
+    &nbsp;·&nbsp; Guru
+    &nbsp;·&nbsp; Dicetak: {% now "d F Y" %}
+  </p>
+  {% if total_classes %}
+  <p class="text-xs text-gray-400 mt-1">{{ total_classes }} kelas aktif</p>
+  {% endif %}
+</div>
+
+{% if total_classes %}
+{% include "components/_schedule_grid.html" with grid_rows=grid_rows days=days days_list=days_list view_role=view_role is_print=True %}
+{% else %}
+<p class="text-sm text-gray-400 text-center py-12">Tidak ada kelas aktif saat ini.</p>
+{% endif %}
+{% endblock %}

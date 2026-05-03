@@ -4,117 +4,193 @@
 {% block page_title %}Kehadiran Saya{% endblock %}
 
 {% block content %}
-<div class="space-y-5">
+<div class="space-y-5" x-data="{ tab: 'active' }">
 
-  {% if summary_list %}
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-    {% for item in summary_list %}
-    {% with enrollment=item.enrollment kelas=item.enrollment.kelas %}
-    <a href="{% url 'sessions:my_attendance_detail' kelas.pk %}"
-       class="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md
-              transition-shadow p-5 flex flex-col gap-3 group">
-
-      <!-- Class name + subject -->
-      <div>
-        <h3 class="text-sm font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors truncate">
-          {{ kelas.name }}
-        </h3>
-        <p class="text-xs text-gray-500 mt-0.5 truncate">
-          {{ kelas.subject.name }}
-          {% if kelas.level == 'SD' %}&nbsp;·&nbsp;<span class="text-teal-600 font-medium">SD</span>
-          {% elif kelas.level == 'SMP' %}&nbsp;·&nbsp;<span class="text-blue-600 font-medium">SMP</span>
-          {% else %}&nbsp;·&nbsp;<span class="text-purple-600 font-medium">SMA</span>{% endif %}
-        </p>
-      </div>
-
-      <!-- Attendance percentage badge -->
-      <div>
-        {% if item.pct is not None %}
-          {% if item.pct >= 80 %}
-          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                 stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-            {{ item.pct }}% kehadiran
-          </span>
-          {% elif item.pct >= 60 %}
-          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                 stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-            </svg>
-            {{ item.pct }}% kehadiran
-          </span>
-          {% else %}
-          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                 stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            {{ item.pct }}% kehadiran
-          </span>
-          {% endif %}
-        {% else %}
-          <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">
-            Belum ada data
-          </span>
+  <!-- Tab bar + print button -->
+  <div class="flex items-center gap-3 flex-wrap">
+    <div class="flex border-b border-gray-200 flex-1 min-w-0">
+      <button type="button" @click="tab = 'active'"
+              :class="tab === 'active' ? 'border-primary-600 text-primary-700 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700'"
+              class="flex items-center gap-1.5 px-4 py-2.5 text-sm border-b-2 transition-colors -mb-px whitespace-nowrap">
+        Kelas Aktif
+        {% if active_summary %}
+        <span class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-semibold bg-primary-100 text-primary-700">{{ active_summary|length }}</span>
         {% endif %}
-      </div>
-
-      <!-- Stats row -->
-      <div class="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
-        <span class="flex items-center gap-1">
-          <span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span>
-          {{ item.present_count }} hadir
-        </span>
-        <span class="flex items-center gap-1">
-          <span class="w-2 h-2 rounded-full bg-yellow-400 inline-block"></span>
-          {{ item.permitted_count }} izin
-        </span>
-        <span class="flex items-center gap-1">
-          <span class="w-2 h-2 rounded-full bg-red-400 inline-block"></span>
-          {{ item.absent_count }} alpha
-        </span>
-        <span class="text-gray-400 ml-auto">{{ item.marked_count }}/{{ item.total_sessions }} pertemuan</span>
-      </div>
-
-      <!-- Progress bar -->
-      <div class="w-full bg-gray-100 rounded-full h-1.5">
-        {% if item.total_sessions > 0 and item.marked_count > 0 %}
-        <div class="h-1.5 rounded-full transition-all
-                    {% if item.pct >= 80 %}bg-green-500{% elif item.pct >= 60 %}bg-yellow-400{% else %}bg-red-400{% endif %}"
-             style="width: {% widthratio item.present_count|add:item.permitted_count item.marked_count 100 %}%"></div>
+      </button>
+      <button type="button" @click="tab = 'completed'"
+              :class="tab === 'completed' ? 'border-primary-600 text-primary-700 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700'"
+              class="flex items-center gap-1.5 px-4 py-2.5 text-sm border-b-2 transition-colors -mb-px whitespace-nowrap">
+        Kelas Selesai
+        {% if completed_summary %}
+        <span class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">{{ completed_summary|length }}</span>
         {% endif %}
-      </div>
-
-    </a>
-    {% endwith %}
-    {% endfor %}
-  </div>
-
-  {% else %}
-  <!-- Empty state -->
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm">
-    <div class="flex flex-col items-center justify-center py-20 text-center px-6">
-      <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-             stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-gray-400">
-          <path stroke-linecap="round" stroke-linejoin="round"
-                d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </div>
-      <p class="text-gray-600 font-medium mb-1">Belum ada kelas yang diikuti.</p>
-      <p class="text-sm text-gray-400 mb-4">Daftar ke kelas untuk melihat data kehadiran.</p>
-      <a href="{% url 'academics:class_list' %}"
-         class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white
-                bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
-        Cari Kelas
-      </a>
+      </button>
     </div>
+    <a href="{% url 'sessions:print_my_attendance' %}" target="_blank"
+       class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700
+              border border-gray-300 bg-white rounded-lg hover:bg-gray-50 transition-colors shrink-0">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+           stroke-width="1.75" stroke="currentColor" class="w-4 h-4">
+        <path stroke-linecap="round" stroke-linejoin="round"
+              d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
+      </svg>
+      Cetak
+    </a>
   </div>
-  {% endif %}
+
+  {% comment %}Shared attendance card grid — rendered for both tabs{% endcomment %}
+
+  <!-- ── Kelas Aktif ──────────────────────────────────────────────────────── -->
+  <div x-show="tab === 'active'" x-cloak>
+    {% if active_summary %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {% for item in active_summary %}
+      {% with enrollment=item.enrollment kelas=item.enrollment.kelas %}
+      <a href="{% url 'sessions:my_attendance_detail' kelas.pk %}"
+         class="h-full bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md
+                transition-shadow p-5 flex flex-col gap-3 group">
+        <div>
+          <h3 class="text-sm font-semibold text-gray-900 group-hover:text-primary-600 transition-colors truncate">
+            {{ kelas.name }}
+          </h3>
+          <p class="text-xs text-gray-500 mt-0.5 truncate">
+            {{ kelas.subject.name }}
+            {% if kelas.level == 'SD' %}&nbsp;·&nbsp;<span class="text-teal-600 font-medium">SD</span>
+            {% elif kelas.level == 'SMP' %}&nbsp;·&nbsp;<span class="text-blue-600 font-medium">SMP</span>
+            {% else %}&nbsp;·&nbsp;<span class="text-primary-600 font-medium">SMA</span>{% endif %}
+          </p>
+        </div>
+        <div>
+          {% if item.pct is not None %}
+            {% if item.pct >= 80 %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+              {{ item.pct }}% kehadiran
+            </span>
+            {% elif item.pct >= 60 %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+              {{ item.pct }}% kehadiran
+            </span>
+            {% else %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              {{ item.pct }}% kehadiran
+            </span>
+            {% endif %}
+          {% else %}
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Belum ada data</span>
+          {% endif %}
+        </div>
+        <div class="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span>{{ item.present_count }} hadir</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-yellow-400 inline-block"></span>{{ item.permitted_count }} izin</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-400 inline-block"></span>{{ item.absent_count }} alpha</span>
+          <span class="text-gray-400 ml-auto">{{ item.marked_count }}/{{ item.total_sessions }} pertemuan</span>
+        </div>
+        <div class="w-full bg-gray-100 rounded-full h-1.5">
+          {% if item.total_sessions > 0 and item.marked_count > 0 %}
+          <div class="h-1.5 rounded-full transition-all {% if item.pct >= 80 %}bg-green-500{% elif item.pct >= 60 %}bg-yellow-400{% else %}bg-red-400{% endif %}"
+               style="width: {% widthratio item.present_count|add:item.permitted_count item.marked_count 100 %}%"></div>
+          {% endif %}
+        </div>
+      </a>
+      {% endwith %}
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm">
+      <div class="flex flex-col items-center justify-center py-16 text-center px-6">
+        <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-gray-400">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <p class="text-gray-600 font-medium mb-1">Belum ada kelas aktif yang diikuti.</p>
+        <p class="text-sm text-gray-400 mb-4">Daftar ke kelas untuk melihat data kehadiran.</p>
+        <a href="{% url 'academics:class_browse' %}"
+           class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white
+                  bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors">
+          Cari Kelas
+        </a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ── Kelas Selesai ─────────────────────────────────────────────────────── -->
+  <div x-show="tab === 'completed'" x-cloak>
+    {% if completed_summary %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {% for item in completed_summary %}
+      {% with enrollment=item.enrollment kelas=item.enrollment.kelas %}
+      <a href="{% url 'sessions:my_attendance_detail' kelas.pk %}"
+         class="h-full bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md
+                transition-shadow p-5 flex flex-col gap-3 group">
+        <div>
+          <h3 class="text-sm font-semibold text-gray-900 group-hover:text-primary-600 transition-colors truncate">
+            {{ kelas.name }}
+          </h3>
+          <p class="text-xs text-gray-500 mt-0.5 truncate">
+            {{ kelas.subject.name }}
+            {% if kelas.level == 'SD' %}&nbsp;·&nbsp;<span class="text-teal-600 font-medium">SD</span>
+            {% elif kelas.level == 'SMP' %}&nbsp;·&nbsp;<span class="text-blue-600 font-medium">SMP</span>
+            {% else %}&nbsp;·&nbsp;<span class="text-primary-600 font-medium">SMA</span>{% endif %}
+            &nbsp;·&nbsp;<span class="inline-flex items-center px-1.5 py-0 rounded text-xs font-medium bg-blue-50 text-blue-700">Selesai</span>
+          </p>
+        </div>
+        <div>
+          {% if item.pct is not None %}
+            {% if item.pct >= 80 %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+              {{ item.pct }}% kehadiran
+            </span>
+            {% elif item.pct >= 60 %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">
+              {{ item.pct }}% kehadiran
+            </span>
+            {% else %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">
+              {{ item.pct }}% kehadiran
+            </span>
+            {% endif %}
+          {% else %}
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Belum ada data</span>
+          {% endif %}
+        </div>
+        <div class="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-400 inline-block"></span>{{ item.present_count }} hadir</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-yellow-400 inline-block"></span>{{ item.permitted_count }} izin</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-400 inline-block"></span>{{ item.absent_count }} alpha</span>
+          <span class="text-gray-400 ml-auto">{{ item.marked_count }}/{{ item.total_sessions }} pertemuan</span>
+        </div>
+        <div class="w-full bg-gray-100 rounded-full h-1.5">
+          {% if item.total_sessions > 0 and item.marked_count > 0 %}
+          <div class="h-1.5 rounded-full {% if item.pct >= 80 %}bg-green-500{% elif item.pct >= 60 %}bg-yellow-400{% else %}bg-red-400{% endif %}"
+               style="width: {% widthratio item.present_count|add:item.permitted_count item.marked_count 100 %}%"></div>
+          {% endif %}
+        </div>
+      </a>
+      {% endwith %}
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm">
+      <div class="flex flex-col items-center justify-center py-16 text-center px-6">
+        <p class="text-gray-600 font-medium">Belum ada kelas yang selesai.</p>
+      </div>
+    </div>
+    {% endif %}
+  </div>
 
 </div>
 {% endblock %}

@@ -7,4 +7,5 @@ app_name = 'sessions'
 urlpatterns = [
     path('my-attendance/', views.my_attendance, name='my_attendance'),
     path('my-attendance/<int:kelas_id>/', views.my_attendance_detail, name='my_attendance_detail'),
+    path('my-attendance/print/', views.print_my_attendance, name='print_my_attendance'),
 ]

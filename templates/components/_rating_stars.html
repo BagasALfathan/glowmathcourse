@@ -1,0 +1,62 @@
+{% comment %}
+  Reusable star rating component.
+
+  Display mode (default):
+    {% include "components/_rating_stars.html" with score=3 %}
+    Optional: show_score=True to append "3/5" text
+
+  Input mode:
+    {% include "components/_rating_stars.html" with input_mode=True initial_score=3 %}
+    Renders clickable stars with a hidden <input name="score"> for form submission.
+{% endcomment %}
+
+{% if input_mode %}
+{# ── Interactive star input (Alpine.js) ──────────────────────────── #}
+<div x-data="{ score: {{ initial_score|default:0 }}, hovered: 0 }"
+     class="flex items-center gap-1">
+
+  {# Star 1 #}
+  <button type="button"
+          @mouseenter="hovered = 1" @mouseleave="hovered = 0" @click="score = 1"
+          :class="(hovered ? hovered >= 1 : score >= 1) ? 'text-yellow-400' : 'text-gray-300'"
+          class="text-3xl leading-none transition-colors focus:outline-none">★</button>
+  {# Star 2 #}
+  <button type="button"
+          @mouseenter="hovered = 2" @mouseleave="hovered = 0" @click="score = 2"
+          :class="(hovered ? hovered >= 2 : score >= 2) ? 'text-yellow-400' : 'text-gray-300'"
+          class="text-3xl leading-none transition-colors focus:outline-none">★</button>
+  {# Star 3 #}
+  <button type="button"
+          @mouseenter="hovered = 3" @mouseleave="hovered = 0" @click="score = 3"
+          :class="(hovered ? hovered >= 3 : score >= 3) ? 'text-yellow-400' : 'text-gray-300'"
+          class="text-3xl leading-none transition-colors focus:outline-none">★</button>
+  {# Star 4 #}
+  <button type="button"
+          @mouseenter="hovered = 4" @mouseleave="hovered = 0" @click="score = 4"
+          :class="(hovered ? hovered >= 4 : score >= 4) ? 'text-yellow-400' : 'text-gray-300'"
+          class="text-3xl leading-none transition-colors focus:outline-none">★</button>
+  {# Star 5 #}
+  <button type="button"
+          @mouseenter="hovered = 5" @mouseleave="hovered = 0" @click="score = 5"
+          :class="(hovered ? hovered >= 5 : score >= 5) ? 'text-yellow-400' : 'text-gray-300'"
+          class="text-3xl leading-none transition-colors focus:outline-none">★</button>
+
+  <input type="hidden" name="score" :value="score">
+  <span x-text="score > 0 ? score + '/5' : 'Belum dipilih'"
+        :class="score > 0 ? 'text-gray-700' : 'text-gray-400'"
+        class="ml-2 text-sm font-medium"></span>
+</div>
+
+{% else %}
+{# ── Display-only stars ───────────────────────────────────────────── #}
+{% with s=score|default:0 %}
+<span class="inline-flex items-center gap-0.5">
+  <span class="{% if s >= 1 %}text-yellow-400{% else %}text-gray-200{% endif %} text-base leading-none">★</span>
+  <span class="{% if s >= 2 %}text-yellow-400{% else %}text-gray-200{% endif %} text-base leading-none">★</span>
+  <span class="{% if s >= 3 %}text-yellow-400{% else %}text-gray-200{% endif %} text-base leading-none">★</span>
+  <span class="{% if s >= 4 %}text-yellow-400{% else %}text-gray-200{% endif %} text-base leading-none">★</span>
+  <span class="{% if s >= 5 %}text-yellow-400{% else %}text-gray-200{% endif %} text-base leading-none">★</span>
+  {% if show_score %}<span class="ml-1 text-sm text-gray-600 font-medium">{{ s }}/5</span>{% endif %}
+</span>
+{% endwith %}
+{% endif %}

@@ -1,0 +1,250 @@
+﻿{% comment %}
+  Shared progress report body — included by teacher, student, admin, and print views.
+  Required context: enrollment, kelas, student, session_rows,
+    present_count, permitted_count, absent_count, unmarked_count,
+    total_sessions, attendance_pct, attendance_good,
+    grade_type_rows, overall_avg, letter, summary
+{% endcomment %}
+
+<!-- ── Info header ──────────────────────────────────────────────────────────── -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+
+  <!-- Student card -->
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Siswa</p>
+    <p class="text-base font-semibold text-gray-900">{{ student.get_full_name }}</p>
+    <p class="text-sm text-gray-500">{{ student.email }}</p>
+    {% with profile=student.student_profile %}
+    {% if profile %}
+    <div class="mt-2 flex items-center gap-2 flex-wrap">
+      {% if profile.level == 'SD' %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-50 text-teal-700">SD</span>
+      {% elif profile.level == 'SMP' %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">SMP</span>
+      {% else %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-50 text-primary-700">SMA</span>
+      {% endif %}
+      {% if profile.school_name %}
+        <span class="text-xs text-gray-500">{{ profile.school_name }}</span>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% endwith %}
+    <p class="text-xs text-gray-400 mt-2">Status: {{ enrollment.get_status_display }}</p>
+  </div>
+
+  <!-- Class card -->
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
+    <p class="text-xs font-medium text-gray-400 uppercase tracking-wider mb-2">Kelas</p>
+    <p class="text-base font-semibold text-gray-900">{{ kelas.name }}</p>
+    <p class="text-sm text-gray-500">{{ kelas.subject.name }}</p>
+    <p class="text-xs text-gray-400 mt-1">Guru: {{ kelas.teacher.get_full_name|default:"—" }}</p>
+    <p class="text-xs text-gray-400">Periode: {{ kelas.academic_period.name|default:"—" }}</p>
+  </div>
+</div>
+
+<!-- ── Section 1: Attendance ─────────────────────────────────────────────────── -->
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm mb-5">
+  <div class="px-5 py-3 border-b border-gray-100">
+    <h3 class="text-sm font-semibold text-gray-900">Kehadiran</h3>
+  </div>
+
+  <!-- Stats grid -->
+  <div class="grid grid-cols-2 sm:grid-cols-5 divide-x divide-y sm:divide-y-0 divide-gray-100">
+    <div class="px-4 py-4 text-center">
+      <p class="text-2xl font-bold text-gray-700">{{ total_sessions }}</p>
+      <p class="text-xs text-gray-400 mt-0.5">Total Pertemuan</p>
+    </div>
+    <div class="px-4 py-4 text-center">
+      <p class="text-2xl font-bold text-green-600">{{ present_count }}</p>
+      <p class="text-xs text-gray-400 mt-0.5">Hadir (H)</p>
+    </div>
+    <div class="px-4 py-4 text-center">
+      <p class="text-2xl font-bold text-amber-500">{{ permitted_count }}</p>
+      <p class="text-xs text-gray-400 mt-0.5">Izin (I)</p>
+    </div>
+    <div class="px-4 py-4 text-center">
+      <p class="text-2xl font-bold text-red-500">{{ absent_count }}</p>
+      <p class="text-xs text-gray-400 mt-0.5">Alpha (A)</p>
+    </div>
+    <div class="px-4 py-4 text-center">
+      <p class="text-2xl font-bold {% if attendance_good %}text-green-600{% else %}text-red-500{% endif %}">
+        {{ attendance_pct }}%
+      </p>
+      <p class="text-xs text-gray-400 mt-0.5">Kehadiran</p>
+    </div>
+  </div>
+
+  <!-- Attendance bar -->
+  {% if total_sessions > 0 %}
+  <div class="px-5 py-3 border-t border-gray-100">
+    <div class="flex items-center gap-3">
+      <div class="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+        <div class="h-full rounded-full transition-all {% if attendance_good %}bg-green-500{% else %}bg-red-400{% endif %}"
+             style="width: {{ attendance_pct }}%"></div>
+      </div>
+      <span class="text-xs font-semibold {% if attendance_good %}text-green-600{% else %}text-red-500{% endif %} w-10 text-right shrink-0">
+        {{ attendance_pct }}%
+      </span>
+    </div>
+    <p class="text-xs text-gray-400 mt-1.5">
+      {% if attendance_good %}Kehadiran baik (≥ 75%){% else %}Kehadiran perlu ditingkatkan (&lt; 75%){% endif %}
+    </p>
+  </div>
+  {% endif %}
+
+  <!-- Session detail table -->
+  {% if session_rows %}
+  <div class="border-t border-gray-100 overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b border-gray-100">
+        <tr>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Pertemuan</th>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Topik</th>
+          <th class="px-4 py-2.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50">
+        {% for row in session_rows %}
+        <tr class="hover:bg-gray-50 transition-colors">
+          <td class="px-4 py-2 text-xs text-gray-700 whitespace-nowrap">
+            Pertemuan ke-{{ row.session.session_number }}
+            {% if row.session.date %}<span class="text-gray-400 ml-1">· {{ row.session.date|date:"d M" }}</span>{% endif %}
+          </td>
+          <td class="px-4 py-2 text-xs text-gray-500 hidden sm:table-cell">{{ row.session.topic|default:"—" }}</td>
+          <td class="px-4 py-2">
+            {% if row.status == 'PRESENT' %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Hadir</span>
+            {% elif row.status == 'PERMITTED' %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Izin</span>
+            {% elif row.status == 'ABSENT' %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">Alpha</span>
+            {% else %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Belum</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Section 2: Grades ──────────────────────────────────────────────────────── -->
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm mb-5">
+  <div class="px-5 py-3 border-b border-gray-100">
+    <h3 class="text-sm font-semibold text-gray-900">Nilai</h3>
+  </div>
+
+  {% if grade_type_rows %}
+  <div class="divide-y divide-gray-50">
+    {% for type_row in grade_type_rows %}
+    <div class="px-5 py-4">
+      <div class="flex items-center justify-between mb-2.5">
+        <h4 class="text-xs font-semibold text-gray-700 uppercase tracking-wide">{{ type_row.label }}</h4>
+        <span class="text-xs text-gray-500">
+          Rata-rata:
+          <span class="font-semibold
+            {% if type_row.avg >= 75 %}text-green-600
+            {% elif type_row.avg >= 55 %}text-amber-600
+            {% else %}text-red-600{% endif %}">
+            {{ type_row.avg }}
+          </span>
+        </span>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        {% for grade in type_row.grades %}
+        <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium
+                    {% if grade.score >= 75 %}bg-green-50 border-green-200 text-green-700
+                    {% elif grade.score >= 55 %}bg-amber-50 border-amber-200 text-amber-700
+                    {% else %}bg-red-50 border-red-200 text-red-700{% endif %}">
+          <span class="font-bold">{{ grade.score }}</span>
+          {% if grade.notes %}
+            <span class="text-gray-300">·</span>
+            <span class="font-normal opacity-75">{{ grade.notes }}</span>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Overall average footer -->
+  {% if overall_avg is not None %}
+  <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-xl flex items-center justify-between">
+    <span class="text-sm font-semibold text-gray-700">Rata-rata Keseluruhan</span>
+    <span class="text-xl font-bold
+      {% if overall_avg >= 75 %}text-green-600
+      {% elif overall_avg >= 55 %}text-amber-600
+      {% else %}text-red-600{% endif %}">
+      {{ overall_avg }}
+    </span>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="px-5 py-10 text-center text-sm text-gray-400">
+    Belum ada nilai yang diinput untuk kelas ini.
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Section 3: Overall Performance ───────────────────────────────────────── -->
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm mb-5">
+  <div class="px-5 py-3 border-b border-gray-100">
+    <h3 class="text-sm font-semibold text-gray-900">Ringkasan Performa</h3>
+  </div>
+  <div class="px-5 py-5">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+
+      <!-- Grade letter -->
+      <div class="flex flex-col items-center justify-center p-5 rounded-xl bg-gray-50 border border-gray-100">
+        <span class="text-5xl font-black leading-none
+          {% if letter == 'A' %}text-green-600
+          {% elif letter == 'B' %}text-blue-600
+          {% elif letter == 'C' %}text-amber-600
+          {% elif letter == 'D' %}text-red-600
+          {% else %}text-gray-400{% endif %}">
+          {{ letter }}
+        </span>
+        <p class="text-xs text-gray-400 mt-2">Grade Akhir</p>
+        <p class="text-xs text-gray-300 mt-0.5">
+          {% if letter == 'A' %}≥ 85{% elif letter == 'B' %}70–84{% elif letter == 'C' %}55–69{% elif letter == 'D' %}&lt; 55{% endif %}
+        </p>
+      </div>
+
+      <!-- Average score -->
+      <div class="flex flex-col items-center justify-center p-5 rounded-xl bg-gray-50 border border-gray-100">
+        <span class="text-4xl font-bold leading-none
+          {% if overall_avg is not None %}
+            {% if overall_avg >= 75 %}text-green-600{% elif overall_avg >= 55 %}text-amber-600{% else %}text-red-500{% endif %}
+          {% else %}text-gray-400{% endif %}">
+          {% if overall_avg is not None %}{{ overall_avg }}{% else %}—{% endif %}
+        </span>
+        <p class="text-xs text-gray-400 mt-2">Rata-rata Nilai</p>
+      </div>
+
+      <!-- Attendance status -->
+      <div class="flex flex-col items-center justify-center p-5 rounded-xl bg-gray-50 border border-gray-100">
+        <span class="text-2xl font-bold leading-none {% if attendance_good %}text-green-600{% else %}text-red-600{% endif %}">
+          {% if attendance_good %}Baik{% else %}Kurang{% endif %}
+        </span>
+        <p class="text-xs text-gray-400 mt-2">Status Kehadiran</p>
+        <p class="text-xs {% if attendance_good %}text-green-500{% else %}text-red-400{% endif %} mt-0.5">
+          {{ attendance_pct }}%
+        </p>
+      </div>
+    </div>
+
+    <!-- Summary text -->
+    <div class="p-4 rounded-xl border
+      {% if overall_avg is not None and overall_avg >= 75 and attendance_good %}bg-green-50 border-green-100
+      {% elif overall_avg is not None and overall_avg < 55 %}bg-red-50 border-red-100
+      {% elif not attendance_good and total_sessions > 0 %}bg-amber-50 border-amber-100
+      {% else %}bg-gray-50 border-gray-100{% endif %}">
+      <p class="text-sm text-gray-700 leading-relaxed">{{ summary }}</p>
+    </div>
+  </div>
+</div>

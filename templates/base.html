@@ -1,12 +1,47 @@
+﻿{% load static %}
 <!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="{% static 'images/logo.png' %}">
   <title>{% block title %}GlowMathCourse{% endblock %} — GlowMathCourse</title>
+  <meta name="description" content="{% block meta_description %}GlowMathCourse - Sistem Pendaftaran Bimbel Online untuk SD, SMP, dan SMA{% endblock %}">
+  <meta name="keywords" content="{% block meta_keywords %}bimbel, les privat, matematika, GlowMathCourse, SD, SMP, SMA{% endblock %}">
+  <meta property="og:title" content="{% block og_title %}GlowMathCourse — Sistem Bimbel Online{% endblock %}">
+  <meta property="og:description" content="{% block og_description %}GlowMathCourse - Daftarkan diri ke kelas bimbel SD, SMP, dan SMA terbaik.{% endblock %}">
+  <meta property="og:type" content="website">
+  <link rel="canonical" href="{{ request.build_absolute_uri }}">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: {
+              50:  '#f0fafa',
+              100: '#d9f2f3',
+              200: '#b5e6e8',
+              300: '#7fcacd',
+              400: '#5ab5b9',
+              500: '#3d9da1',
+              600: '#2f7d80',
+              700: '#286265',
+              800: '#234f51',
+              900: '#1f4143',
+            }
+          }
+        }
+      }
+    }
+  </script>
   <script src="https://unpkg.com/htmx.org@1.9/dist/htmx.min.js"></script>
   <script defer src="https://unpkg.com/alpinejs@3/dist/cdn.min.js"></script>
+  <style>
+    .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; pointer-events: none; }
+    .htmx-request .htmx-indicator, .htmx-indicator.htmx-request { opacity: 1; pointer-events: auto; }
+    [x-cloak] { display: none !important; }
+  </style>
 </head>
 <body class="bg-gray-50 font-sans antialiased" x-data="{ sidebarOpen: false }">
 
@@ -32,14 +67,9 @@
   >
     <!-- Logo -->
     <div class="h-16 flex items-center gap-3 px-5 border-b border-gray-100 shrink-0">
-      <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-             stroke-width="2" stroke="white" class="w-4 h-4">
-          <path stroke-linecap="round" stroke-linejoin="round"
-                d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
-        </svg>
-      </div>
-      <span class="text-lg font-bold text-indigo-700 tracking-tight">GlowMathCourse</span>
+      <a href="/dashboard/" class="flex-1 min-w-0 flex items-center">
+        <img src="{% static 'images/logo.png' %}" alt="GlowMathCourse" class="h-10 w-auto">
+      </a>
       <!-- Close button (mobile only) -->
       <button x-on:click="sidebarOpen = false"
               class="ml-auto text-gray-400 hover:text-gray-600 lg:hidden">
@@ -68,9 +98,7 @@
       <div class="flex items-center gap-3">
         <!-- Avatar initial -->
         <div class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 font-semibold text-sm
-          {% if user.role == 'STUDENT' %}bg-teal-100 text-teal-700
-          {% elif user.role == 'TEACHER' %}bg-orange-100 text-orange-700
-          {% else %}bg-purple-100 text-purple-700{% endif %}">
+          bg-primary-100 text-primary-700">
           {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
         </div>
         <div class="flex-1 min-w-0">
@@ -119,10 +147,7 @@
       <!-- User badge (desktop) -->
       <div class="hidden md:flex items-center gap-3">
         <span class="text-sm text-gray-600">{{ user.get_full_name }}</span>
-        <span class="text-xs font-semibold px-2.5 py-1 rounded-full
-          {% if user.role == 'STUDENT' %}bg-teal-100 text-teal-700
-          {% elif user.role == 'TEACHER' %}bg-orange-100 text-orange-700
-          {% else %}bg-purple-100 text-purple-700{% endif %}">
+        <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary-100 text-primary-700">
           {{ user.get_role_display }}
         </span>
       </div>
@@ -163,6 +188,26 @@
       &copy; 2026 GlowMathCourse
     </footer>
   </div>
+
+  <!-- Global HTMX loading spinner -->
+  <div id="htmx-global-spinner"
+       class="hidden fixed top-4 right-4 z-[200] flex items-center gap-2
+              bg-white border border-gray-200 shadow-md rounded-lg px-3 py-2 text-sm text-gray-600">
+    <svg class="animate-spin w-4 h-4 text-primary-600 shrink-0"
+         xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+    </svg>
+    Memuat...
+  </div>
+  <script>
+    (function () {
+      var spinner = document.getElementById('htmx-global-spinner');
+      document.addEventListener('htmx:beforeRequest', function () { spinner.classList.remove('hidden'); });
+      document.addEventListener('htmx:afterRequest', function () { spinner.classList.add('hidden'); });
+    })();
+  </script>
 
   {% block extra_js %}{% endblock %}
 </body>

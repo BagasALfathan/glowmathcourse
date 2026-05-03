@@ -1,0 +1,38 @@
+﻿<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>404 — Halaman Tidak Ditemukan</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+  <div class="text-center max-w-md">
+    <div class="w-20 h-20 rounded-full bg-primary-100 flex items-center justify-center mx-auto mb-6">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+           stroke-width="1.5" stroke="currentColor" class="w-10 h-10 text-primary-500">
+        <path stroke-linecap="round" stroke-linejoin="round"
+              d="M15.182 16.318A4.486 4.486 0 0012.016 15a4.486 4.486 0 00-3.198 1.318M21 12a9 9 0 11-18 0 9 9 0 0118 0zM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75zm-.375 0h.008v.015h-.008V9.75zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75zm-.375 0h.008v.015h-.008V9.75z" />
+      </svg>
+    </div>
+    <h1 class="text-6xl font-bold text-gray-200 mb-2">404</h1>
+    <h2 class="text-xl font-semibold text-gray-700 mb-3">Halaman Tidak Ditemukan</h2>
+    <p class="text-gray-500 mb-8">
+      Maaf, halaman yang kamu cari tidak ada atau sudah dipindahkan.
+      Coba kembali ke dashboard.
+    </p>
+    <div class="flex gap-3 justify-center">
+      <a href="/dashboard/"
+         class="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm
+                font-semibold rounded-lg transition-colors">
+        Ke Dashboard
+      </a>
+      <a href="javascript:history.back()"
+         class="px-5 py-2.5 bg-white hover:bg-gray-50 text-gray-700 text-sm
+                font-semibold rounded-lg border border-gray-200 transition-colors">
+        Kembali
+      </a>
+    </div>
+  </div>
+</body>
+</html>

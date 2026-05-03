@@ -1,0 +1,223 @@
+{% comment %}
+Reusable weekly schedule grid component — proportional calendar layout.
+
+Required context:
+  cal_total_height  — int (pixels, total calendar body height)
+  cal_hour_labels   — list of {label, top}
+  cal_days_list     — list of {value, label, items} where each item has:
+                      cal_top, cal_height, cal_left_pct, cal_width_pct
+  days_list         — list of {value, label, items}  (for mobile list)
+  view_role         — 'student' | 'teacher' | 'admin'
+
+Optional:
+  is_print          — True → always render grid, landscape print styles
+
+Each item dict:
+  schedule  — Schedule instance (.day .start_time .end_time .room)
+  kelas     — Kelas instance (.name .subject.name .level .teacher .capacity)
+  color     — Tailwind color classes (bg-* text-* border-*)
+  enrolled_count  — integer (teacher view only)
+  sessions        — list of Session (teacher class view only)
+
+Tailwind palette (keep purger happy):
+bg-blue-100 text-blue-800 border-blue-200
+bg-green-100 text-green-800 border-green-200
+bg-purple-100 text-purple-800 border-purple-200
+bg-orange-100 text-orange-800 border-orange-200
+bg-teal-100 text-teal-800 border-teal-200
+bg-pink-100 text-pink-800 border-pink-200
+bg-yellow-100 text-yellow-800 border-yellow-200
+bg-indigo-100 text-indigo-800 border-indigo-200
+bg-rose-100 text-rose-800 border-rose-200
+bg-cyan-100 text-cyan-800 border-cyan-200
+{% endcomment %}
+
+{% if is_print %}
+<style>
+  @page { size: A4 landscape; margin: 1cm; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .cal-print-block { background-color: white !important; border: 1px solid #333 !important; color: #111 !important; }
+  .cal-print-block * { color: #111 !important; background: transparent !important; }
+</style>
+{% endif %}
+
+{# ── DESKTOP / PRINT CALENDAR ──────────────────────────────────────────────── #}
+<div class="{% if not is_print %}hidden md:block{% endif %} overflow-x-auto">
+  <div class="min-w-[700px]">
+
+    {# Day header row #}
+    <div class="flex border-b border-gray-200">
+      <div class="w-12 shrink-0"></div>
+      {% for day_info in cal_days_list %}
+      <div class="flex-1 text-center py-2 text-xs font-semibold text-gray-700
+                  {% if not forloop.first %}border-l border-gray-200{% endif %}">
+        {{ day_info.label }}
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Calendar body #}
+    <div class="flex" style="height: {{ cal_total_height }}px;">
+
+      {# Time ruler #}
+      <div class="w-12 shrink-0 relative border-r border-gray-200">
+        {% for hl in cal_hour_labels %}
+        <div class="absolute right-1 text-gray-400 font-medium leading-none select-none"
+             style="top: {{ hl.top }}px; transform: translateY(-50%); font-size: 10px;">
+          {{ hl.label }}
+        </div>
+        {% endfor %}
+      </div>
+
+      {# Day columns #}
+      {% for day_info in cal_days_list %}
+      <div class="flex-1 relative border-l border-gray-100 overflow-hidden">
+
+        {# Hour guide lines #}
+        {% for hl in cal_hour_labels %}
+        <div class="absolute left-0 right-0 border-t border-gray-100 pointer-events-none"
+             style="top: {{ hl.top }}px;"></div>
+        {% endfor %}
+
+        {# Schedule blocks #}
+        {% for item in day_info.items %}
+        <div class="absolute overflow-hidden leading-tight cursor-default
+                    {% if is_print %}cal-print-block{% else %}{{ item.color }} rounded border{% endif %}"
+             style="top: {{ item.cal_top }}px;
+                    height: {{ item.cal_height }}px;
+                    left: calc({{ item.cal_left_pct }}% + 1px);
+                    width: calc({{ item.cal_width_pct }}% - 2px);
+                    padding: 3px 4px;
+                    {% if is_print %}font-size: 12pt; border-radius: 2px;{% else %}font-size: 11px; border-radius: 4px;{% endif %}">
+          <div class="font-semibold {% if not is_print %}truncate{% endif %}" title="{{ item.kelas.name }}">
+            {{ item.kelas.name }}
+          </div>
+          {% if item.cal_height >= 36 %}
+          <div class="{% if not is_print %}truncate{% endif %} opacity-80">
+            {{ item.kelas.subject.name }}
+          </div>
+          {% endif %}
+          {% if item.cal_height >= 52 %}
+          <div class="font-medium opacity-70 mt-0.5">
+            {{ item.schedule.start_time|time:"H:i" }}–{{ item.schedule.end_time|time:"H:i" }}
+          </div>
+          {% endif %}
+          {% if item.cal_height >= 68 %}
+            {% if item.schedule.room %}
+            <div class="{% if not is_print %}truncate{% endif %} opacity-70">{{ item.schedule.room }}</div>
+            {% endif %}
+            {% if view_role != 'teacher' %}
+            <div class="{% if not is_print %}truncate{% endif %} opacity-70">{{ item.kelas.teacher.get_full_name }}</div>
+            {% endif %}
+          {% endif %}
+          {% if item.cal_height >= 84 %}
+          <div class="flex items-center gap-1 mt-0.5 flex-wrap">
+            {% if item.kelas.level == 'SD' %}
+              <span class="inline-flex items-center px-1 py-0 rounded text-xs font-medium bg-teal-50 text-teal-700">SD</span>
+            {% elif item.kelas.level == 'SMP' %}
+              <span class="inline-flex items-center px-1 py-0 rounded text-xs font-medium bg-blue-50 text-blue-700">SMP</span>
+            {% else %}
+              <span class="inline-flex items-center px-1 py-0 rounded text-xs font-medium bg-primary-50 text-primary-700">SMA</span>
+            {% endif %}
+            {% if view_role == 'teacher' %}
+            <span class="opacity-70">{{ item.enrolled_count }}/{{ item.kelas.capacity }}</span>
+            {% endif %}
+          </div>
+          {% endif %}
+          {% if item.sessions and item.cal_height >= 100 %}
+          <div class="mt-1 pt-1 border-t border-current border-opacity-20 space-y-0.5">
+            {% for s in item.sessions %}
+            <div class="bg-white bg-opacity-70 rounded px-1 py-0.5 leading-tight" style="font-size: 10px;">
+              <span class="font-semibold">{{ s.date|date:"d M" }}, {{ s.start_time|time:"H:i" }}–{{ s.end_time|time:"H:i" }}</span>
+              {% if s.topic %}<span class="block opacity-70 truncate">{{ s.topic|truncatechars:22 }}</span>{% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+
+      </div>
+      {% endfor %}
+
+    </div>{# end calendar body #}
+  </div>
+</div>
+
+{# ── MOBILE LIST (shown on mobile only, skip when printing) ──────────────── #}
+{% if not is_print %}
+<div class="block md:hidden" x-data="{ activeDay: '{{ days_list.0.value }}' }">
+
+  {# Day tab pills #}
+  <div class="flex gap-1.5 overflow-x-auto pb-2 mb-4 no-scrollbar">
+    {% for day_info in days_list %}
+    <button type="button"
+            @click="activeDay = '{{ day_info.value }}'"
+            :class="activeDay === '{{ day_info.value }}'
+                    ? 'bg-primary-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+            class="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap
+                   transition-colors shrink-0">
+      {{ day_info.label }}
+      {% if day_info.items %}
+      <span class="ml-0.5 opacity-75">({{ day_info.items|length }})</span>
+      {% endif %}
+    </button>
+    {% endfor %}
+  </div>
+
+  {# Per-day list #}
+  {% for day_info in days_list %}
+  <div x-show="activeDay === '{{ day_info.value }}'" x-cloak>
+    {% if day_info.items %}
+    <div class="space-y-2">
+      {% for item in day_info.items %}
+      <div class="rounded-xl border p-3 {{ item.color }}">
+        <div class="flex items-start justify-between gap-2 mb-1">
+          <div class="font-semibold text-sm leading-tight">{{ item.kelas.name }}</div>
+          <div class="shrink-0 text-xs font-medium opacity-70">
+            {{ item.schedule.start_time|time:"H:i" }}–{{ item.schedule.end_time|time:"H:i" }}
+          </div>
+        </div>
+        <div class="text-xs">{{ item.kelas.subject.name }}</div>
+        {% if item.schedule.room %}
+        <div class="text-xs mt-0.5">{{ item.schedule.room }}</div>
+        {% endif %}
+        {% if view_role != 'teacher' %}
+        <div class="text-xs mt-0.5">{{ item.kelas.teacher.get_full_name }}</div>
+        {% endif %}
+        <div class="flex items-center gap-2 mt-1.5 flex-wrap">
+          {% if item.kelas.level == 'SD' %}
+            <span class="inline-flex items-center px-1.5 py-0 rounded text-xs font-medium bg-teal-50 text-teal-700">SD</span>
+          {% elif item.kelas.level == 'SMP' %}
+            <span class="inline-flex items-center px-1.5 py-0 rounded text-xs font-medium bg-blue-50 text-blue-700">SMP</span>
+          {% else %}
+            <span class="inline-flex items-center px-1.5 py-0 rounded text-xs font-medium bg-primary-50 text-primary-700">SMA</span>
+          {% endif %}
+          {% if view_role == 'teacher' %}
+          <span class="text-xs">{{ item.enrolled_count }}/{{ item.kelas.capacity }} siswa</span>
+          {% endif %}
+        </div>
+        {% if item.sessions %}
+        <div class="mt-2 pt-1.5 border-t border-current border-opacity-20 space-y-1">
+          {% for s in item.sessions %}
+          <div class="bg-white bg-opacity-70 rounded px-2 py-1 text-xs leading-tight">
+            <span class="font-semibold">{{ s.date|date:"d M" }}, {{ s.start_time|time:"H:i" }}–{{ s.end_time|time:"H:i" }}</span>
+            {% if s.topic %}<span class="block opacity-70 truncate">{{ s.topic|truncatechars:28 }}</span>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="py-12 text-center">
+      <p class="text-sm text-gray-400">Tidak ada kelas pada hari ini.</p>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+</div>
+{% endif %}

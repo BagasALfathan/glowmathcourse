@@ -1,0 +1,148 @@
+﻿{% if page_obj.object_list %}
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-100">
+      <tr>
+        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Nama</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden md:table-cell">Email</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Peran</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">Jenjang</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Status</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden lg:table-cell">Bergabung</th>
+        <th class="px-5 py-3"></th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-50">
+      {% for u in page_obj %}
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="px-5 py-3">
+          <a href="{% url 'admin_panel:user_detail' u.pk %}"
+             class="font-medium text-gray-900 hover:text-primary-600 transition-colors">
+            {{ u.get_full_name|default:u.username }}
+          </a>
+          <p class="text-xs text-gray-400">@{{ u.username }}</p>
+        </td>
+        <td class="px-5 py-3 text-gray-600 hidden md:table-cell text-xs">{{ u.email }}</td>
+        <td class="px-5 py-3">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold
+            bg-primary-100 text-primary-700">
+            {{ u.get_role_display }}
+          </span>
+        </td>
+        <td class="px-5 py-3 hidden sm:table-cell">
+          {% if u.role == 'STUDENT' %}
+            {% if u.student_profile.level %}
+              <span class="text-xs font-medium
+                {% if u.student_profile.level == 'SD' %}text-teal-600
+                {% elif u.student_profile.level == 'SMP' %}text-blue-600
+                {% else %}text-primary-600{% endif %}">
+                {{ u.student_profile.level }}
+              </span>
+            {% else %}
+              <span class="text-xs text-gray-300">—</span>
+            {% endif %}
+          {% else %}
+            <span class="text-xs text-gray-300">—</span>
+          {% endif %}
+        </td>
+        <td class="px-5 py-3">
+          {% if u.is_deleted %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-400">Dihapus</span>
+          {% elif u.approval_status == 'REJECTED' %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-600">Ditolak</span>
+          {% elif u.is_active %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Aktif</span>
+          {% else %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Tidak Aktif</span>
+          {% endif %}
+        </td>
+        <td class="px-5 py-3 text-xs text-gray-500 hidden lg:table-cell whitespace-nowrap">
+          {{ u.date_joined|date:"d M Y" }}
+        </td>
+        <td class="px-5 py-3 text-right">
+          <div class="flex items-center gap-2 justify-end">
+            {% if u.is_deleted %}
+            <form method="post" action="{% url 'admin_panel:user_restore' u.pk %}">
+              {% csrf_token %}
+              <button type="submit"
+                      class="text-xs font-medium text-green-700 hover:text-green-900 px-2.5 py-1.5
+                             rounded-lg border border-green-200 hover:bg-green-50 transition-colors">
+                Pulihkan
+              </button>
+            </form>
+            {% else %}
+            <a href="{% url 'admin_panel:user_detail' u.pk %}"
+               class="text-xs font-medium text-primary-600 hover:text-primary-800 px-2.5 py-1.5
+                      rounded-lg border border-primary-200 hover:bg-primary-50 transition-colors">
+              Detail
+            </a>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<div class="flex items-center justify-between mt-4">
+  <p class="text-xs text-gray-500">
+    Menampilkan {{ page_obj.start_index }}–{{ page_obj.end_index }}
+    dari {{ page_obj.paginator.count }} pengguna
+  </p>
+  <div class="flex gap-1">
+    {% if page_obj.has_previous %}
+    <button hx-get="/admin-panel/users/partial/?q={{ q|urlencode }}&role={{ role_filter }}&status={{ status_filter }}&page={{ page_obj.previous_page_number }}"
+            hx-target="#users-table-wrapper"
+            hx-swap="innerHTML"
+            class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200
+                   text-gray-600 hover:bg-gray-50 transition-colors">
+      ←
+    </button>
+    {% endif %}
+    {% for num in page_obj.paginator.page_range %}
+      {% if num == page_obj.number %}
+      <span class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary-600 text-white">{{ num }}</span>
+      {% elif num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
+      <button hx-get="/admin-panel/users/partial/?q={{ q|urlencode }}&role={{ role_filter }}&status={{ status_filter }}&page={{ num }}"
+              hx-target="#users-table-wrapper"
+              hx-swap="innerHTML"
+              class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200
+                     text-gray-600 hover:bg-gray-50 transition-colors">
+        {{ num }}
+      </button>
+      {% endif %}
+    {% endfor %}
+    {% if page_obj.has_next %}
+    <button hx-get="/admin-panel/users/partial/?q={{ q|urlencode }}&role={{ role_filter }}&status={{ status_filter }}&page={{ page_obj.next_page_number }}"
+            hx-target="#users-table-wrapper"
+            hx-swap="innerHTML"
+            class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200
+                   text-gray-600 hover:bg-gray-50 transition-colors">
+      →
+    </button>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<p class="text-xs text-gray-400 mt-3">{{ page_obj.paginator.count }} pengguna ditemukan</p>
+{% endif %}
+
+{% else %}
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm py-14 text-center">
+  <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+         stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-gray-400">
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+    </svg>
+  </div>
+  {% if q or role_filter or status_filter %}
+  <p class="text-sm text-gray-500">Tidak ada hasil untuk pencarian ini.</p>
+  {% else %}
+  <p class="text-sm text-gray-500">Belum ada pengguna terdaftar.</p>
+  {% endif %}
+</div>
+{% endif %}

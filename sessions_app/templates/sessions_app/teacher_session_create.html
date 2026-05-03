@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% load crispy_forms_tags %}
 
 {% block title %}Buat Pertemuan — {{ kelas.name }}{% endblock %}
@@ -18,17 +18,38 @@
   </a>
 
   <!-- Context banner -->
-  <div class="bg-indigo-50 border border-indigo-100 rounded-xl px-5 py-3 flex items-center gap-3">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-         stroke-width="1.75" stroke="currentColor" class="w-4 h-4 text-indigo-500 shrink-0">
-      <path stroke-linecap="round" stroke-linejoin="round"
-            d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-    </svg>
-    <p class="text-sm text-indigo-700">
-      {{ kelas.name }} &nbsp;·&nbsp;
-      Pertemuan ke-<span class="font-semibold">{{ next_number }}</span>
-      dari <span class="font-semibold">{{ kelas.total_sessions }}</span>
-    </p>
+  <div class="bg-primary-50 border border-primary-100 rounded-xl px-5 py-4 space-y-2">
+    <div class="flex items-start gap-3">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+           stroke-width="1.75" stroke="currentColor" class="w-4 h-4 text-primary-500 shrink-0 mt-0.5">
+        <path stroke-linecap="round" stroke-linejoin="round"
+              d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
+      </svg>
+      <div>
+        <p class="text-sm text-primary-700">
+          {{ kelas.name }} &nbsp;·&nbsp;
+          Pertemuan ke-<span class="font-semibold">{{ next_number }}</span>
+          dari <span class="font-semibold">{{ kelas.total_sessions }}</span>
+        </p>
+        {% if kelas.schedules.all %}
+        <div class="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+          {% for sched in kelas.schedules.all %}
+          <span class="inline-flex items-center gap-1 text-xs text-primary-600 bg-primary-100 rounded px-2 py-0.5">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                 stroke-width="2" stroke="currentColor" class="w-3 h-3 shrink-0">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span class="font-medium">{{ sched.get_day_display }}</span>
+            {{ sched.start_time|time:"H:i" }}–{{ sched.end_time|time:"H:i" }}
+          </span>
+          {% endfor %}
+        </div>
+        <p class="text-xs text-primary-400 mt-1">
+          Tanggal harus jatuh pada hari di atas. Jam bebas dalam rentang jam operasional.
+        </p>
+        {% endif %}
+      </div>
+    </div>
   </div>
 
   <!-- Form card -->
@@ -37,6 +58,7 @@
     <form method="post" class="space-y-4">
       {% csrf_token %}
       {% crispy form %}
+
       <div class="flex gap-3 pt-2">
         <a href="{% url 'sessions_app:teacher_sessions' kelas.pk %}"
            class="flex-1 text-center px-4 py-2 text-sm font-medium text-gray-700 bg-white
@@ -44,8 +66,8 @@
           Batal
         </a>
         <button type="submit"
-                class="flex-1 px-4 py-2 text-sm font-semibold text-white bg-indigo-600
-                       rounded-lg hover:bg-indigo-700 transition-colors">
+                class="flex-1 px-4 py-2 text-sm font-semibold text-white bg-primary-600
+                       rounded-lg hover:bg-primary-700 transition-colors">
           Buat Pertemuan
         </button>
       </div>

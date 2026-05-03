@@ -1,10 +1,12 @@
 from django.contrib import messages
-from django.db import IntegrityError, transaction
+from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from academics.models import Kelas, KelasStatus
 from accounts.decorators import role_required
+from activity_logs.utils import log_activity
 
 from .models import Enrollment, EnrollmentStatus
 
@@ -40,6 +42,12 @@ def enroll(request, kelas_id):
             messages.error(request, 'Kelas ini sudah tidak menerima pendaftaran.')
         return redirect('academics:class_detail', pk=kelas_id)
 
+    # Block enrollment if class has already started
+    today = timezone.localdate()
+    if kelas.start_date < today:
+        messages.error(request, 'Pendaftaran sudah ditutup, kelas sudah dimulai.')
+        return redirect('academics:class_detail', pk=kelas_id)
+
     # Level must match
     student_level = request.user.student_profile.level
     if student_level != kelas.level:
@@ -54,33 +62,70 @@ def enroll(request, kelas_id):
         messages.error(request, 'Kelas sudah penuh.')
         return redirect('academics:class_detail', pk=kelas_id)
 
-    # Create enrollment; unique_together guards against duplicates
-    try:
+    # Check for existing enrollment (handles re-enrollment after dropping)
+    existing = Enrollment.objects.filter(student=request.user, kelas=kelas).first()
+    if existing:
+        if existing.status == EnrollmentStatus.ACTIVE:
+            messages.error(request, 'Anda sudah terdaftar di kelas ini.')
+            return redirect('academics:class_detail', pk=kelas_id)
+        if existing.status == EnrollmentStatus.COMPLETED:
+            messages.error(request, 'Anda sudah menyelesaikan kelas ini.')
+            return redirect('academics:class_detail', pk=kelas_id)
+        # DROPPED → reactivate existing record
         with transaction.atomic():
-            Enrollment.objects.create(
-                student=request.user,
-                kelas=kelas,
-                status=EnrollmentStatus.ACTIVE,
-            )
+            existing.status = EnrollmentStatus.ACTIVE
+            existing.is_deleted = False
+            existing.deleted_at = None
+            existing.save()
             _recalculate_kelas_status(kelas)
-    except IntegrityError:
-        messages.error(request, 'Anda sudah pernah terdaftar di kelas ini.')
-        return redirect('academics:class_detail', pk=kelas_id)
+        log_activity(request.user, 'created', 'enrollment', existing.pk)
+        messages.success(request, f'Berhasil mendaftar kembali di kelas {kelas.name}!')
+        return redirect('enrollments:my_classes')
 
+    with transaction.atomic():
+        enrollment = Enrollment.objects.create(
+            student=request.user,
+            kelas=kelas,
+            status=EnrollmentStatus.ACTIVE,
+        )
+        _recalculate_kelas_status(kelas)
+    log_activity(request.user, 'created', 'enrollment', enrollment.pk)
     messages.success(request, f'Berhasil mendaftar di kelas {kelas.name}!')
     return redirect('enrollments:my_classes')
 
 
 @role_required('STUDENT')
 def my_classes(request):
-    enrollments = (
+    from sessions_app.models import BookingStatus, SessionBooking
+    all_enrollments = (
         Enrollment.objects
-        .filter(student=request.user, is_deleted=False)
+        .filter(student=request.user)
         .select_related('kelas', 'kelas__subject', 'kelas__teacher', 'kelas__academic_period')
-        .prefetch_related('kelas__schedules')
+        .prefetch_related('kelas__schedules', 'rating')
         .order_by('-enrolled_at')
     )
-    return render(request, 'enrollments/my_classes.html', {'enrollments': enrollments})
+    active_enrollments = [e for e in all_enrollments if e.status == EnrollmentStatus.ACTIVE and not e.is_deleted]
+    completed_enrollments = [e for e in all_enrollments if e.status == EnrollmentStatus.COMPLETED]
+    dropped_enrollments = [e for e in all_enrollments if e.status == EnrollmentStatus.DROPPED]
+
+    # Attach booked session counts for active enrollments
+    active_ids = [e.pk for e in active_enrollments]
+    from django.db.models import Count, Q
+    booking_counts = dict(
+        SessionBooking.objects
+        .filter(enrollment_id__in=active_ids, status=BookingStatus.BOOKED)
+        .values('enrollment_id')
+        .annotate(cnt=Count('id'))
+        .values_list('enrollment_id', 'cnt')
+    )
+    for e in active_enrollments:
+        e.booked_sessions = booking_counts.get(e.pk, 0)
+
+    return render(request, 'enrollments/my_classes.html', {
+        'active_enrollments': active_enrollments,
+        'completed_enrollments': completed_enrollments,
+        'dropped_enrollments': dropped_enrollments,
+    })
 
 
 @role_required('STUDENT')
@@ -96,10 +141,12 @@ def drop_class(request, pk):
         return redirect('enrollments:my_classes')
 
     kelas = enrollment.kelas
+    enrollment_pk = enrollment.pk
     with transaction.atomic():
         enrollment.status = EnrollmentStatus.DROPPED
         enrollment.soft_delete()
         _recalculate_kelas_status(kelas)
+    log_activity(request.user, 'deleted', 'enrollment', enrollment_pk)
 
     messages.success(request, f'Berhasil keluar dari kelas {kelas.name}.')
     return redirect('enrollments:my_classes')

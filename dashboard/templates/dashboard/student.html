@@ -1,15 +1,37 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Dashboard Siswa{% endblock %}
 {% block page_title %}Beranda{% endblock %}
 
 {% block content %}
 
-<!-- Greeting -->
-<div class="mb-6">
-  <h2 class="text-2xl font-bold text-gray-900">Selamat datang, {{ user.first_name }}!</h2>
-  <p class="text-gray-500 mt-1">Ini ringkasan aktivitas belajar Anda.</p>
+<!-- Greeting + live clock -->
+<div class="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+  <div>
+    <h2 class="text-2xl font-bold text-gray-900">Selamat datang, {{ user.first_name }}!</h2>
+    <p class="text-gray-500 mt-1">Ini ringkasan aktivitas belajar Anda.</p>
+  </div>
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 text-right shrink-0">
+    <p id="live-date" class="text-xs text-gray-400"></p>
+    <p id="live-time" class="text-2xl font-bold font-mono text-gray-800 tabular-nums"></p>
+  </div>
 </div>
+<script>
+(function() {
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function tick() {
+    const now = new Date();
+    const days = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
+    const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+    document.getElementById('live-date').textContent =
+      days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
+    document.getElementById('live-time').textContent =
+      pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds()) + ' WIB';
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
 
 <!-- Stat cards -->
 <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -23,8 +45,11 @@
       </svg>
     </div>
     <div>
-      <p class="text-xs text-gray-500">Kelas Terdaftar</p>
+      <p class="text-xs text-gray-500">Kelas Aktif</p>
       <p class="text-2xl font-bold text-gray-900">{{ enrolled_count }}</p>
+      {% if completed_enrolled_count %}
+      <p class="text-xs text-gray-400 mt-0.5">+{{ completed_enrolled_count }} selesai</p>
+      {% endif %}
     </div>
   </div>
 
@@ -50,9 +75,9 @@
   </div>
 
   <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-3">
-    <div class="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
+    <div class="w-10 h-10 rounded-lg bg-primary-100 flex items-center justify-center shrink-0">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-           stroke-width="1.75" stroke="currentColor" class="w-5 h-5 text-indigo-600">
+           stroke-width="1.75" stroke="currentColor" class="w-5 h-5 text-primary-600">
         <path stroke-linecap="round" stroke-linejoin="round"
               d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
       </svg>
@@ -71,23 +96,56 @@
   </div>
 
   <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-3">
-    <div class="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center shrink-0">
+    <div class="w-10 h-10 rounded-lg bg-teal-100 flex items-center justify-center shrink-0">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-           stroke-width="1.75" stroke="currentColor" class="w-5 h-5 text-purple-600">
+           stroke-width="1.75" stroke="currentColor" class="w-5 h-5 text-teal-600">
         <path stroke-linecap="round" stroke-linejoin="round"
-              d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
+              d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     </div>
     <div>
-      <p class="text-xs text-gray-500">Jenjang</p>
-      <p class="text-xl font-bold text-gray-900">
-        {% if user.student_profile.level %}{{ user.student_profile.level }}
-        {% else %}<span class="text-gray-300 text-sm font-normal">—</span>{% endif %}
-      </p>
+      <p class="text-xs text-gray-500">Pertemuan Terdaftar</p>
+      <p class="text-2xl font-bold text-gray-900">{{ booked_sessions_count }}</p>
     </div>
   </div>
 
 </div>
+
+<!-- Pertemuan Hari Ini -->
+{% if today_sessions %}
+<div class="bg-primary-600 rounded-xl shadow-sm overflow-hidden mb-5">
+  <div class="px-5 py-4 flex items-center gap-2">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+         stroke-width="2" stroke="currentColor" class="w-4 h-4 text-primary-200 shrink-0">
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+    <h3 class="text-sm font-semibold text-white">Pertemuan Hari Ini</h3>
+  </div>
+  <ul class="divide-y divide-primary-500">
+    {% for session in today_sessions %}
+    <li class="px-5 py-3 flex items-center gap-4">
+      <div class="w-10 h-10 rounded-lg bg-white/20 flex flex-col items-center justify-center shrink-0">
+        <span class="text-sm font-bold text-white leading-none">{{ session.session_number }}</span>
+      </div>
+      <div class="min-w-0 flex-1">
+        <p class="text-sm font-semibold text-white truncate">{{ session.kelas.subject.name }}</p>
+        <p class="text-xs text-primary-200 mt-0.5">{{ session.kelas.name }} · Pertemuan ke-{{ session.session_number }}</p>
+      </div>
+      {% if session.status == 'COMPLETED' %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-500 text-white shrink-0">Selesai</span>
+      {% elif session.is_live %}
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-green-400 text-white shrink-0">
+          <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>Live
+        </span>
+      {% else %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-white/30 text-white shrink-0">Hari ini</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
 
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
@@ -96,7 +154,7 @@
     <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
       <h3 class="text-sm font-semibold text-gray-900">Nilai Terbaru</h3>
       <a href="{% url 'grades:my_grades' %}"
-         class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">Lihat Semua →</a>
+         class="text-xs text-primary-600 hover:text-primary-800 font-medium">Lihat Semua →</a>
     </div>
     {% if recent_grades %}
     <ul class="divide-y divide-gray-50">
@@ -124,33 +182,225 @@
     {% endif %}
   </div>
 
-  <!-- Upcoming sessions -->
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-    <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-      <h3 class="text-sm font-semibold text-gray-900">Sesi Mendatang</h3>
-      <a href="{% url 'sessions:my_attendance' %}"
-         class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">Kehadiran →</a>
+  <!-- Upcoming sessions + next session -->
+  <div class="space-y-4">
+
+    {% if next_booked_session %}
+    <div class="bg-white rounded-xl border border-primary-200 shadow-sm overflow-hidden">
+      <div class="px-5 py-3 bg-primary-50 border-b border-primary-100 flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="2" stroke="currentColor" class="w-4 h-4 text-primary-500 shrink-0">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3" />
+        </svg>
+        <h3 class="text-xs font-semibold text-primary-700 uppercase tracking-wide">Pertemuan Terdaftar Berikutnya</h3>
+      </div>
+      <div class="px-5 py-4 flex items-center gap-4">
+        <div class="w-12 h-12 rounded-xl bg-primary-100 flex flex-col items-center justify-center shrink-0">
+          <span class="text-sm font-bold text-primary-700 leading-none">{{ next_booked_session.date|date:"d" }}</span>
+          <span class="text-xs text-primary-500 leading-none mt-0.5">{{ next_booked_session.date|date:"M" }}</span>
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-semibold text-gray-900 truncate">{{ next_booked_session.kelas.subject.name }}</p>
+          <p class="text-xs text-gray-500 mt-0.5">{{ next_booked_session.kelas.name }} · Pertemuan ke-{{ next_booked_session.session_number }}</p>
+          <p class="text-xs text-primary-600 mt-0.5 font-medium">
+            {{ next_booked_session.date|date:"l, d M Y" }}
+            {% if next_booked_session.display_schedule %}
+              · {{ next_booked_session.display_schedule.start_time|time:"H:i" }}–{{ next_booked_session.display_schedule.end_time|time:"H:i" }}
+            {% endif %}
+          </p>
+          {% if next_booked_start_ts %}
+          <div x-data="{
+            startMs: {{ next_booked_start_ts }},
+            endMs: {{ next_booked_end_ts }},
+            label: '',
+            color: 'text-primary-500',
+            pulse: false,
+            update() {
+              const now = Date.now();
+              if (now >= this.endMs) { this.label = ''; return; }
+              if (now >= this.startMs) {
+                this.label = 'Sedang berlangsung';
+                this.color = 'text-green-600 font-semibold';
+                this.pulse = true;
+                return;
+              }
+              this.pulse = false;
+              const diff = this.startMs - now;
+              const totalMin = Math.floor(diff / 60000);
+              const days = Math.floor(totalMin / 1440);
+              const hours = Math.floor((totalMin % 1440) / 60);
+              const mins = totalMin % 60;
+              if (days >= 1) {
+                this.label = 'Mulai dalam ' + days + ' hari';
+                this.color = 'text-primary-500';
+              } else if (hours >= 1) {
+                this.label = 'Mulai dalam ' + hours + ' jam' + (mins > 0 ? ' ' + mins + ' menit' : '');
+                this.color = 'text-primary-500';
+              } else {
+                this.label = 'Mulai dalam ' + (totalMin > 0 ? totalMin : 1) + ' menit';
+                this.color = 'text-red-500 font-semibold';
+              }
+            }
+          }" x-init="update(); setInterval(() => update(), 60000)" class="mt-1 flex items-center gap-1.5">
+            <template x-if="pulse">
+              <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+            </template>
+            <span x-text="label" :class="'text-xs ' + color"></span>
+          </div>
+          {% endif %}
+        </div>
+      </div>
     </div>
-    {% if upcoming_sessions %}
-    <ul class="divide-y divide-gray-50">
-      {% for session in upcoming_sessions %}
-      <li class="px-5 py-3 flex items-center gap-4">
-        <div class="w-10 h-10 rounded-lg bg-blue-50 flex flex-col items-center justify-center shrink-0">
-          <span class="text-xs font-bold text-blue-700 leading-none">{{ session.date|date:"d" }}</span>
-          <span class="text-xs text-blue-500 leading-none">{{ session.date|date:"M" }}</span>
-        </div>
-        <div class="min-w-0">
-          <p class="text-sm font-medium text-gray-900 truncate">{{ session.kelas.subject.name }}</p>
-          <p class="text-xs text-gray-400 mt-0.5">Pertemuan {{ session.session_number }}</p>
-        </div>
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    <div class="px-5 py-8 text-center text-sm text-gray-400">Tidak ada sesi mendatang.</div>
     {% endif %}
+
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <h3 class="text-sm font-semibold text-gray-900">Pertemuan Mendatang</h3>
+        <a href="{% url 'sessions:my_attendance' %}"
+           class="text-xs text-primary-600 hover:text-primary-800 font-medium">Kehadiran →</a>
+      </div>
+      {% if upcoming_sessions %}
+      <ul class="divide-y divide-gray-50">
+        {% for session in upcoming_sessions %}
+        <li class="px-5 py-3 flex items-center gap-4">
+          <div class="w-10 h-10 rounded-lg bg-blue-50 flex flex-col items-center justify-center shrink-0">
+            <span class="text-xs font-bold text-blue-700 leading-none">{{ session.date|date:"d" }}</span>
+            <span class="text-xs text-blue-500 leading-none">{{ session.date|date:"M" }}</span>
+          </div>
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-gray-900 truncate">{{ session.kelas.subject.name }}</p>
+            <p class="text-xs text-gray-400 mt-0.5">Pertemuan ke-{{ session.session_number }}</p>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="px-5 py-8 text-center text-sm text-gray-400">Tidak ada pertemuan mendatang.</div>
+      {% endif %}
+    </div>
   </div>
 
 </div>
+
+<!-- ===== ANNOUNCEMENTS ===== -->
+{% if recent_announcements %}
+<div class="mt-6 bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+  <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+    <h3 class="text-sm font-semibold text-gray-900">Pengumuman</h3>
+    <a href="{% url 'announcements:list' %}" class="text-xs text-primary-600 hover:text-primary-800 font-medium">Lihat semua →</a>
+  </div>
+  <ul class="divide-y divide-gray-50">
+    {% for ann in recent_announcements %}
+    <li class="px-5 py-3 flex items-start gap-3">
+      {% if ann.is_pinned %}
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-primary-500 shrink-0 mt-0.5">
+        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+      </svg>
+      {% endif %}
+      <div class="min-w-0 flex-1">
+        <a href="{% url 'announcements:detail' ann.pk %}" class="text-sm font-medium text-gray-900 hover:text-primary-600 transition-colors truncate block">{{ ann.title }}</a>
+        <p class="text-xs text-gray-400 mt-0.5">{{ ann.content|truncatechars:80 }}</p>
+      </div>
+      <span class="text-xs text-gray-400 shrink-0 whitespace-nowrap">{{ ann.created_at|date:"d M" }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<!-- ===== CHARTS ===== -->
+<div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+  <!-- Attendance pie -->
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+    <h3 class="text-sm font-semibold text-gray-900 mb-4">Ringkasan Kehadiran</h3>
+    <div class="flex justify-center">
+      <div style="position:relative;height:220px;width:220px;">
+        <canvas id="chartAttendance"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grades bar -->
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+    <h3 class="text-sm font-semibold text-gray-900 mb-4">Rata-rata Nilai per Kelas</h3>
+    <div style="position:relative;height:220px;">
+      <canvas id="chartGrades"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function() {
+  var attData = {{ chart_attendance|safe }};
+  var gradesData = {{ chart_grades|safe }};
+
+  // --- Attendance Pie ---
+  new Chart(document.getElementById('chartAttendance'), {
+    type: 'pie',
+    data: {
+      labels: ['Hadir', 'Izin', 'Alpha'],
+      datasets: [{
+        data: [attData.hadir, attData.izin, attData.alpha],
+        backgroundColor: ['#22c55e', '#eab308', '#ef4444'],
+        borderWidth: 2,
+        borderColor: '#fff',
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 12 } },
+        tooltip: {
+          callbacks: {
+            label: function(ctx) {
+              var total = ctx.dataset.data.reduce(function(a,b){return a+b;},0);
+              var pct = total > 0 ? Math.round(ctx.parsed / total * 100) : 0;
+              return ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
+            }
+          }
+        }
+      }
+    }
+  });
+
+  // --- Grades Bar ---
+  var gradeLabels = gradesData.map(function(d){return d.name;});
+  var gradeValues = gradesData.map(function(d){return d.avg;});
+  var gradeColors = gradeValues.map(function(v){
+    return v >= 80 ? '#22c55e' : v >= 60 ? '#eab308' : '#ef4444';
+  });
+
+  new Chart(document.getElementById('chartGrades'), {
+    type: 'bar',
+    data: {
+      labels: gradeLabels.length ? gradeLabels : ['Belum ada data'],
+      datasets: [{
+        label: 'Rata-rata Nilai',
+        data: gradeValues.length ? gradeValues : [0],
+        backgroundColor: gradeColors.length ? gradeColors : ['#e5e7eb'],
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { min: 0, max: 100, ticks: { font: { size: 11 } }, grid: { color: '#f3f4f6' } },
+        x: { ticks: { font: { size: 11 } }, grid: { display: false } }
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: function(ctx){ return 'Rata-rata: ' + ctx.parsed.y; } } }
+      }
+    }
+  });
+})();
+</script>
 
 {% endblock %}

@@ -4,80 +4,154 @@
 {% block page_title %}Nilai Saya{% endblock %}
 
 {% block content %}
-<div class="space-y-5">
+<div class="space-y-5" x-data="{ tab: 'active' }">
 
-  {% if rows %}
+  <!-- Tab bar + print button -->
+  <div class="flex items-center gap-3 flex-wrap">
+    <div class="flex border-b border-gray-200 flex-1 min-w-0">
+      <button type="button" @click="tab = 'active'"
+              :class="tab === 'active' ? 'border-primary-600 text-primary-700 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700'"
+              class="flex items-center gap-1.5 px-4 py-2.5 text-sm border-b-2 transition-colors -mb-px whitespace-nowrap">
+        Kelas Aktif
+        {% if active_rows %}
+        <span class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-semibold bg-primary-100 text-primary-700">{{ active_rows|length }}</span>
+        {% endif %}
+      </button>
+      <button type="button" @click="tab = 'completed'"
+              :class="tab === 'completed' ? 'border-primary-600 text-primary-700 font-semibold' : 'border-transparent text-gray-500 hover:text-gray-700'"
+              class="flex items-center gap-1.5 px-4 py-2.5 text-sm border-b-2 transition-colors -mb-px whitespace-nowrap">
+        Kelas Selesai
+        {% if completed_rows %}
+        <span class="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">{{ completed_rows|length }}</span>
+        {% endif %}
+      </button>
+    </div>
+    <a href="{% url 'grades:print_my_grades' %}" target="_blank"
+       class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700
+              border border-gray-300 bg-white rounded-lg hover:bg-gray-50 transition-colors shrink-0">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+           stroke-width="1.75" stroke="currentColor" class="w-4 h-4">
+        <path stroke-linecap="round" stroke-linejoin="round"
+              d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
+      </svg>
+      Cetak
+    </a>
+  </div>
 
-  <!-- Per-class grade sections -->
-  <div class="space-y-4">
-    {% for row in rows %}
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+  {% comment %}Reusable macro-like block via inclusion — rendered twice for each tab{% endcomment %}
 
-      <!-- Class header -->
-      <div class="px-5 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <a href="{% url 'grades:my_grades_detail' row.enrollment.kelas.pk %}"
-             class="text-sm font-semibold text-gray-900 hover:text-indigo-600 transition-colors">
-            {{ row.enrollment.kelas.name }}
-          </a>
-          <p class="text-xs text-gray-500 mt-0.5">
-            {{ row.enrollment.kelas.subject.name }}
-            <span class="mx-1 text-gray-300">·</span>
-            <span class="
-              {% if row.enrollment.kelas.level == 'SD' %}text-teal-600
-              {% elif row.enrollment.kelas.level == 'SMP' %}text-blue-600
-              {% else %}text-purple-600{% endif %} font-medium">
-              {{ row.enrollment.kelas.level }}
-            </span>
-          </p>
-        </div>
-
-        <div class="flex items-center gap-3">
-          {% if row.avg is not None %}
-          <div class="text-right">
-            <span class="text-xs text-gray-400 block">Rata-rata</span>
-            <span class="text-lg font-bold
-              {% if row.avg >= 80 %}text-green-600{% elif row.avg >= 60 %}text-yellow-600{% else %}text-red-500{% endif %}">
-              {{ row.avg }}
-            </span>
+  <!-- ── Kelas Aktif ──────────────────────────────────────────────────────── -->
+  <div x-show="tab === 'active'" x-cloak>
+    {% if active_rows %}
+    <div class="space-y-4">
+      {% for row in active_rows %}
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <a href="{% url 'grades:my_grades_detail' row.enrollment.kelas.pk %}"
+               class="text-sm font-semibold text-gray-900 hover:text-primary-600 transition-colors">
+              {{ row.enrollment.kelas.name }}
+            </a>
+            <p class="text-xs text-gray-500 mt-0.5">
+              {{ row.enrollment.kelas.subject.name }}
+              <span class="mx-1 text-gray-300">·</span>
+              <span class="{% if row.enrollment.kelas.level == 'SD' %}text-teal-600{% elif row.enrollment.kelas.level == 'SMP' %}text-blue-600{% else %}text-primary-600{% endif %} font-medium">
+                {{ row.enrollment.kelas.level }}
+              </span>
+            </p>
           </div>
-          {% endif %}
-          <a href="{% url 'grades:my_grades_detail' row.enrollment.kelas.pk %}"
-             class="text-xs text-indigo-600 hover:text-indigo-800 font-medium px-2.5 py-1.5
-                    rounded-lg border border-indigo-200 hover:bg-indigo-50 transition-colors">
-            Lihat Detail →
-          </a>
+          <div class="flex items-center gap-3">
+            {% if row.avg is not None %}
+            <div class="text-right">
+              <span class="text-xs text-gray-400 block">Rata-rata</span>
+              <span class="text-lg font-bold {% if row.avg >= 80 %}text-green-600{% elif row.avg >= 60 %}text-yellow-600{% else %}text-red-500{% endif %}">
+                {{ row.avg }}
+              </span>
+            </div>
+            {% endif %}
+            <a href="{% url 'grades:my_grades_detail' row.enrollment.kelas.pk %}"
+               class="text-xs text-primary-600 hover:text-primary-800 font-medium px-2.5 py-1.5
+                      rounded-lg border border-primary-200 hover:bg-primary-50 transition-colors">
+              Lihat Detail →
+            </a>
+          </div>
         </div>
+        {% include "components/_grade_table.html" with grades=row.grades %}
       </div>
-
-      <!-- Grade table -->
-      {% include "components/_grade_table.html" with grades=row.grades %}
-
+      {% endfor %}
     </div>
-    {% endfor %}
+    {% else %}
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm">
+      <div class="flex flex-col items-center justify-center py-16 text-center px-6">
+        <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+               stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-gray-400">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+          </svg>
+        </div>
+        <p class="text-gray-600 font-medium mb-1">Belum ada nilai untuk kelas aktif.</p>
+        <p class="text-sm text-gray-400 mb-4">Nilai akan muncul setelah guru memasukkan nilai.</p>
+        <a href="/my-classes/"
+           class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white
+                  bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors">
+          Lihat Kelas Saya
+        </a>
+      </div>
+    </div>
+    {% endif %}
   </div>
 
-  {% else %}
-  <!-- Empty state -->
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm">
-    <div class="flex flex-col items-center justify-center py-20 text-center px-6">
-      <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-             stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-gray-400">
-          <path stroke-linecap="round" stroke-linejoin="round"
-                d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-        </svg>
+  <!-- ── Kelas Selesai ─────────────────────────────────────────────────────── -->
+  <div x-show="tab === 'completed'" x-cloak>
+    {% if completed_rows %}
+    <div class="space-y-4">
+      {% for row in completed_rows %}
+      <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <a href="{% url 'grades:my_grades_detail' row.enrollment.kelas.pk %}"
+               class="text-sm font-semibold text-gray-900 hover:text-primary-600 transition-colors">
+              {{ row.enrollment.kelas.name }}
+            </a>
+            <p class="text-xs text-gray-500 mt-0.5">
+              {{ row.enrollment.kelas.subject.name }}
+              <span class="mx-1 text-gray-300">·</span>
+              <span class="{% if row.enrollment.kelas.level == 'SD' %}text-teal-600{% elif row.enrollment.kelas.level == 'SMP' %}text-blue-600{% else %}text-primary-600{% endif %} font-medium">
+                {{ row.enrollment.kelas.level }}
+              </span>
+              <span class="mx-1 text-gray-300">·</span>
+              <span class="inline-flex items-center px-1.5 py-0 rounded text-xs font-medium bg-blue-50 text-blue-700">Selesai</span>
+            </p>
+          </div>
+          <div class="flex items-center gap-3">
+            {% if row.avg is not None %}
+            <div class="text-right">
+              <span class="text-xs text-gray-400 block">Rata-rata</span>
+              <span class="text-lg font-bold {% if row.avg >= 80 %}text-green-600{% elif row.avg >= 60 %}text-yellow-600{% else %}text-red-500{% endif %}">
+                {{ row.avg }}
+              </span>
+            </div>
+            {% endif %}
+            <a href="{% url 'grades:my_grades_detail' row.enrollment.kelas.pk %}"
+               class="text-xs text-primary-600 hover:text-primary-800 font-medium px-2.5 py-1.5
+                      rounded-lg border border-primary-200 hover:bg-primary-50 transition-colors">
+              Lihat Detail →
+            </a>
+          </div>
+        </div>
+        {% include "components/_grade_table.html" with grades=row.grades %}
       </div>
-      <p class="text-gray-600 font-medium mb-1">Belum ada nilai.</p>
-      <p class="text-sm text-gray-400 mb-4">Nilai akan muncul setelah guru memasukkan nilai untuk kelas yang Anda ikuti.</p>
-      <a href="/my-classes/"
-         class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white
-                bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
-        Lihat Kelas Saya
-      </a>
+      {% endfor %}
     </div>
+    {% else %}
+    <div class="bg-white rounded-xl border border-gray-100 shadow-sm">
+      <div class="flex flex-col items-center justify-center py-16 text-center px-6">
+        <p class="text-gray-600 font-medium">Belum ada nilai untuk kelas yang selesai.</p>
+      </div>
+    </div>
+    {% endif %}
   </div>
-  {% endif %}
 
 </div>
 {% endblock %}

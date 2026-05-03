@@ -126,6 +126,9 @@ class TeacherRegistrationForm(UserCreationForm):
     address = forms.CharField(
         widget=forms.Textarea(attrs={'rows': 3}), label='Alamat', required=False
     )
+    teaches_sd = forms.BooleanField(label='SD', required=False)
+    teaches_smp = forms.BooleanField(label='SMP', required=False)
+    teaches_sma = forms.BooleanField(label='SMA', required=False)
 
     class Meta(UserCreationForm.Meta):
         model = User
@@ -171,7 +174,24 @@ class TeacherRegistrationForm(UserCreationForm):
             Field('bio'),
             Field('phone'),
             Field('address'),
+            HTML('<p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-6">Jenjang yang Dapat Diajar</p>'),
+            Row(
+                Column('teaches_sd', css_class='md:col-span-1'),
+                Column('teaches_smp', css_class='md:col-span-1'),
+                Column('teaches_sma', css_class='md:col-span-1'),
+                css_class='grid grid-cols-3 gap-4',
+            ),
         )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not any([
+            cleaned_data.get('teaches_sd'),
+            cleaned_data.get('teaches_smp'),
+            cleaned_data.get('teaches_sma'),
+        ]):
+            raise forms.ValidationError('Pilih minimal satu jenjang yang dapat diajar.')
+        return cleaned_data
 
     def clean_email(self):
         email = self.cleaned_data.get('email', '').strip()
@@ -260,7 +280,8 @@ class StudentProfileEditForm(forms.ModelForm):
 class TeacherProfileEditForm(forms.ModelForm):
     class Meta:
         model = TeacherProfile
-        fields = ['education', 'specialization', 'bio', 'experience_years', 'phone', 'address']
+        fields = ['education', 'specialization', 'bio', 'experience_years', 'phone', 'address',
+                  'teaches_sd', 'teaches_smp', 'teaches_sma']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -270,6 +291,9 @@ class TeacherProfileEditForm(forms.ModelForm):
         self.fields['experience_years'].label = 'Pengalaman Mengajar (tahun)'
         self.fields['phone'].label = 'No. HP'
         self.fields['address'].label = 'Alamat'
+        self.fields['teaches_sd'].label = 'SD'
+        self.fields['teaches_smp'].label = 'SMP'
+        self.fields['teaches_sma'].label = 'SMA'
         self.helper = FormHelper()
         self.helper.form_tag = False
         self.helper.layout = Layout(
@@ -282,7 +306,24 @@ class TeacherProfileEditForm(forms.ModelForm):
             Field('bio'),
             Field('phone'),
             Field('address'),
+            HTML('<p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-6">Jenjang yang Dapat Diajar</p>'),
+            Row(
+                Column('teaches_sd', css_class='md:col-span-1'),
+                Column('teaches_smp', css_class='md:col-span-1'),
+                Column('teaches_sma', css_class='md:col-span-1'),
+                css_class='grid grid-cols-3 gap-4',
+            ),
         )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not any([
+            cleaned_data.get('teaches_sd'),
+            cleaned_data.get('teaches_smp'),
+            cleaned_data.get('teaches_sma'),
+        ]):
+            raise forms.ValidationError('Pilih minimal satu jenjang yang dapat diajar.')
+        return cleaned_data
 
 
 class AdminProfileEditForm(forms.ModelForm):

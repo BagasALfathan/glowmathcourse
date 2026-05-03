@@ -1,0 +1,84 @@
+{% if teachers %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  {% for teacher in teachers %}
+  <a href="{% url 'academics:teacher_profile' teacher.pk %}"
+     class="h-full bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md
+            transition-shadow p-5 flex flex-col gap-3 group">
+
+    <!-- Avatar + name -->
+    <div class="flex items-center gap-3">
+      <div class="w-12 h-12 rounded-full flex items-center justify-center shrink-0
+                  font-bold text-lg bg-primary-100 text-primary-700">
+        {{ teacher.first_name|first|upper }}{{ teacher.last_name|first|upper }}
+      </div>
+      <div class="min-w-0">
+        <h3 class="text-sm font-semibold text-gray-900 group-hover:text-teal-700
+                   transition-colors truncate">
+          {{ teacher.get_full_name }}
+        </h3>
+        {% if teacher.teacher_profile.education %}
+        <span class="text-xs font-medium text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
+          {{ teacher.teacher_profile.get_education_display }}
+        </span>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Specialization -->
+    {% if teacher.teacher_profile.specialization %}
+    <p class="text-xs text-gray-600 line-clamp-2">
+      {{ teacher.teacher_profile.specialization }}
+    </p>
+    {% endif %}
+
+    <!-- Jenjang badges -->
+    {% with tp=teacher.teacher_profile %}
+    {% if tp.teaches_sd or tp.teaches_smp or tp.teaches_sma %}
+    <div class="flex flex-wrap gap-1">
+      {% if tp.teaches_sd %}<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-50 text-teal-700">SD</span>{% endif %}
+      {% if tp.teaches_smp %}<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">SMP</span>{% endif %}
+      {% if tp.teaches_sma %}<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-50 text-primary-700">SMA</span>{% endif %}
+    </div>
+    {% endif %}
+    {% endwith %}
+
+    <!-- Rating + class count -->
+    <div class="flex items-center justify-between mt-auto pt-2 border-t border-gray-50">
+      <div class="flex items-center gap-1.5">
+        {% if teacher.rating_avg %}
+          {% with score=teacher.rating_avg|floatformat:"0" %}
+          {% include "components/_rating_stars.html" with score=score %}
+          {% endwith %}
+          <span class="text-xs text-gray-500 font-medium">
+            {{ teacher.rating_avg|floatformat:"1" }}
+            <span class="text-gray-300">({{ teacher.rating_count }})</span>
+          </span>
+        {% else %}
+          <span class="text-xs text-gray-400">Belum ada penilaian</span>
+        {% endif %}
+      </div>
+      <span class="text-xs text-teal-600 font-medium">
+        {{ teacher.open_class_count }} kelas aktif
+      </span>
+    </div>
+
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center py-20 text-center px-6">
+  <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+         stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-gray-400">
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+    </svg>
+  </div>
+  <p class="text-gray-600 font-medium mb-1">Tidak ada guru ditemukan.</p>
+  {% if q or spec_filter %}
+  <p class="text-sm text-gray-400">Coba ubah kata kunci atau filter.</p>
+  {% else %}
+  <p class="text-sm text-gray-400">Belum ada guru yang terdaftar.</p>
+  {% endif %}
+</div>
+{% endif %}

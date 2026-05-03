@@ -1,0 +1,39 @@
+{% extends "base_print.html" %}
+
+{% block title %}Jadwal Master{% endblock %}
+
+{% block content %}
+<style>
+  @page { size: landscape; margin: 1.5cm; }
+</style>
+
+<div class="mb-6 pb-4 border-b border-gray-200">
+  <h1 class="text-xl font-bold text-gray-900 mb-1">Jadwal Master</h1>
+  <p class="text-sm text-gray-600">
+    Admin
+    &nbsp;·&nbsp; Dicetak: {% now "d F Y" %}
+    {% if teacher_filter or level_filter or room_filter %}
+    &nbsp;·&nbsp;
+    {% if level_filter %}Jenjang: {{ level_filter }}{% endif %}
+    {% if room_filter %}Ruangan: {{ room_filter }}{% endif %}
+    {% endif %}
+  </p>
+  <p class="text-xs text-gray-400 mt-1">{{ total_slots }} slot jadwal</p>
+</div>
+
+{% if legend %}
+<div class="mb-4 flex flex-wrap gap-2">
+  {% for entry in legend %}
+  <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border {{ entry.color }}">
+    {{ entry.teacher.get_full_name }}
+  </span>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if total_slots %}
+{% include "components/_schedule_grid.html" with grid_rows=grid_rows days=days days_list=days_list view_role=view_role is_print=True %}
+{% else %}
+<p class="text-sm text-gray-400 text-center py-12">Tidak ada jadwal ditemukan.</p>
+{% endif %}
+{% endblock %}

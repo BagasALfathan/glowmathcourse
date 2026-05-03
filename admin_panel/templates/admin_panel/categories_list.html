@@ -1,0 +1,186 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Kelola Kategori{% endblock %}
+{% block page_title %}Kelola Kategori{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-5"
+     x-data="{
+       showCreate: false,
+       editId: null, editName: '', editDesc: '', editActive: true,
+       deleteId: null, deleteName: '',
+       openEdit(id, name, desc, active) {
+         this.editId = id; this.editName = name; this.editDesc = desc; this.editActive = active;
+       },
+       openDelete(id, name) { this.deleteId = id; this.deleteName = name; }
+     }">
+
+  <!-- Header -->
+  <div class="flex items-center justify-between">
+    <p class="text-sm text-gray-500">{{ categories|length }} kategori</p>
+    <button @click="showCreate = true"
+            class="px-4 py-2 text-sm font-semibold text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors">
+      + Tambah Kategori
+    </button>
+  </div>
+
+  <!-- Table -->
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+    {% if categories %}
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b border-gray-100">
+        <tr>
+          <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Nama</th>
+          <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">Deskripsi</th>
+          <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Mata Pelajaran</th>
+          <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Status</th>
+          <th class="px-5 py-3"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50">
+        {% for cat in categories %}
+        <tr class="hover:bg-gray-50 transition-colors">
+          <td class="px-5 py-3 font-medium text-gray-900">{{ cat.name }}</td>
+          <td class="px-5 py-3 text-gray-500 hidden sm:table-cell text-xs">{{ cat.description|default:"—"|truncatechars:60 }}</td>
+          <td class="px-5 py-3 text-gray-600 text-xs">{{ cat.subjects.count }}</td>
+          <td class="px-5 py-3">
+            {% if cat.is_active %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Aktif</span>
+            {% else %}
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Nonaktif</span>
+            {% endif %}
+          </td>
+          <td class="px-5 py-3 text-right">
+            <div class="flex items-center justify-end gap-2">
+              <button @click="openEdit({{ cat.pk }}, '{{ cat.name|escapejs }}', '{{ cat.description|escapejs }}', {{ cat.is_active|yesno:'true,false' }})"
+                      class="text-xs font-medium text-primary-600 hover:text-primary-800 px-2.5 py-1.5 rounded-lg border border-primary-200 hover:bg-primary-50 transition-colors">
+                Edit
+              </button>
+              <button @click="openDelete({{ cat.pk }}, '{{ cat.name|escapejs }}')"
+                      class="text-xs font-medium text-red-500 hover:text-red-700 px-2.5 py-1.5 rounded-lg border border-red-200 hover:bg-red-50 transition-colors">
+                Hapus
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="py-14 text-center text-sm text-gray-400">Belum ada kategori.</div>
+    {% endif %}
+  </div>
+
+  <!-- ── Create Modal ── -->
+  <div x-show="showCreate" x-cloak
+       class="fixed inset-0 z-50 flex items-center justify-center px-4"
+       @keydown.escape.window="showCreate = false">
+    <div class="absolute inset-0 bg-black/40" @click="showCreate = false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100">
+      <h3 class="text-base font-bold text-gray-900 mb-4">Tambah Kategori</h3>
+      <form method="post" action="{% url 'admin_panel:category_create' %}" class="space-y-4">
+        {% csrf_token %}
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Nama <span class="text-red-500">*</span></label>
+          <input type="text" name="name" required autofocus
+                 class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Deskripsi</label>
+          <textarea name="description" rows="3"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400 resize-none"></textarea>
+        </div>
+        <div class="flex gap-3 pt-1">
+          <button type="button" @click="showCreate = false"
+                  class="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors">
+            Batal
+          </button>
+          <button type="submit"
+                  class="flex-1 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-xl transition-colors">
+            Simpan
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Edit Modal ── -->
+  <div x-show="editId !== null" x-cloak
+       class="fixed inset-0 z-50 flex items-center justify-center px-4"
+       @keydown.escape.window="editId = null">
+    <div class="absolute inset-0 bg-black/40" @click="editId = null"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100">
+      <h3 class="text-base font-bold text-gray-900 mb-4">Edit Kategori</h3>
+      <form method="post" :action="`/admin-panel/categories/${editId}/edit/`" class="space-y-4">
+        {% csrf_token %}
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Nama <span class="text-red-500">*</span></label>
+          <input type="text" name="name" x-model="editName" required
+                 class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1.5">Deskripsi</label>
+          <textarea name="description" x-model="editDesc" rows="3"
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400 resize-none"></textarea>
+        </div>
+        <div class="flex items-center gap-3">
+          <input type="checkbox" name="is_active" id="edit_is_active" x-model="editActive"
+                 class="w-4 h-4 text-primary-600 border-gray-300 rounded">
+          <label for="edit_is_active" class="text-sm text-gray-700">Aktif</label>
+        </div>
+        <div class="flex gap-3 pt-1">
+          <button type="button" @click="editId = null"
+                  class="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors">
+            Batal
+          </button>
+          <button type="submit"
+                  class="flex-1 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white text-sm font-semibold rounded-xl transition-colors">
+            Simpan
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Delete Modal ── -->
+  <div x-show="deleteId !== null" x-cloak
+       class="fixed inset-0 z-50 flex items-center justify-center px-4"
+       @keydown.escape.window="deleteId = null">
+    <div class="absolute inset-0 bg-black/40" @click="deleteId = null"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6"
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100">
+      <div class="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-red-600">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+        </svg>
+      </div>
+      <h3 class="text-base font-bold text-gray-900 text-center mb-1">Hapus Kategori</h3>
+      <p class="text-sm text-gray-600 text-center mb-1">Yakin ingin menghapus kategori ini?</p>
+      <p class="text-sm font-semibold text-gray-900 text-center mb-6" x-text="deleteName"></p>
+      <form method="post" :action="`/admin-panel/categories/${deleteId}/delete/`">
+        {% csrf_token %}
+        <div class="flex gap-3">
+          <button type="button" @click="deleteId = null"
+                  class="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 text-sm font-semibold rounded-xl hover:bg-gray-50 transition-colors">
+            Batal
+          </button>
+          <button type="submit"
+                  class="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-xl transition-colors">
+            Ya, Hapus
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+<style>[x-cloak] { display: none !important; }</style>
+{% endblock %}

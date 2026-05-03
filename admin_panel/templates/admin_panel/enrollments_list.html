@@ -1,0 +1,44 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Kelola Pendaftaran{% endblock %}
+{% block page_title %}Kelola Pendaftaran{% endblock %}
+
+{% block content %}
+
+<!-- Controls -->
+<div id="enrollments-controls" class="flex flex-col sm:flex-row gap-3 mb-5">
+  <input type="text" name="q" placeholder="Cari nama siswa atau kelas…"
+         hx-get="/admin-panel/enrollments/partial/"
+         hx-target="#enrollments-table-wrapper"
+         hx-swap="innerHTML"
+         hx-trigger="input changed delay:400ms, search"
+         hx-include="#enrollments-controls"
+         class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm
+                focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
+
+  <select name="status"
+          hx-get="/admin-panel/enrollments/partial/"
+          hx-target="#enrollments-table-wrapper"
+          hx-swap="innerHTML"
+          hx-trigger="change"
+          hx-include="#enrollments-controls"
+          class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white
+                 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
+    <option value="">Semua Status</option>
+    <option value="ACTIVE">Aktif</option>
+    <option value="COMPLETED">Selesai</option>
+    <option value="DROPPED">Keluar</option>
+  </select>
+</div>
+
+<!-- Table -->
+<div id="enrollments-table-wrapper"
+     hx-get="/admin-panel/enrollments/partial/"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+  <div class="flex items-center justify-center py-12 text-gray-400 text-sm">
+    Memuat data…
+  </div>
+</div>
+
+{% endblock %}

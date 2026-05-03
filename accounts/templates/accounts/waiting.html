@@ -1,4 +1,4 @@
-{% extends "base_auth.html" %}
+﻿{% extends "base_auth.html" %}
 
 {% block title %}Menunggu Persetujuan{% endblock %}
 
@@ -33,12 +33,12 @@
   <p class="text-sm font-semibold text-gray-700 mb-3">Langkah selanjutnya:</p>
   <ol class="space-y-3">
     <li class="flex items-start gap-3">
-      <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold
+      <span class="w-6 h-6 rounded-full bg-primary-100 text-primary-700 text-xs font-bold
                    flex items-center justify-center shrink-0 mt-0.5">1</span>
       <p class="text-sm text-gray-600">Tunggu konfirmasi dari admin. Anda akan bisa masuk setelah akun disetujui.</p>
     </li>
     <li class="flex items-start gap-3">
-      <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold
+      <span class="w-6 h-6 rounded-full bg-primary-100 text-primary-700 text-xs font-bold
                    flex items-center justify-center shrink-0 mt-0.5">2</span>
       <p class="text-sm text-gray-600">Hubungi admin via WhatsApp untuk mempercepat proses persetujuan.</p>
     </li>
@@ -57,7 +57,7 @@
 
 <p class="text-center text-sm text-gray-500">
   Sudah disetujui?
-  <a href="{% url 'accounts:login' %}" class="font-medium text-indigo-600 hover:text-indigo-700">
+  <a href="{% url 'accounts:login' %}" class="font-medium text-primary-600 hover:text-primary-700">
     Masuk sekarang
   </a>
 </p>

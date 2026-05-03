@@ -1,0 +1,16 @@
+{% extends "base_print.html" %}
+
+{% block title %}Progress — {{ student.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 pb-4 border-b border-gray-200">
+  <h1 class="text-xl font-bold text-gray-900 mb-1">Laporan Progress Siswa</h1>
+  <p class="text-sm text-gray-600">
+    {{ kelas.name }}
+    &nbsp;·&nbsp; {{ kelas.subject.name }}
+    &nbsp;·&nbsp; Dicetak: {% now "d F Y" %}
+  </p>
+</div>
+
+{% include "grades/_progress_report_body.html" %}
+{% endblock %}

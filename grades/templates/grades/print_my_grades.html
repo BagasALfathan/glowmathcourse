@@ -1,0 +1,83 @@
+﻿{% extends "base_print.html" %}
+
+{% block title %}Cetak Nilai Saya{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="mb-6">
+  <h1 class="text-xl font-bold text-gray-900">Rekap Nilai Siswa</h1>
+  <p class="text-sm text-gray-600 mt-1">
+    <span class="font-medium">{{ student.get_full_name }}</span>
+    &nbsp;·&nbsp; {{ student.username }}
+  </p>
+  <p class="text-xs text-gray-400 mt-0.5">Dicetak: {{ printed_date|date:"d F Y" }}</p>
+</div>
+
+{% if rows %}
+  {% for row in rows %}
+  <div class="mb-6">
+    <!-- Class heading -->
+    <div class="flex items-center justify-between mb-2">
+      <div>
+        <h2 class="text-sm font-bold text-gray-900">{{ row.enrollment.kelas.name }}</h2>
+        <p class="text-xs text-gray-500">
+          {{ row.enrollment.kelas.subject.name }}
+          {% if row.enrollment.kelas.teacher %}
+            &nbsp;·&nbsp; {{ row.enrollment.kelas.teacher.get_full_name }}
+          {% endif %}
+          {% if row.enrollment.kelas.level == 'SD' %}&nbsp;·&nbsp;<span class="text-teal-700">SD</span>
+          {% elif row.enrollment.kelas.level == 'SMP' %}&nbsp;·&nbsp;<span class="text-blue-700">SMP</span>
+          {% else %}&nbsp;·&nbsp;<span class="text-primary-700">SMA</span>{% endif %}
+        </p>
+      </div>
+      {% if row.avg is not None %}
+      <div class="text-right">
+        <span class="text-xs text-gray-400">Rata-rata</span>
+        <div class="text-lg font-bold
+          {% if row.avg >= 80 %}text-green-600{% elif row.avg >= 60 %}text-yellow-600{% else %}text-red-500{% endif %}">
+          {{ row.avg }}
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if row.grades %}
+    <table class="w-full text-xs border border-gray-200 rounded overflow-hidden">
+      <thead>
+        <tr class="bg-gray-100">
+          <th class="px-3 py-2 text-left font-semibold text-gray-600">Jenis Nilai</th>
+          <th class="px-3 py-2 text-center font-semibold text-gray-600">Nilai</th>
+          <th class="px-3 py-2 text-left font-semibold text-gray-600">Catatan</th>
+          <th class="px-3 py-2 text-left font-semibold text-gray-600">Tanggal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for grade in row.grades %}
+        <tr class="border-t border-gray-100 {% cycle '' 'bg-gray-50' %}">
+          <td class="px-3 py-2">
+            {% if grade.grade_type == 'QUIZ' %}Kuis
+            {% elif grade.grade_type == 'MIDTERM' %}UTS
+            {% elif grade.grade_type == 'FINAL' %}UAS
+            {% else %}Tugas{% endif %}
+          </td>
+          <td class="px-3 py-2 text-center font-semibold
+            {% if grade.score >= 80 %}text-green-700{% elif grade.score >= 60 %}text-yellow-700{% else %}text-red-600{% endif %}">
+            {{ grade.score }}
+          </td>
+          <td class="px-3 py-2 text-gray-500">{{ grade.notes|default:"—" }}</td>
+          <td class="px-3 py-2 text-gray-400">{{ grade.graded_at|date:"d M Y" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-xs text-gray-400 italic">Belum ada nilai untuk kelas ini.</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+{% else %}
+<p class="text-sm text-gray-500 text-center py-12">Belum ada nilai untuk ditampilkan.</p>
+{% endif %}
+
+{% endblock %}

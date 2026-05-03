@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Jadwal Pertemuan Saya{% endblock %}
+{% block page_title %}Jadwal Pertemuan{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+
+  <!-- Tab switcher -->
+  <div class="flex border-b border-gray-200 overflow-x-auto">
+    <a href="{% url 'academics:student_schedule_classes' %}"
+       class="flex items-center gap-1.5 px-4 py-2.5 text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px whitespace-nowrap transition-colors">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-4 h-4">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+      </svg>
+      Jadwal Kelas
+    </a>
+    <a href="{% url 'academics:student_schedule_sessions' %}"
+       class="flex items-center gap-1.5 px-4 py-2.5 text-sm border-b-2 border-primary-600 text-primary-700 font-semibold -mb-px whitespace-nowrap">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-4 h-4">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      Jadwal Pertemuan
+    </a>
+  </div>
+
+  <!-- Week navigation -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div class="flex items-center gap-2">
+      <a href="?week=prev"
+         class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-600
+                bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+        </svg>
+        Sebelumnya
+      </a>
+      <span class="text-sm font-semibold text-gray-700 px-1">
+        {{ week_start|date:"d M" }} – {{ week_end|date:"d M Y" }}
+      </span>
+      <a href="?week=next"
+         class="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-600
+                bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+        Berikutnya
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+        </svg>
+      </a>
+      {% if week_param != 'current' %}
+      <a href="?week=current"
+         class="text-xs text-primary-600 hover:text-primary-800 font-medium transition-colors">
+        Minggu ini
+      </a>
+      {% endif %}
+    </div>
+    <p class="text-sm text-gray-500">
+      {% if total_sessions %}
+        {{ total_sessions }} pertemuan minggu ini
+      {% else %}
+        Tidak ada pertemuan minggu ini
+      {% endif %}
+    </p>
+  </div>
+
+  {% if total_sessions %}
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 overflow-hidden">
+    {% include "components/_session_grid.html" with grid_rows=grid_rows days=days days_list=days_list view_role=view_role %}
+  </div>
+  {% else %}
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center py-20 text-center px-6">
+    <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-gray-400">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    </div>
+    <p class="text-gray-600 font-medium mb-1">Tidak ada pertemuan minggu ini.</p>
+    <p class="text-sm text-gray-400 mb-4">Coba navigasi ke minggu lain atau daftar ke kelas.</p>
+    <a href="{% url 'academics:class_browse' %}"
+       class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white
+              bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors">
+      Cari Kelas
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

@@ -1,0 +1,73 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Kelola Pengguna{% endblock %}
+{% block page_title %}Kelola Pengguna{% endblock %}
+
+{% block content %}
+
+<!-- Export bar -->
+<div class="flex justify-end mb-3">
+  <a href="{% url 'admin_panel:export_students_excel' %}"
+     class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-green-700
+            border border-green-300 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+         stroke-width="1.75" stroke="currentColor" class="w-4 h-4">
+      <path stroke-linecap="round" stroke-linejoin="round"
+            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+    </svg>
+    Export Siswa (Excel)
+  </a>
+</div>
+
+<!-- Controls -->
+<div id="users-controls" class="flex flex-col sm:flex-row gap-3 mb-5">
+  <input type="text" name="q" placeholder="Cari nama, email, atau username…"
+         hx-get="/admin-panel/users/partial/"
+         hx-target="#users-table-wrapper"
+         hx-swap="innerHTML"
+         hx-trigger="input changed delay:400ms, search"
+         hx-include="#users-controls"
+         class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm
+                focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
+
+  <select name="role"
+          hx-get="/admin-panel/users/partial/"
+          hx-target="#users-table-wrapper"
+          hx-swap="innerHTML"
+          hx-trigger="change"
+          hx-include="#users-controls"
+          class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white
+                 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
+    <option value="">Semua Peran</option>
+    <option value="STUDENT">Siswa</option>
+    <option value="TEACHER">Guru</option>
+    <option value="ADMIN">Admin</option>
+  </select>
+
+  <select name="status"
+          hx-get="/admin-panel/users/partial/"
+          hx-target="#users-table-wrapper"
+          hx-swap="innerHTML"
+          hx-trigger="change"
+          hx-include="#users-controls"
+          class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white
+                 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
+    <option value="">Semua Status</option>
+    <option value="active">Aktif</option>
+    <option value="inactive">Tidak Aktif</option>
+    <option value="rejected">Ditolak</option>
+    <option value="deleted">Dihapus</option>
+  </select>
+</div>
+
+<!-- Table -->
+<div id="users-table-wrapper"
+     hx-get="/admin-panel/users/partial/"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+  <div class="flex items-center justify-center py-12 text-gray-400 text-sm">
+    Memuat data…
+  </div>
+</div>
+
+{% endblock %}

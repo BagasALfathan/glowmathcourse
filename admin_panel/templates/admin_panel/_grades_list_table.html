@@ -1,0 +1,105 @@
+﻿{% if page_obj.object_list %}
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
+  <table class="w-full text-sm">
+    <thead class="bg-gray-50 border-b border-gray-100">
+      <tr>
+        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Siswa</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Kelas</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Jenis</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Nilai</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden md:table-cell">Catatan</th>
+        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden lg:table-cell">Tanggal</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y divide-gray-50">
+      {% for grade in page_obj %}
+      <tr class="hover:bg-gray-50 transition-colors">
+        <td class="px-5 py-3">
+          <a href="{% url 'admin_panel:user_detail' grade.enrollment.student.pk %}"
+             class="font-medium text-gray-900 hover:text-primary-600 transition-colors">
+            {{ grade.enrollment.student.get_full_name|default:grade.enrollment.student.username }}
+          </a>
+        </td>
+        <td class="px-5 py-3">
+          <a href="{% url 'academics:class_detail' grade.enrollment.kelas.pk %}"
+             class="text-gray-800 hover:text-primary-600 transition-colors">
+            {{ grade.enrollment.kelas.name }}
+          </a>
+          <p class="text-xs text-gray-400 mt-0.5">{{ grade.enrollment.kelas.subject.name }}</p>
+        </td>
+        <td class="px-5 py-3">
+          {% if grade.grade_type == 'QUIZ' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">Kuis</span>
+          {% elif grade.grade_type == 'MIDTERM' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">UTS</span>
+          {% elif grade.grade_type == 'FINAL' %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-primary-100 text-primary-700">UAS</span>
+          {% else %}
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Tugas</span>
+          {% endif %}
+        </td>
+        <td class="px-5 py-3">
+          <span class="font-semibold text-base
+            {% if grade.score >= 80 %}text-green-600
+            {% elif grade.score >= 60 %}text-yellow-600
+            {% else %}text-red-500{% endif %}">
+            {{ grade.score|floatformat:"-2" }}
+          </span>
+        </td>
+        <td class="px-5 py-3 text-xs text-gray-500 hidden md:table-cell">{{ grade.notes|default:"—" }}</td>
+        <td class="px-5 py-3 text-xs text-gray-500 hidden lg:table-cell whitespace-nowrap">
+          {{ grade.graded_at|date:"d M Y" }}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<div class="flex items-center justify-between mt-4">
+  <p class="text-xs text-gray-500">
+    Menampilkan {{ page_obj.start_index }}–{{ page_obj.end_index }}
+    dari {{ page_obj.paginator.count }} nilai
+  </p>
+  <div class="flex gap-1">
+    {% if page_obj.has_previous %}
+    <button hx-get="/admin-panel/grades/partial/?q={{ q|urlencode }}&grade_type={{ type_filter }}&page={{ page_obj.previous_page_number }}"
+            hx-target="#grades-table-wrapper" hx-swap="innerHTML"
+            class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">←</button>
+    {% endif %}
+    {% for num in page_obj.paginator.page_range %}
+      {% if num == page_obj.number %}
+      <span class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary-600 text-white">{{ num }}</span>
+      {% elif num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
+      <button hx-get="/admin-panel/grades/partial/?q={{ q|urlencode }}&grade_type={{ type_filter }}&page={{ num }}"
+              hx-target="#grades-table-wrapper" hx-swap="innerHTML"
+              class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">{{ num }}</button>
+      {% endif %}
+    {% endfor %}
+    {% if page_obj.has_next %}
+    <button hx-get="/admin-panel/grades/partial/?q={{ q|urlencode }}&grade_type={{ type_filter }}&page={{ page_obj.next_page_number }}"
+            hx-target="#grades-table-wrapper" hx-swap="innerHTML"
+            class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">→</button>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<p class="text-xs text-gray-400 mt-3">{{ page_obj.paginator.count }} nilai ditemukan</p>
+{% endif %}
+
+{% else %}
+<div class="bg-white rounded-xl border border-gray-100 shadow-sm py-14 text-center">
+  <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-gray-400">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.438 60.438 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342M6.75 15a.75.75 0 100-1.5.75.75 0 000 1.5zm0 0v-3.675A55.378 55.378 0 0112 8.443m-7.007 11.55A5.981 5.981 0 006.75 15.75v-1.5" />
+    </svg>
+  </div>
+  {% if q or type_filter %}
+  <p class="text-sm text-gray-500">Tidak ada hasil untuk filter ini.</p>
+  {% else %}
+  <p class="text-sm text-gray-500">Belum ada nilai yang tersimpan.</p>
+  {% endif %}
+</div>
+{% endif %}

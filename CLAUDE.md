@@ -219,7 +219,7 @@ These features are explicitly OUT OF SCOPE for MVP:
 - ❌ Discount / promo codes
 - ❌ Multi-branch support
 - ❌ SMS / WhatsApp notifications
-- ❌ File upload (report cards, certificates, photos)
+- ❌ File upload (report cards, certificates, photos) — **EXCEPTION: teacher profile photo is allowed** (ImageField on TeacherProfile, max 2 MB, jpg/png/webp only, stored under `/media/teacher_photos/`)
 - ❌ REST API / DRF
 - ❌ React / Vue / any JS framework
 - ❌ Microservices architecture

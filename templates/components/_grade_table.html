@@ -1,4 +1,4 @@
-{% comment %}
+﻿{% comment %}
   Reusable grade table component.
   Expects: grades (list of Grade objects, each with .grade_type, .score, .session, .graded_at, .notes)
   Optional: empty_message (string shown when grades is empty)
@@ -26,7 +26,7 @@
           {% elif grade.grade_type == 'MIDTERM' %}
             <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">UTS</span>
           {% elif grade.grade_type == 'FINAL' %}
-            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">UAS</span>
+            <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-primary-100 text-primary-700">UAS</span>
           {% else %}
             <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Tugas</span>
           {% endif %}

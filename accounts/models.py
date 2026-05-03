@@ -80,7 +80,24 @@ class TeacherProfile(models.Model):
     experience_years = models.PositiveSmallIntegerField(default=0)
     phone = models.CharField(max_length=20, blank=True)
     address = models.TextField(blank=True)
+    photo = models.ImageField(upload_to='teacher_photos/', null=True, blank=True)
+    teaches_sd = models.BooleanField(default=False)
+    teaches_smp = models.BooleanField(default=False)
+    teaches_sma = models.BooleanField(default=False)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def get_jenjang_list(self):
+        result = []
+        if self.teaches_sd:
+            result.append('SD')
+        if self.teaches_smp:
+            result.append('SMP')
+        if self.teaches_sma:
+            result.append('SMA')
+        return result
+
+    def get_jenjang_display(self):
+        return ', '.join(self.get_jenjang_list()) or '—'
 
     def __str__(self):
         return f'Profil Guru: {self.user.get_full_name()}'

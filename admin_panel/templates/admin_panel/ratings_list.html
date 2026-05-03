@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Kelola Rating{% endblock %}
+{% block page_title %}Kelola Rating{% endblock %}
+
+{% block content %}
+
+<!-- Controls -->
+<div id="ratings-controls" class="flex flex-col sm:flex-row gap-3 mb-5">
+  <input type="text" name="q" placeholder="Cari nama siswa atau guru…"
+         hx-get="/admin-panel/ratings/partial/"
+         hx-target="#ratings-table-wrapper"
+         hx-swap="innerHTML"
+         hx-trigger="input changed delay:400ms, search"
+         hx-include="#ratings-controls"
+         class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm
+                focus:outline-none focus:ring-2 focus:ring-yellow-300 focus:border-yellow-400">
+
+  <select name="score"
+          hx-get="/admin-panel/ratings/partial/"
+          hx-target="#ratings-table-wrapper"
+          hx-swap="innerHTML"
+          hx-trigger="change"
+          hx-include="#ratings-controls"
+          class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white
+                 focus:outline-none focus:ring-2 focus:ring-yellow-300 focus:border-yellow-400">
+    <option value="">Semua Skor</option>
+    <option value="5">★★★★★ (5)</option>
+    <option value="4">★★★★☆ (4)</option>
+    <option value="3">★★★☆☆ (3)</option>
+    <option value="2">★★☆☆☆ (2)</option>
+    <option value="1">★☆☆☆☆ (1)</option>
+  </select>
+</div>
+
+<!-- Table -->
+<div id="ratings-table-wrapper"
+     hx-get="/admin-panel/ratings/partial/"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+  <div class="flex items-center justify-center py-12 text-gray-400 text-sm">
+    Memuat data…
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Log Aktivitas{% endblock %}
+{% block page_title %}Log Aktivitas{% endblock %}
+
+{% block content %}
+
+<!-- Controls -->
+<div id="logs-controls" class="flex flex-col sm:flex-row gap-3 mb-5">
+  <input type="text" name="q" placeholder="Cari nama pengguna…"
+         hx-get="/admin-panel/logs/partial/"
+         hx-target="#logs-table-wrapper"
+         hx-swap="innerHTML"
+         hx-trigger="input changed delay:400ms, search"
+         hx-include="#logs-controls"
+         class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm
+                focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-gray-400">
+
+  <select name="action"
+          hx-get="/admin-panel/logs/partial/"
+          hx-target="#logs-table-wrapper"
+          hx-swap="innerHTML"
+          hx-trigger="change"
+          hx-include="#logs-controls"
+          class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white
+                 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-gray-400">
+    <option value="">Semua Aksi</option>
+    <option value="created">Dibuat</option>
+    <option value="updated">Diperbarui</option>
+    <option value="deleted">Dihapus</option>
+    <option value="approved">Disetujui</option>
+    <option value="rejected">Ditolak</option>
+  </select>
+
+  <select name="target_type"
+          hx-get="/admin-panel/logs/partial/"
+          hx-target="#logs-table-wrapper"
+          hx-swap="innerHTML"
+          hx-trigger="change"
+          hx-include="#logs-controls"
+          class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white
+                 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:border-gray-400">
+    <option value="">Semua Target</option>
+    {% for t in target_types %}
+    <option value="{{ t }}">{{ t }}</option>
+    {% endfor %}
+  </select>
+</div>
+
+<!-- Table -->
+<div id="logs-table-wrapper"
+     hx-get="/admin-panel/logs/partial/"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+  <div class="flex items-center justify-center py-12 text-gray-400 text-sm">
+    Memuat data…
+  </div>
+</div>
+
+{% endblock %}

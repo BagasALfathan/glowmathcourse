@@ -1,4 +1,5 @@
 from django import forms
+from django.utils import timezone
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Row, Column, Field
 
@@ -57,10 +58,25 @@ class KelasForm(forms.ModelForm):
             ),
         )
 
+    def clean_capacity(self):
+        val = self.cleaned_data.get('capacity')
+        if val is not None and val < 1:
+            raise forms.ValidationError('Kapasitas harus minimal 1 siswa.')
+        return val
+
+    def clean_total_sessions(self):
+        val = self.cleaned_data.get('total_sessions')
+        if val is not None and val < 1:
+            raise forms.ValidationError('Total pertemuan harus minimal 1.')
+        return val
+
     def clean(self):
         cleaned = super().clean()
         start = cleaned.get('start_date')
         end = cleaned.get('end_date')
+        today = timezone.localdate()
+        if start and start < today:
+            self.add_error('start_date', 'Tanggal mulai tidak boleh sebelum hari ini.')
         if start and end and end <= start:
             self.add_error('end_date', 'Tanggal selesai harus setelah tanggal mulai.')
         return cleaned
@@ -112,6 +128,18 @@ class KelasEditForm(forms.ModelForm):
                 css_class='grid grid-cols-1 md:grid-cols-2 gap-4',
             ),
         )
+
+    def clean_capacity(self):
+        val = self.cleaned_data.get('capacity')
+        if val is not None and val < 1:
+            raise forms.ValidationError('Kapasitas harus minimal 1 siswa.')
+        return val
+
+    def clean_total_sessions(self):
+        val = self.cleaned_data.get('total_sessions')
+        if val is not None and val < 1:
+            raise forms.ValidationError('Total pertemuan harus minimal 1.')
+        return val
 
     def clean(self):
         cleaned = super().clean()

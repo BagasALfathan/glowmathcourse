@@ -1,0 +1,206 @@
+{% comment %}
+Reusable weekly session grid component — proportional calendar layout.
+
+Required context:
+  cal_total_height  — int (pixels)
+  cal_hour_labels   — list of {label, top}
+  cal_days_list     — list of {value, label, items} (each item has cal_* position attrs)
+  days_list         — list of {value, label, items}  (for mobile list)
+  view_role         — 'student' | 'teacher'
+
+Optional:
+  is_print          — True → always render grid, landscape print styles
+
+Each item dict:
+  schedule        — SimpleNamespace(.day .start_time .end_time .room)
+  kelas           — Kelas instance
+  session         — Session instance (.session_number .topic .date .capacity)
+  color           — Tailwind color classes
+  is_booked       — bool (student view only)
+  enrolled_count  — int (teacher view only)
+
+Tailwind palette (keep purger happy):
+bg-blue-100 text-blue-800 border-blue-200
+bg-green-100 text-green-800 border-green-200
+bg-purple-100 text-purple-800 border-purple-200
+bg-orange-100 text-orange-800 border-orange-200
+bg-teal-100 text-teal-800 border-teal-200
+bg-pink-100 text-pink-800 border-pink-200
+bg-yellow-100 text-yellow-800 border-yellow-200
+bg-indigo-100 text-indigo-800 border-indigo-200
+bg-rose-100 text-rose-800 border-rose-200
+bg-cyan-100 text-cyan-800 border-cyan-200
+{% endcomment %}
+
+{% if is_print %}
+<style>
+  @page { size: A4 landscape; margin: 1cm; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .ses-print-block { background-color: white !important; border: 1px solid #333 !important; color: #111 !important; }
+  .ses-print-block * { color: #111 !important; background: transparent !important; }
+</style>
+{% endif %}
+
+{# ── DESKTOP / PRINT CALENDAR ──────────────────────────────────────────────── #}
+<div class="{% if not is_print %}hidden md:block{% endif %} overflow-x-auto">
+  <div class="min-w-[700px]">
+
+    {# Day header row #}
+    <div class="flex border-b border-gray-200">
+      <div class="w-12 shrink-0"></div>
+      {% for day_info in cal_days_list %}
+      <div class="flex-1 text-center py-2 text-xs font-semibold text-gray-700
+                  {% if not forloop.first %}border-l border-gray-200{% endif %}">
+        {{ day_info.label }}
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Calendar body #}
+    <div class="flex" style="height: {{ cal_total_height }}px;">
+
+      {# Time ruler #}
+      <div class="w-12 shrink-0 relative border-r border-gray-200">
+        {% for hl in cal_hour_labels %}
+        <div class="absolute right-1 text-gray-400 font-medium leading-none select-none"
+             style="top: {{ hl.top }}px; transform: translateY(-50%); font-size: 10px;">
+          {{ hl.label }}
+        </div>
+        {% endfor %}
+      </div>
+
+      {# Day columns #}
+      {% for day_info in cal_days_list %}
+      <div class="flex-1 relative border-l border-gray-100 overflow-hidden">
+
+        {# Hour guide lines #}
+        {% for hl in cal_hour_labels %}
+        <div class="absolute left-0 right-0 border-t border-gray-100 pointer-events-none"
+             style="top: {{ hl.top }}px;"></div>
+        {% endfor %}
+
+        {# Session blocks #}
+        {% for item in day_info.items %}
+        <div class="absolute overflow-hidden leading-tight cursor-default
+                    {% if is_print %}ses-print-block{% else %}{{ item.color }} rounded border{% endif %}"
+             style="top: {{ item.cal_top }}px;
+                    height: {{ item.cal_height }}px;
+                    left: calc({{ item.cal_left_pct }}% + 1px);
+                    width: calc({{ item.cal_width_pct }}% - 2px);
+                    padding: 3px 4px;
+                    {% if is_print %}font-size: 12pt; border-radius: 2px;{% else %}font-size: 11px; border-radius: 4px;{% endif %}">
+          <div class="font-semibold {% if not is_print %}truncate{% endif %}" title="{{ item.kelas.name }}">
+            {{ item.kelas.name }}
+          </div>
+          {% if item.cal_height >= 36 %}
+          <div class="{% if not is_print %}truncate{% endif %} opacity-80">
+            Pertemuan {{ item.session.session_number }}
+          </div>
+          {% endif %}
+          {% if item.cal_height >= 52 %}
+          <div class="font-medium opacity-70 mt-0.5">
+            {{ item.schedule.start_time|time:"H:i" }}–{{ item.schedule.end_time|time:"H:i" }}
+          </div>
+          {% endif %}
+          {% if item.session.topic and item.cal_height >= 68 %}
+          <div class="{% if not is_print %}truncate{% endif %} opacity-70 italic">
+            {{ item.session.topic|truncatechars:28 }}
+          </div>
+          {% endif %}
+          {% if item.cal_height >= 80 %}
+          <div class="opacity-70">{{ item.session.date|date:"d M" }}</div>
+          {% endif %}
+          {% if item.cal_height >= 96 %}
+            {% if view_role == 'student' %}
+            <div class="mt-1">
+              {% if item.is_booked %}
+              <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-bold bg-white bg-opacity-60 text-green-700">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+                Terdaftar
+              </span>
+              {% else %}
+              <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-white bg-opacity-50 opacity-70">Belum daftar</span>
+              {% endif %}
+            </div>
+            {% endif %}
+            {% if view_role == 'teacher' %}
+            <div class="opacity-70 mt-0.5">
+              {% if item.session.capacity > 0 %}{{ item.session.booked_count }}/{{ item.session.capacity }} peserta{% else %}{{ item.session.booked_count }} peserta{% endif %}
+            </div>
+            {% endif %}
+          {% endif %}
+        </div>
+        {% endfor %}
+
+      </div>
+      {% endfor %}
+
+    </div>{# end calendar body #}
+  </div>
+</div>
+
+{# ── MOBILE LIST ─────────────────────────────────────────────────────────────── #}
+{% if not is_print %}
+<div class="block md:hidden" x-data="{ activeDay: '{{ days_list.0.value }}' }">
+  <div class="flex gap-1.5 overflow-x-auto pb-2 mb-4 no-scrollbar">
+    {% for day_info in days_list %}
+    <button type="button"
+            @click="activeDay = '{{ day_info.value }}'"
+            :class="activeDay === '{{ day_info.value }}'
+                    ? 'bg-primary-600 text-white shadow-sm'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+            class="px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors shrink-0">
+      {{ day_info.label }}
+      {% if day_info.items %}<span class="ml-0.5 opacity-75">({{ day_info.items|length }})</span>{% endif %}
+    </button>
+    {% endfor %}
+  </div>
+
+  {% for day_info in days_list %}
+  <div x-show="activeDay === '{{ day_info.value }}'" x-cloak>
+    {% if day_info.items %}
+    <div class="space-y-2">
+      {% for item in day_info.items %}
+      <div class="rounded-xl border p-3 {{ item.color }}">
+        <div class="flex items-start justify-between gap-2 mb-1">
+          <div>
+            <div class="font-semibold text-sm leading-tight">{{ item.kelas.name }}</div>
+            <div class="text-xs opacity-80">Pertemuan {{ item.session.session_number }}</div>
+          </div>
+          <div class="shrink-0 text-right text-xs font-medium opacity-70">
+            {{ item.schedule.start_time|time:"H:i" }}–{{ item.schedule.end_time|time:"H:i" }}
+          </div>
+        </div>
+        {% if item.session.topic %}
+        <div class="text-xs italic opacity-70 mb-1">{{ item.session.topic|truncatechars:40 }}</div>
+        {% endif %}
+        <div class="text-xs opacity-70">{{ item.session.date|date:"d M Y" }}</div>
+        {% if view_role == 'student' %}
+        <div class="mt-1.5">
+          {% if item.is_booked %}
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-white bg-opacity-70 text-green-700">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3 h-3"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+            Terdaftar
+          </span>
+          {% else %}
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-white bg-opacity-50 opacity-70">Belum daftar</span>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% if view_role == 'teacher' %}
+        <div class="text-xs opacity-70 mt-1">
+          {% if item.session.capacity > 0 %}{{ item.session.booked_count }}/{{ item.session.capacity }} peserta{% else %}{{ item.session.booked_count }} peserta{% endif %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="py-12 text-center">
+      <p class="text-sm text-gray-400">Tidak ada pertemuan pada hari ini.</p>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

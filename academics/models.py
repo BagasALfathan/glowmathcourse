@@ -134,6 +134,46 @@ class Kelas(models.Model):
         except Exception:
             return 0
 
+    def check_and_update_status(self):
+        """Auto-close this kelas if end_date has passed. Returns True if status changed."""
+        today = timezone.localdate()
+        if self.end_date < today and self.status != KelasStatus.CLOSED:
+            self.status = KelasStatus.CLOSED
+            self.save(update_fields=['status', 'updated_at'])
+            return True
+        return False
+
+    @property
+    def is_expired(self):
+        return self.end_date < timezone.localdate()
+
+    @property
+    def is_upcoming(self):
+        return self.start_date > timezone.localdate()
+
+    def get_schedule_display(self):
+        """Return 'Senin & Rabu, 09:00–10:30' or 'Senin 09:00–10:30, Rabu 14:00–15:30'."""
+        from collections import defaultdict
+        schedules = sorted(self.schedules.all(), key=lambda s: s.start_time)
+        if not schedules:
+            return '—'
+        by_time = defaultdict(list)
+        order = []
+        for s in schedules:
+            key = (s.start_time.strftime('%H:%M'), s.end_time.strftime('%H:%M'))
+            if key not in by_time:
+                order.append(key)
+            by_time[key].append(s.get_day_display())
+        parts = []
+        for key in order:
+            start, end = key
+            days = by_time[key]
+            if len(days) > 1:
+                parts.append(f"{' & '.join(days)}, {start}–{end}")
+            else:
+                parts.append(f"{days[0]} {start}–{end}")
+        return ', '.join(parts)
+
     def soft_delete(self):
         self.is_deleted = True
         self.deleted_at = timezone.now()

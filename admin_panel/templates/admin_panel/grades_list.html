@@ -1,0 +1,44 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Kelola Nilai{% endblock %}
+{% block page_title %}Kelola Nilai{% endblock %}
+
+{% block content %}
+
+<!-- Controls -->
+<div id="grades-controls" class="flex flex-col sm:flex-row gap-3 mb-5">
+  <input type="text" name="q" placeholder="Cari nama siswa atau kelas…"
+         hx-get="/admin-panel/grades/partial/"
+         hx-target="#grades-table-wrapper"
+         hx-swap="innerHTML"
+         hx-trigger="input changed delay:400ms, search"
+         hx-include="#grades-controls"
+         class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm
+                focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
+
+  <select name="grade_type"
+          hx-get="/admin-panel/grades/partial/"
+          hx-target="#grades-table-wrapper"
+          hx-swap="innerHTML"
+          hx-trigger="change"
+          hx-include="#grades-controls"
+          class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white
+                 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
+    <option value="">Semua Jenis</option>
+    {% for val, label in grade_type_choices %}
+    <option value="{{ val }}">{{ label }}</option>
+    {% endfor %}
+  </select>
+</div>
+
+<!-- Table -->
+<div id="grades-table-wrapper"
+     hx-get="/admin-panel/grades/partial/"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+  <div class="flex items-center justify-center py-12 text-gray-400 text-sm">
+    Memuat data…
+  </div>
+</div>
+
+{% endblock %}

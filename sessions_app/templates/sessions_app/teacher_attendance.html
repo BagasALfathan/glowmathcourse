@@ -1,10 +1,28 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Absensi — Pertemuan {{ session.session_number }}{% endblock %}
 {% block page_title %}Absensi Pertemuan{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto space-y-5">
+
+{# ── Alpine.js component definition ─────────────────────────────────────────── #}
+<script>
+function attendanceForm(initial) {
+  return {
+    statuses: Object.assign({}, initial),
+    get presentCount()  { return Object.values(this.statuses).filter(s => s === 'PRESENT').length; },
+    get permittedCount(){ return Object.values(this.statuses).filter(s => s === 'PERMITTED').length; },
+    get absentCount()   { return Object.values(this.statuses).filter(s => s === 'ABSENT').length; },
+    get unmarkedCount() { return Object.values(this.statuses).filter(s => s === '').length; },
+    setAll(status) {
+      for (const k in this.statuses) this.statuses[k] = status;
+    }
+  };
+}
+</script>
+
+<div class="max-w-3xl mx-auto space-y-5"
+     x-data="attendanceForm({{ statuses_json|safe }})">
 
   <!-- Back link -->
   <a href="{% url 'sessions_app:teacher_sessions' kelas.pk %}"
@@ -17,36 +35,48 @@
   </a>
 
   <!-- Session info banner -->
-  <div class="bg-indigo-50 border border-indigo-100 rounded-xl px-5 py-4 space-y-1">
+  <div class="{% if session_is_live %}bg-green-50 border-green-200{% else %}bg-primary-50 border-primary-100{% endif %} border rounded-xl px-5 py-4 space-y-1.5">
     <div class="flex items-center gap-2 flex-wrap">
-      <span class="text-sm font-semibold text-indigo-800">{{ kelas.name }}</span>
-      <span class="text-indigo-300">·</span>
-      <span class="text-sm text-indigo-700">
+      <span class="text-sm font-semibold {% if session_is_live %}text-green-800{% else %}text-primary-800{% endif %}">{{ kelas.name }}</span>
+      <span class="{% if session_is_live %}text-green-300{% else %}text-primary-300{% endif %}">·</span>
+      <span class="text-sm {% if session_is_live %}text-green-700{% else %}text-primary-700{% endif %}">
         Pertemuan ke-<span class="font-semibold">{{ session.session_number }}</span>
       </span>
-      <span class="text-indigo-300">·</span>
-      <span class="text-sm text-indigo-700">{{ session.date|date:"l, d M Y" }}</span>
+      <span class="{% if session_is_live %}text-green-300{% else %}text-primary-300{% endif %}">·</span>
+      <span class="text-sm {% if session_is_live %}text-green-700{% else %}text-primary-700{% endif %}">
+        {{ session.date|date:"l, d M Y" }}
+        {% if session.start_time %}
+          · {{ session.start_time|time:"H:i" }}–{{ session.end_time|time:"H:i" }}
+        {% elif session_schedule %}
+          · {{ session_schedule.start_time|time:"H:i" }}–{{ session_schedule.end_time|time:"H:i" }}
+        {% endif %}
+      </span>
       {% if session.topic %}
-      <span class="text-indigo-300">·</span>
-      <span class="text-sm text-indigo-600 italic">{{ session.topic }}</span>
+      <span class="{% if session_is_live %}text-green-300{% else %}text-primary-300{% endif %}">·</span>
+      <span class="text-sm {% if session_is_live %}text-green-600{% else %}text-primary-600{% endif %} italic">{{ session.topic }}</span>
       {% endif %}
     </div>
-    {% if session.status == 'SCHEDULED' %}
-      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">Terjadwal</span>
-    {% elif session.status == 'COMPLETED' %}
-      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Selesai</span>
-    {% else %}
-      <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">Dibatalkan</span>
-    {% endif %}
+    <div class="flex items-center gap-2 flex-wrap">
+      {% if session_is_live %}
+        <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-500 text-white">
+          <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>Sedang Berlangsung
+        </span>
+      {% elif session.status == 'SCHEDULED' %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">Terjadwal</span>
+      {% elif session.status == 'COMPLETED' %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Selesai</span>
+      {% else %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">Dibatalkan</span>
+      {% endif %}
+    </div>
   </div>
 
-  <!-- Success message -->
+  <!-- Flash messages -->
   {% if messages %}
   {% for message in messages %}
-  <div class="flex items-center gap-2 px-4 py-3 rounded-xl
+  <div class="flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium
               {% if message.tags == 'success' %}bg-green-50 border border-green-200 text-green-700
-              {% else %}bg-yellow-50 border border-yellow-200 text-yellow-700{% endif %}
-              text-sm font-medium">
+              {% else %}bg-yellow-50 border border-yellow-200 text-yellow-700{% endif %}">
     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
          stroke-width="2" stroke="currentColor" class="w-4 h-4 shrink-0">
       <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
@@ -66,6 +96,67 @@
     {% if rows %}
     <form method="post">
       {% csrf_token %}
+
+      <!-- ── Bulk action buttons ───────────────────────────────────────────── -->
+      <div class="px-6 py-3 border-b border-gray-50 flex flex-wrap items-center gap-2">
+        <span class="text-xs font-medium text-gray-500 mr-1">Isi semua:</span>
+        <button type="button"
+                @click="setAll('PRESENT')"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold
+                       text-green-700 bg-green-50 hover:bg-green-100 border border-green-200
+                       rounded-lg transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+               stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+          Semua Hadir
+        </button>
+        <button type="button"
+                @click="setAll('PERMITTED')"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold
+                       text-yellow-700 bg-yellow-50 hover:bg-yellow-100 border border-yellow-200
+                       rounded-lg transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+               stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+          </svg>
+          Semua Izin
+        </button>
+        <button type="button"
+                @click="setAll('ABSENT')"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold
+                       text-red-600 bg-red-50 hover:bg-red-100 border border-red-200
+                       rounded-lg transition-colors">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+               stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          Semua Alpha
+        </button>
+      </div>
+
+      <!-- ── Live summary bar ──────────────────────────────────────────────── -->
+      <div class="px-6 py-2.5 bg-gray-50 border-b border-gray-100 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span class="text-xs text-gray-500 font-medium">Rekap:</span>
+        <span class="text-xs font-semibold text-green-700">
+          Hadir: <span x-text="presentCount">0</span>
+        </span>
+        <span class="text-xs text-gray-300">|</span>
+        <span class="text-xs font-semibold text-yellow-600">
+          Izin: <span x-text="permittedCount">0</span>
+        </span>
+        <span class="text-xs text-gray-300">|</span>
+        <span class="text-xs font-semibold text-red-500">
+          Alpha: <span x-text="absentCount">0</span>
+        </span>
+        <span class="text-xs text-gray-300">|</span>
+        <span class="text-xs font-semibold text-gray-400">
+          Belum: <span x-text="unmarkedCount">0</span>
+        </span>
+      </div>
+
+      <!-- ── Student table ─────────────────────────────────────────────────── -->
       <div class="overflow-x-auto">
         <table class="w-full text-sm">
           <thead class="bg-gray-50 border-b border-gray-100">
@@ -79,8 +170,11 @@
           </thead>
           <tbody class="divide-y divide-gray-50">
             {% for row in rows %}
-            {% with enrollment=row.enrollment current=row.current_status %}
-            <tr class="hover:bg-gray-50 transition-colors">
+            {% with enrollment=row.enrollment %}
+            <tr class="hover:bg-gray-50 transition-colors"
+                :class="statuses['{{ enrollment.pk }}'] === 'PRESENT'  ? 'bg-green-50/30'  :
+                        statuses['{{ enrollment.pk }}'] === 'PERMITTED' ? 'bg-yellow-50/30' :
+                        statuses['{{ enrollment.pk }}'] === 'ABSENT'   ? 'bg-red-50/30'    : ''">
 
               <!-- Student name -->
               <td class="px-4 py-3">
@@ -101,8 +195,8 @@
                   <input type="radio"
                          name="attendance_{{ enrollment.pk }}"
                          value="PRESENT"
-                         class="w-4 h-4 text-green-600 border-gray-300 focus:ring-green-500"
-                         {% if current == 'PRESENT' or current is None %}checked{% endif %}>
+                         x-model="statuses['{{ enrollment.pk }}']"
+                         class="w-4 h-4 text-green-600 border-gray-300 focus:ring-green-500">
                 </label>
               </td>
 
@@ -112,8 +206,8 @@
                   <input type="radio"
                          name="attendance_{{ enrollment.pk }}"
                          value="PERMITTED"
-                         class="w-4 h-4 text-yellow-500 border-gray-300 focus:ring-yellow-400"
-                         {% if current == 'PERMITTED' %}checked{% endif %}>
+                         x-model="statuses['{{ enrollment.pk }}']"
+                         class="w-4 h-4 text-yellow-500 border-gray-300 focus:ring-yellow-400">
                 </label>
               </td>
 
@@ -123,8 +217,8 @@
                   <input type="radio"
                          name="attendance_{{ enrollment.pk }}"
                          value="ABSENT"
-                         class="w-4 h-4 text-red-500 border-gray-300 focus:ring-red-400"
-                         {% if current == 'ABSENT' %}checked{% endif %}>
+                         x-model="statuses['{{ enrollment.pk }}']"
+                         class="w-4 h-4 text-red-500 border-gray-300 focus:ring-red-400">
                 </label>
               </td>
 
@@ -135,11 +229,23 @@
         </table>
       </div>
 
-      <!-- Submit -->
-      <div class="px-6 py-4 border-t border-gray-100 flex justify-end">
-        <button type="submit"
-                class="px-6 py-2 text-sm font-semibold text-white bg-indigo-600
-                       rounded-lg hover:bg-indigo-700 transition-colors">
+      <!-- ── Submit buttons ────────────────────────────────────────────────── -->
+      <div class="px-6 py-4 border-t border-gray-100 flex flex-wrap items-center justify-end gap-3">
+        {% if next_session %}
+        <button type="submit" name="action" value="save_and_next"
+                class="px-5 py-2 text-sm font-semibold text-primary-700 bg-primary-50
+                       border border-primary-200 rounded-lg hover:bg-primary-100 transition-colors
+                       inline-flex items-center gap-2">
+          Simpan & Lanjut
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+               stroke-width="2" stroke="currentColor" class="w-4 h-4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+          </svg>
+        </button>
+        {% endif %}
+        <button type="submit" name="action" value="save"
+                class="px-6 py-2 text-sm font-semibold text-white bg-primary-600
+                       rounded-lg hover:bg-primary-700 transition-colors">
           Simpan Kehadiran
         </button>
       </div>
@@ -155,7 +261,7 @@
                 d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
         </svg>
       </div>
-      <p class="text-gray-600 font-medium mb-1">Belum ada siswa terdaftar.</p>
+      <p class="text-gray-600 font-medium mb-1">Belum ada siswa yang mendaftar untuk pertemuan ini.</p>
       <p class="text-sm text-gray-400">Siswa perlu mendaftar ke kelas ini terlebih dahulu.</p>
     </div>
     {% endif %}

@@ -1,11 +1,11 @@
-{% extends "base_auth.html" %}
+﻿{% extends "base_auth.html" %}
 
 {% block title %}Daftar{% endblock %}
 
 {% block card_width %}max-w-lg{% endblock %}
 
 {% block content %}
-  <h2 class="text-2xl font-bold text-gray-900 mb-1 text-center">Buat akun baru</h2>
+  <h2 class="text-2xl font-bold text-gray-900 mb-1 text-center">Buat Akun Baru</h2>
   <p class="text-sm text-gray-500 mb-8 text-center">Pilih peran Anda di GlowMathCourse</p>
 
   <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -62,7 +62,7 @@
 
   <p class="mt-8 text-center text-sm text-gray-500">
     Sudah punya akun?
-    <a href="{% url 'accounts:login' %}" class="font-medium text-indigo-600 hover:text-indigo-700">
+    <a href="{% url 'accounts:login' %}" class="font-medium text-primary-600 hover:text-primary-700">
       Masuk di sini
     </a>
   </p>

@@ -1,0 +1,284 @@
+﻿{% extends "base.html" %}
+
+{% block title %}Pilih Pertemuan — {{ kelas.name }}{% endblock %}
+{% block page_title %}Pilih Pertemuan{% endblock %}
+
+{% block content %}
+<div class="space-y-5" x-data="{ cancelModal: false, cancelUrl: '' }">
+
+  <!-- Back link -->
+  <a href="/my-classes/"
+     class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+         stroke-width="2" stroke="currentColor" class="w-4 h-4">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+    </svg>
+    Kelas Saya
+  </a>
+
+  <!-- Class info -->
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-6 py-4">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div>
+        <h2 class="text-base font-semibold text-gray-900">{{ kelas.name }}</h2>
+        <p class="text-sm text-gray-500 mt-0.5">
+          {{ kelas.subject.name }} &nbsp;·&nbsp;
+          {% if kelas.level == 'SD' %}<span class="text-teal-600 font-medium">SD</span>
+          {% elif kelas.level == 'SMP' %}<span class="text-blue-600 font-medium">SMP</span>
+          {% else %}<span class="text-primary-600 font-medium">SMA</span>{% endif %}
+          &nbsp;·&nbsp; {{ kelas.academic_period.name }}
+        </p>
+        {% with op=kelas.get_schedule_display %}{% if op != '—' %}
+        <p class="text-xs text-gray-400 mt-1 flex items-center gap-1">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+               stroke-width="1.75" stroke="currentColor" class="w-3.5 h-3.5 shrink-0">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span class="font-medium text-gray-500">Jam Operasional:</span> {{ op }}
+        </p>
+        {% endif %}{% endwith %}
+      </div>
+      <div class="flex items-center gap-2 px-4 py-2 bg-teal-50 rounded-lg shrink-0">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="1.75" stroke="currentColor" class="w-4 h-4 text-teal-600">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span class="text-sm font-medium text-teal-700">
+          {{ total_booked }} terdaftar dari {{ rows|length }} pertemuan
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Countdown banner -->
+  {% if next_countdown_start_ts %}
+  <div class="bg-white rounded-xl border border-primary-200 shadow-sm px-5 py-4 flex items-center gap-3"
+       x-data="{
+         startMs: {{ next_countdown_start_ts }},
+         endMs: {{ next_countdown_end_ts }},
+         label: '',
+         color: 'text-primary-600',
+         pulse: false,
+         update() {
+           const now = Date.now();
+           if (now >= this.endMs) { this.label = ''; return; }
+           if (now >= this.startMs) {
+             this.label = 'Sedang berlangsung';
+             this.color = 'text-green-600';
+             this.pulse = true;
+             return;
+           }
+           this.pulse = false;
+           const diff = this.startMs - now;
+           const totalMin = Math.floor(diff / 60000);
+           const days = Math.floor(totalMin / 1440);
+           const hours = Math.floor((totalMin % 1440) / 60);
+           const mins = totalMin % 60;
+           if (days >= 1) {
+             this.label = 'Mulai dalam ' + days + ' hari';
+             this.color = 'text-primary-600';
+           } else if (hours >= 1) {
+             this.label = 'Mulai dalam ' + hours + ' jam' + (mins > 0 ? ' ' + mins + ' menit' : '');
+             this.color = 'text-primary-600';
+           } else {
+             this.label = 'Mulai dalam ' + (totalMin > 0 ? totalMin : 1) + ' menit';
+             this.color = 'text-red-500';
+           }
+         }
+       }"
+       x-init="update(); setInterval(() => update(), 60000)">
+    <div class="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+           stroke-width="2" stroke="currentColor" class="w-4 h-4 text-primary-600">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+    </div>
+    <div>
+      <p class="text-xs text-gray-400">Pertemuan Berikutnya</p>
+      <p class="text-sm font-semibold" :class="color" x-text="label">—</p>
+    </div>
+    <template x-if="pulse">
+      <span class="ml-auto inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-green-500 text-white">
+        <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>Live
+      </span>
+    </template>
+  </div>
+  {% endif %}
+
+  <!-- Sessions list -->
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-100">
+      <h3 class="text-sm font-semibold text-gray-900">Daftar Pertemuan</h3>
+      <p class="text-xs text-gray-500 mt-0.5">Daftarkan diri ke pertemuan yang ingin kamu ikuti.</p>
+    </div>
+
+    {% if rows %}
+    <div class="divide-y divide-gray-50">
+      {% for row in rows %}
+      <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3
+                  {% if row.is_booked %}bg-teal-50/50{% elif row.session.is_past %}opacity-70{% endif %}">
+
+        <div class="flex items-start gap-4">
+          <!-- Session number badge -->
+          <span class="inline-flex items-center justify-center w-9 h-9 rounded-full shrink-0
+                       {% if row.is_booked %}bg-teal-600 text-white{% elif row.session.is_today %}bg-primary-600 text-white{% elif row.session.is_past %}bg-gray-100 text-gray-500{% else %}bg-primary-50 text-primary-700{% endif %}
+                       text-sm font-bold">
+            {{ row.session.session_number }}
+          </span>
+
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-sm font-medium text-gray-800">
+                {{ row.session.date|date:"l, d M Y" }}
+              </span>
+              {% if row.session.start_time %}
+                <span class="text-xs text-primary-600 font-medium bg-primary-50 px-2 py-0.5 rounded">
+                  {{ row.session.start_time|time:"H:i" }}–{{ row.session.end_time|time:"H:i" }}
+                </span>
+              {% elif row.schedule %}
+                <span class="text-xs text-primary-500 font-medium bg-primary-50 px-2 py-0.5 rounded">
+                  {{ row.schedule.start_time|time:"H:i" }}–{{ row.schedule.end_time|time:"H:i" }}
+                </span>
+              {% endif %}
+              {% if row.session.is_today %}
+                <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-primary-600 text-white">Hari ini</span>
+              {% endif %}
+              {% if row.session.status == 'CANCELLED' %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">Dibatalkan</span>
+              {% endif %}
+            </div>
+            {% if row.session.topic %}
+            <p class="text-xs text-gray-500 mt-0.5">{{ row.session.topic }}</p>
+            {% endif %}
+            <div class="flex items-center gap-3 mt-1 text-xs text-gray-400">
+              {% if row.session.capacity > 0 %}
+                <span>{{ row.session.booked_count_ann }}/{{ row.session.capacity }} pendaftar</span>
+                {% if row.is_full %}
+                  <span class="text-red-500 font-medium">Penuh</span>
+                {% else %}
+                  <span class="text-green-600">Tersedia</span>
+                {% endif %}
+              {% else %}
+                <span>{{ row.session.booked_count_ann }} pendaftar</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Action button -->
+        <div class="sm:shrink-0">
+          {% if row.session.status == 'CANCELLED' %}
+            <span class="inline-flex items-center px-3 py-2 text-xs font-medium text-gray-400 bg-gray-50 rounded-lg border border-gray-200">
+              Pertemuan dibatalkan
+            </span>
+          {% elif row.is_booked %}
+            <div class="flex items-center gap-2">
+              <span class="inline-flex items-center gap-1 text-xs font-semibold text-teal-700 px-3 py-2 bg-teal-100 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                     stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+                Terdaftar
+              </span>
+              {% if row.session.is_upcoming %}
+              <button type="button"
+                      @click="cancelUrl = '{% url 'sessions_app:student_cancel_booking' enrollment.pk row.session.pk %}'; cancelModal = true"
+                      class="inline-flex items-center px-3 py-2 text-xs font-medium text-red-600
+                             border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
+                Batalkan
+              </button>
+              {% endif %}
+            </div>
+          {% elif row.is_full %}
+            <span class="inline-flex items-center px-3 py-2 text-xs font-medium text-gray-400 bg-gray-50 rounded-lg border border-gray-200">
+              Pertemuan Penuh
+            </span>
+          {% elif row.is_past_start %}
+            <span class="inline-flex items-center px-3 py-2 text-xs font-medium text-amber-600 bg-amber-50 rounded-lg border border-amber-200">
+              Sudah dimulai
+            </span>
+          {% elif row.session.is_past %}
+            <span class="inline-flex items-center px-3 py-2 text-xs font-medium text-gray-400 bg-gray-50 rounded-lg border border-gray-200">
+              Sudah lewat
+            </span>
+          {% else %}
+            <form method="post" action="{% url 'sessions_app:student_book_session' enrollment.pk row.session.pk %}">
+              {% csrf_token %}
+              <button type="submit"
+                      class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white
+                             bg-teal-600 rounded-lg hover:bg-teal-700 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                     stroke-width="2" stroke="currentColor" class="w-3.5 h-3.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                </svg>
+                Daftar
+              </button>
+            </form>
+          {% endif %}
+        </div>
+
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <div class="flex flex-col items-center justify-center py-16 text-center px-6">
+      <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-gray-400">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+        </svg>
+      </div>
+      <p class="text-gray-600 font-medium">Belum ada pertemuan.</p>
+      <p class="text-sm text-gray-400 mt-1">Guru belum membuat jadwal pertemuan untuk kelas ini.</p>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- Cancel booking confirmation modal -->
+  <div x-show="cancelModal"
+       x-cloak
+       x-transition:enter="transition ease-out duration-150"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       class="fixed inset-0 z-50 flex items-center justify-center px-4"
+       @keydown.escape.window="cancelModal = false">
+    <div class="absolute inset-0 bg-black/40" @click="cancelModal = false"></div>
+    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6"
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100">
+      <div class="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+             stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-orange-600">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+        </svg>
+      </div>
+      <h3 class="text-base font-bold text-gray-900 text-center mb-1">Batalkan Pendaftaran?</h3>
+      <p class="text-sm text-gray-600 text-center mb-6">
+        Apakah Anda yakin ingin membatalkan pendaftaran pertemuan ini?
+      </p>
+      <form method="post" :action="cancelUrl">
+        {% csrf_token %}
+        <div class="flex gap-3">
+          <button type="button" @click="cancelModal = false"
+                  class="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 text-sm
+                         font-semibold rounded-xl hover:bg-gray-50 transition-colors">
+            Batal
+          </button>
+          <button type="submit"
+                  class="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white
+                         text-sm font-semibold rounded-xl transition-colors">
+            Ya, Batalkan
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

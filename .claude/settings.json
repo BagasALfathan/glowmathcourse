@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python manage.py check)",
+      "Bash(python manage.py runserver *)",
+      "Bash(python manage.py smoke_test)",
+      "Bash(python manage.py show_urls *)",
+      "Bash(timeout * python manage.py runserver *)",
+      "Bash(timeout * venv/Scripts/python manage.py runserver *)",
+      "Bash(venv/Scripts/python manage.py runserver *)",
+      "Bash(pkill -f \"manage.py runserver\" *)",
+      "Bash(pkill -f \"runserver\" *)",
+      "Bash(wc *)",
+      "Bash(curl -s *)",
+      "Bash(curl -sv *)",
+      "Bash(curl -v *)"
+    ]
+  }
+}

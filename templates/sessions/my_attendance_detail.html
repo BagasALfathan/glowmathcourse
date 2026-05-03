@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
 {% block title %}Kehadiran — {{ kelas.name }}{% endblock %}
 {% block page_title %}Detail Kehadiran{% endblock %}
@@ -17,9 +17,9 @@
   </a>
 
   <!-- Class info banner -->
-  <div class="bg-indigo-50 border border-indigo-100 rounded-xl px-5 py-4">
-    <h2 class="text-sm font-semibold text-indigo-800">{{ kelas.name }}</h2>
-    <p class="text-xs text-indigo-600 mt-0.5">{{ kelas.subject.name }}
+  <div class="bg-primary-50 border border-primary-100 rounded-xl px-5 py-4">
+    <h2 class="text-sm font-semibold text-primary-800">{{ kelas.name }}</h2>
+    <p class="text-xs text-primary-600 mt-0.5">{{ kelas.subject.name }}
       {% if kelas.level == 'SD' %}&nbsp;·&nbsp;SD
       {% elif kelas.level == 'SMP' %}&nbsp;·&nbsp;SMP
       {% else %}&nbsp;·&nbsp;SMA{% endif %}
@@ -88,7 +88,7 @@
             <!-- Session number -->
             <td class="px-4 py-3">
               <span class="inline-flex items-center justify-center w-7 h-7 rounded-full
-                           bg-indigo-100 text-indigo-700 text-xs font-bold">
+                           bg-primary-100 text-primary-700 text-xs font-bold">
                 {{ row.session.session_number }}
               </span>
             </td>
