@@ -40,3 +40,6 @@ Thumbs.db
 # Runtime
 logs/
 backups/
+backup_pre_deploy.json
+backup_*.json
+backup_*.json
