@@ -1,406 +1,317 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
+{% load dashboard_filters %}
 
-{% block title %}Dashboard Siswa{% endblock %}
-{% block page_title %}Beranda{% endblock %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
 
-<!-- Greeting + live clock -->
-<div class="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+<!-- 1. ANNOUNCEMENT HERO ─────────────────────────────────────────────── -->
+{% if featured_announcement %}
+<div class="rounded-2xl p-5 md:p-7 mb-6 text-white relative overflow-hidden min-h-[160px] md:min-h-[180px] flex items-center"
+     style="background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);">
+  <!-- decorative dot pattern (hidden on mobile to save space) -->
+  <div class="hidden md:block absolute right-0 top-0 bottom-0 w-72 opacity-10 pointer-events-none"
+       style="background-image: radial-gradient(circle at 30% 30%, white 2px, transparent 2px),
+                                radial-gradient(circle at 70% 70%, white 2px, transparent 2px);
+              background-size: 40px 40px;"></div>
+  <div class="flex-1 relative z-10 md:pr-8">
+    <span class="inline-flex items-center gap-1 bg-white/20 px-3 py-1 rounded-full text-[11px] font-semibold tracking-wider mb-2 md:mb-3">
+      <i class="ti ti-speakerphone"></i> PENGUMUMAN
+    </span>
+    <h1 class="text-lg md:text-2xl font-semibold mb-2 leading-snug">{{ featured_announcement.title }}</h1>
+    <p class="text-xs md:text-sm opacity-95 max-w-xl leading-relaxed mb-3 md:mb-4 m-0">
+      {{ featured_announcement.content|truncatewords:25 }}
+    </p>
+    <div class="flex flex-wrap gap-2 md:gap-4 text-[11px] md:text-xs opacity-90 items-center">
+      <span class="inline-flex items-center gap-1"><i class="ti ti-calendar"></i> {{ featured_announcement.created_at|date:"d M Y" }}</span>
+      {% if featured_announcement.author %}
+      <span class="inline-flex items-center gap-1 truncate max-w-[180px]"><i class="ti ti-user"></i> {{ featured_announcement.author.get_full_name|default:featured_announcement.author.username|truncatechars:20 }}</span>
+      {% endif %}
+    </div>
+  </div>
+  {% if other_announcements_count > 0 %}
+  <div class="absolute bottom-4 right-5 md:bottom-5 md:right-7 flex gap-1.5 z-10">
+    <div class="w-5 h-1.5 rounded-full bg-white"></div>
+    {% for i in other_announcements_count|times %}{% if forloop.counter < 4 %}
+    <div class="w-1.5 h-1.5 rounded-full bg-white/40"></div>
+    {% endif %}{% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- 2. STATS COMPACT ──────────────────────────────────────────────────── -->
+<div class="flex flex-col sm:flex-row gap-3 sm:gap-3 mb-6 p-4 bg-white border border-gray-200 rounded-xl">
+  <a href="{% url 'student:my_classes' %}"
+     class="group flex-1 flex gap-3 items-center -m-2 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+    <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+      <i class="ti ti-school text-lg"></i>
+    </div>
+    <div>
+      <div class="text-lg font-semibold text-gray-900 leading-none">{{ total_active_classes }}</div>
+      <div class="text-xs text-gray-500 mt-1 inline-flex items-center gap-1">
+        Kelas Aktif
+        <i class="ti ti-arrow-right text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]"></i>
+      </div>
+    </div>
+  </a>
+  <a href="{% url 'student:my_attendance' %}"
+     class="group flex-1 flex gap-3 items-center -m-2 p-2 rounded-lg sm:ml-1 sm:border-l sm:border-t-0 border-t border-gray-100 sm:pl-4 pt-3 sm:pt-2 hover:bg-gray-50 transition-colors">
+    <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+      <i class="ti ti-calendar-check text-lg"></i>
+    </div>
+    <div>
+      <div class="text-lg font-semibold text-gray-900 leading-none">{{ attendance_rate }}%</div>
+      <div class="text-xs text-gray-500 mt-1 inline-flex items-center gap-1">
+        Kehadiran
+        <i class="ti ti-arrow-right text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]"></i>
+      </div>
+    </div>
+  </a>
+  <a href="{% url 'student:my_monthly_score' %}"
+     class="group flex-1 flex gap-3 items-center -m-2 p-2 rounded-lg sm:ml-1 sm:border-l sm:border-t-0 border-t border-gray-100 sm:pl-4 pt-3 sm:pt-2 hover:bg-gray-50 transition-colors">
+    <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+      <i class="ti ti-star text-lg"></i>
+    </div>
+    <div>
+      <div class="text-lg font-semibold text-gray-900 leading-none">{{ avg_score }}</div>
+      <div class="text-xs text-gray-500 mt-1 inline-flex items-center gap-1">
+        Nilai Rata-rata
+        <i class="ti ti-arrow-right text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]"></i>
+      </div>
+    </div>
+  </a>
+</div>
+
+<!-- 3. ACTIVE CLASSES MINI ────────────────────────────────────────────── -->
+<div class="flex justify-between items-center mb-3">
+  <h2 class="text-base font-semibold m-0">📚 Kelas saya</h2>
+  <a href="{% url 'student:my_classes' %}" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Semua kelas →</a>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+  {% for e in active_enrollments %}
+  <a href="{% url 'academics:class_detail' e.kelas.id %}"
+     class="card-hover-lift block bg-white border border-gray-200 rounded-xl p-3.5">
+    <div class="flex items-center gap-2.5 mb-3">
+      <div class="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center text-lg shrink-0">
+        {{ e.kelas.subject.name|subject_emoji }}
+      </div>
+      <div class="min-w-0">
+        <p class="text-xs font-semibold text-gray-900 m-0 truncate" title="{{ e.kelas.name }}">{{ e.kelas.name }}</p>
+        <p class="text-[10px] text-gray-500 m-0 mt-0.5 truncate">
+          {{ e.kelas.teacher_profile.user.get_full_name|default:e.kelas.teacher_profile.user.username }}
+        </p>
+      </div>
+    </div>
+    <div class="flex items-center gap-1.5">
+      <div class="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+        <div class="h-full bg-emerald-500 rounded-full" style="width: {{ e.progress_pct }}%"></div>
+      </div>
+      <span class="text-[10px] font-semibold text-emerald-700 w-9 text-right">{{ e.progress_pct }}%</span>
+    </div>
+  </a>
+  {% empty %}
+  <div class="sm:col-span-2 lg:col-span-3 text-center p-6 bg-gray-50 rounded-xl text-sm text-gray-500">
+    Belum ada kelas aktif.
+    <a href="{% url 'academics:class_browse' %}" class="text-emerald-600 hover:text-emerald-700 font-semibold">Cari kelas →</a>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- 4. BEST TEACHER OF THE MONTH ──────────────────────────────────────── -->
+{% if top_teachers %}
+<div class="flex justify-between items-center mb-3 mt-7">
+  <h2 class="text-base font-semibold m-0">⭐ Guru Terbaik Bulan Ini</h2>
+  <a href="{% url 'academics:teacher_list' %}" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Semua guru →</a>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 md:[grid-template-columns:1.4fr_1fr_1fr] gap-3">
+  {% for t in top_teachers %}
+  {% if forloop.first %}
+  <!-- Featured #1 -->
+  <div class="card-hover-lift rounded-2xl p-4 relative overflow-hidden"
+       style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 1px solid #fbbf24;">
+    <span class="absolute top-3 right-3 inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] px-2 py-0.5 rounded-full font-semibold">
+      <i class="ti ti-crown"></i> #1 Best
+    </span>
+    <div class="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-semibold text-white mb-2 overflow-hidden"
+         style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+      {% if t.profile.photo %}
+        <img src="{{ t.profile.photo.url }}" class="w-full h-full rounded-full object-cover">
+      {% else %}
+        {{ t.profile.user.first_name|first|default:t.profile.user.username|first|upper }}
+      {% endif %}
+    </div>
+    <p class="text-sm font-semibold text-gray-900 m-0">
+      {{ t.profile.user.get_full_name|default:t.profile.user.username }}
+    </p>
+    <p class="text-xs text-gray-700 mt-0.5 mb-2 m-0">
+      {{ t.profile.specialization|default:"Guru" }}{% if t.profile.experience_years %} · {{ t.profile.experience_years }} thn{% endif %}
+    </p>
+    <div class="flex gap-3 text-xs text-gray-800 items-center mb-2">
+      <span class="inline-flex items-center gap-1"><i class="ti ti-star-filled text-amber-500"></i> {{ t.avg_score }}</span>
+      <span class="inline-flex items-center gap-1"><i class="ti ti-users text-emerald-700"></i> {{ t.student_count }} siswa</span>
+    </div>
+    <a href="{% url 'academics:teacher_profile' t.profile.user.id %}"
+       class="block py-1.5 bg-white text-emerald-700 text-center rounded-lg text-xs font-semibold border border-emerald-100 hover:border-emerald-300 transition">
+      Lihat Profil
+    </a>
+  </div>
+  {% else %}
+  <!-- Runners-up -->
+  <div class="card-hover-lift bg-white border border-gray-200 rounded-2xl p-4">
+    <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl font-semibold text-white mb-2 overflow-hidden"
+         style="background: linear-gradient(135deg, #10b981, #059669);">
+      {% if t.profile.photo %}
+        <img src="{{ t.profile.photo.url }}" class="w-full h-full rounded-full object-cover">
+      {% else %}
+        {{ t.profile.user.first_name|first|default:t.profile.user.username|first|upper }}
+      {% endif %}
+    </div>
+    <p class="text-sm font-semibold text-gray-900 m-0 truncate">
+      {{ t.profile.user.get_full_name|default:t.profile.user.username }}
+    </p>
+    <p class="text-xs text-gray-500 mt-0.5 mb-2 m-0 truncate">{{ t.profile.specialization|default:"Guru" }}</p>
+    <div class="flex gap-3 text-xs text-gray-700 items-center mb-2">
+      <span class="inline-flex items-center gap-1"><i class="ti ti-star-filled text-amber-500"></i> {{ t.avg_score }}</span>
+      <span class="inline-flex items-center gap-1 text-gray-500"><i class="ti ti-users"></i> {{ t.student_count }}</span>
+    </div>
+    <a href="{% url 'academics:teacher_profile' t.profile.user.id %}"
+       class="block py-1.5 bg-white text-emerald-700 text-center rounded-lg text-xs font-semibold border border-emerald-100 hover:border-emerald-300 transition">
+      Lihat Profil
+    </a>
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- 5. POPULER + BARU ────────────────────────────────────────────────── -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-7">
+  <!-- Populer -->
   <div>
-    <h2 class="text-2xl font-bold text-gray-900">Selamat datang, {{ user.first_name }}!</h2>
-    <p class="text-gray-500 mt-1">Ini ringkasan aktivitas belajar Anda.</p>
-  </div>
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 text-right shrink-0">
-    <p id="live-date" class="text-xs text-gray-400"></p>
-    <p id="live-time" class="text-2xl font-bold font-mono text-gray-800 tabular-nums"></p>
-  </div>
-</div>
-<script>
-(function() {
-  function pad(n) { return String(n).padStart(2, '0'); }
-  function tick() {
-    const now = new Date();
-    const days = ['Minggu','Senin','Selasa','Rabu','Kamis','Jumat','Sabtu'];
-    const months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
-    document.getElementById('live-date').textContent =
-      days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
-    document.getElementById('live-time').textContent =
-      pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds()) + ' WIB';
-  }
-  tick();
-  setInterval(tick, 1000);
-})();
-</script>
-
-<!-- Stat cards -->
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-3">
-    <div class="w-10 h-10 rounded-lg bg-teal-100 flex items-center justify-center shrink-0">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-           stroke-width="1.75" stroke="currentColor" class="w-5 h-5 text-teal-600">
-        <path stroke-linecap="round" stroke-linejoin="round"
-              d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0118 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-      </svg>
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-base font-semibold m-0">🔥 Kelas Populer</h2>
+      <a href="{% url 'academics:class_browse' %}" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Lihat →</a>
     </div>
-    <div>
-      <p class="text-xs text-gray-500">Kelas Aktif</p>
-      <p class="text-2xl font-bold text-gray-900">{{ enrolled_count }}</p>
-      {% if completed_enrolled_count %}
-      <p class="text-xs text-gray-400 mt-0.5">+{{ completed_enrolled_count }} selesai</p>
-      {% endif %}
-    </div>
-  </div>
-
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-3">
-    <div class="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center shrink-0">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-           stroke-width="1.75" stroke="currentColor" class="w-5 h-5 text-green-600">
-        <path stroke-linecap="round" stroke-linejoin="round"
-              d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    </div>
-    <div>
-      <p class="text-xs text-gray-500">Rata-rata Kehadiran</p>
-      {% if avg_attendance is not None %}
-        <p class="text-2xl font-bold
-          {% if avg_attendance >= 80 %}text-green-600{% elif avg_attendance >= 60 %}text-yellow-500{% else %}text-red-500{% endif %}">
-          {{ avg_attendance }}%
+    <div class="grid grid-cols-2 gap-2.5">
+      {% for k in popular_classes %}
+      <a href="{% url 'academics:class_detail' k.id %}"
+         class="card-hover-lift block bg-white border border-gray-200 rounded-xl p-3">
+        <div class="text-2xl mb-1.5">{{ k.subject.name|subject_emoji }}</div>
+        <p class="text-xs font-semibold text-gray-900 m-0 mb-1 leading-snug line-clamp-2">{{ k.name }}</p>
+        <p class="text-[10px] text-gray-500 m-0 mb-2 truncate">
+          {{ k.teacher_profile.user.get_full_name|default:k.teacher_profile.user.username }}
         </p>
-      {% else %}
-        <p class="text-lg font-semibold text-gray-300">—</p>
-      {% endif %}
-    </div>
-  </div>
-
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-3">
-    <div class="w-10 h-10 rounded-lg bg-primary-100 flex items-center justify-center shrink-0">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-           stroke-width="1.75" stroke="currentColor" class="w-5 h-5 text-primary-600">
-        <path stroke-linecap="round" stroke-linejoin="round"
-              d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-      </svg>
-    </div>
-    <div>
-      <p class="text-xs text-gray-500">Rata-rata Nilai</p>
-      {% if avg_grade is not None %}
-        <p class="text-2xl font-bold
-          {% if avg_grade >= 80 %}text-green-600{% elif avg_grade >= 60 %}text-yellow-500{% else %}text-red-500{% endif %}">
-          {{ avg_grade }}
-        </p>
-      {% else %}
-        <p class="text-lg font-semibold text-gray-300">—</p>
-      {% endif %}
-    </div>
-  </div>
-
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex items-center gap-3">
-    <div class="w-10 h-10 rounded-lg bg-teal-100 flex items-center justify-center shrink-0">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-           stroke-width="1.75" stroke="currentColor" class="w-5 h-5 text-teal-600">
-        <path stroke-linecap="round" stroke-linejoin="round"
-              d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-    </div>
-    <div>
-      <p class="text-xs text-gray-500">Pertemuan Terdaftar</p>
-      <p class="text-2xl font-bold text-gray-900">{{ booked_sessions_count }}</p>
-    </div>
-  </div>
-
-</div>
-
-<!-- Pertemuan Hari Ini -->
-{% if today_sessions %}
-<div class="bg-primary-600 rounded-xl shadow-sm overflow-hidden mb-5">
-  <div class="px-5 py-4 flex items-center gap-2">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-         stroke-width="2" stroke="currentColor" class="w-4 h-4 text-primary-200 shrink-0">
-      <path stroke-linecap="round" stroke-linejoin="round"
-            d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-    <h3 class="text-sm font-semibold text-white">Pertemuan Hari Ini</h3>
-  </div>
-  <ul class="divide-y divide-primary-500">
-    {% for session in today_sessions %}
-    <li class="px-5 py-3 flex items-center gap-4">
-      <div class="w-10 h-10 rounded-lg bg-white/20 flex flex-col items-center justify-center shrink-0">
-        <span class="text-sm font-bold text-white leading-none">{{ session.session_number }}</span>
-      </div>
-      <div class="min-w-0 flex-1">
-        <p class="text-sm font-semibold text-white truncate">{{ session.kelas.subject.name }}</p>
-        <p class="text-xs text-primary-200 mt-0.5">{{ session.kelas.name }} · Pertemuan ke-{{ session.session_number }}</p>
-      </div>
-      {% if session.status == 'COMPLETED' %}
-        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-500 text-white shrink-0">Selesai</span>
-      {% elif session.is_live %}
-        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-green-400 text-white shrink-0">
-          <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>Live
-        </span>
-      {% else %}
-        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-white/30 text-white shrink-0">Hari ini</span>
-      {% endif %}
-    </li>
-    {% endfor %}
-  </ul>
-</div>
-{% endif %}
-
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-  <!-- Recent grades -->
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-    <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-      <h3 class="text-sm font-semibold text-gray-900">Nilai Terbaru</h3>
-      <a href="{% url 'grades:my_grades' %}"
-         class="text-xs text-primary-600 hover:text-primary-800 font-medium">Lihat Semua →</a>
-    </div>
-    {% if recent_grades %}
-    <ul class="divide-y divide-gray-50">
-      {% for grade in recent_grades %}
-      <li class="px-5 py-3 flex items-center justify-between gap-3">
-        <div class="min-w-0">
-          <p class="text-sm font-medium text-gray-900 truncate">{{ grade.enrollment.kelas.subject.name }}</p>
-          <p class="text-xs text-gray-400 mt-0.5">
-            {% if grade.grade_type == 'QUIZ' %}Kuis
-            {% elif grade.grade_type == 'MIDTERM' %}UTS
-            {% elif grade.grade_type == 'FINAL' %}UAS
-            {% else %}Tugas{% endif %}
-            · {{ grade.graded_at|date:"d M Y" }}
-          </p>
-        </div>
-        <span class="text-lg font-bold shrink-0
-          {% if grade.score >= 80 %}text-green-600{% elif grade.score >= 60 %}text-yellow-500{% else %}text-red-500{% endif %}">
-          {{ grade.score|floatformat:"-2" }}
-        </span>
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    <div class="px-5 py-8 text-center text-sm text-gray-400">Belum ada nilai.</div>
-    {% endif %}
-  </div>
-
-  <!-- Upcoming sessions + next session -->
-  <div class="space-y-4">
-
-    {% if next_booked_session %}
-    <div class="bg-white rounded-xl border border-primary-200 shadow-sm overflow-hidden">
-      <div class="px-5 py-3 bg-primary-50 border-b border-primary-100 flex items-center gap-2">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-             stroke-width="2" stroke="currentColor" class="w-4 h-4 text-primary-500 shrink-0">
-          <path stroke-linecap="round" stroke-linejoin="round"
-                d="M17.25 8.25L21 12m0 0l-3.75 3.75M21 12H3" />
-        </svg>
-        <h3 class="text-xs font-semibold text-primary-700 uppercase tracking-wide">Pertemuan Terdaftar Berikutnya</h3>
-      </div>
-      <div class="px-5 py-4 flex items-center gap-4">
-        <div class="w-12 h-12 rounded-xl bg-primary-100 flex flex-col items-center justify-center shrink-0">
-          <span class="text-sm font-bold text-primary-700 leading-none">{{ next_booked_session.date|date:"d" }}</span>
-          <span class="text-xs text-primary-500 leading-none mt-0.5">{{ next_booked_session.date|date:"M" }}</span>
-        </div>
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-semibold text-gray-900 truncate">{{ next_booked_session.kelas.subject.name }}</p>
-          <p class="text-xs text-gray-500 mt-0.5">{{ next_booked_session.kelas.name }} · Pertemuan ke-{{ next_booked_session.session_number }}</p>
-          <p class="text-xs text-primary-600 mt-0.5 font-medium">
-            {{ next_booked_session.date|date:"l, d M Y" }}
-            {% if next_booked_session.display_schedule %}
-              · {{ next_booked_session.display_schedule.start_time|time:"H:i" }}–{{ next_booked_session.display_schedule.end_time|time:"H:i" }}
-            {% endif %}
-          </p>
-          {% if next_booked_start_ts %}
-          <div x-data="{
-            startMs: {{ next_booked_start_ts }},
-            endMs: {{ next_booked_end_ts }},
-            label: '',
-            color: 'text-primary-500',
-            pulse: false,
-            update() {
-              const now = Date.now();
-              if (now >= this.endMs) { this.label = ''; return; }
-              if (now >= this.startMs) {
-                this.label = 'Sedang berlangsung';
-                this.color = 'text-green-600 font-semibold';
-                this.pulse = true;
-                return;
-              }
-              this.pulse = false;
-              const diff = this.startMs - now;
-              const totalMin = Math.floor(diff / 60000);
-              const days = Math.floor(totalMin / 1440);
-              const hours = Math.floor((totalMin % 1440) / 60);
-              const mins = totalMin % 60;
-              if (days >= 1) {
-                this.label = 'Mulai dalam ' + days + ' hari';
-                this.color = 'text-primary-500';
-              } else if (hours >= 1) {
-                this.label = 'Mulai dalam ' + hours + ' jam' + (mins > 0 ? ' ' + mins + ' menit' : '');
-                this.color = 'text-primary-500';
-              } else {
-                this.label = 'Mulai dalam ' + (totalMin > 0 ? totalMin : 1) + ' menit';
-                this.color = 'text-red-500 font-semibold';
-              }
-            }
-          }" x-init="update(); setInterval(() => update(), 60000)" class="mt-1 flex items-center gap-1.5">
-            <template x-if="pulse">
-              <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-            </template>
-            <span x-text="label" :class="'text-xs ' + color"></span>
-          </div>
+        <div class="flex justify-between items-center text-[10px]">
+          {% if forloop.first %}
+            <span class="bg-red-100 text-red-800 px-1.5 py-0.5 rounded font-semibold">HOT 🔥</span>
+          {% else %}
+            <span class="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-semibold">POPULER</span>
           {% endif %}
+          <span class="text-gray-500">{{ k.enrollment_count }} siswa</span>
         </div>
+      </a>
+      {% empty %}
+      <div class="col-span-2 text-xs text-gray-500 text-center p-4 bg-gray-50 rounded-xl">Belum ada kelas populer</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Baru -->
+  <div>
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-base font-semibold m-0">✨ Kelas Baru</h2>
+      <a href="{% url 'academics:class_browse' %}?sort=newest" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Lihat →</a>
+    </div>
+    <div class="grid grid-cols-2 gap-2.5">
+      {% for k in new_classes %}
+      <a href="{% url 'academics:class_detail' k.id %}"
+         class="card-hover-lift block bg-white border border-gray-200 rounded-xl p-3">
+        <div class="text-2xl mb-1.5">{{ k.subject.name|subject_emoji }}</div>
+        <p class="text-xs font-semibold text-gray-900 m-0 mb-1 leading-snug line-clamp-2">{{ k.name }}</p>
+        <p class="text-[10px] text-gray-500 m-0 mb-2 truncate">
+          {{ k.teacher_profile.user.get_full_name|default:k.teacher_profile.user.username }}
+        </p>
+        <div class="flex justify-between items-center text-[10px]">
+          <span class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-semibold">BARU</span>
+          <span class="text-gray-500">Mulai {{ k.start_date|date:"d M" }}</span>
+        </div>
+      </a>
+      {% empty %}
+      <div class="col-span-2 text-xs text-gray-500 text-center p-4 bg-gray-50 rounded-xl">Belum ada kelas baru</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- 6. TODAY SESSIONS + LATEST JOURNAL ────────────────────────────────── -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-7 mb-6">
+  <!-- Today sessions -->
+  <div>
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-base font-semibold m-0">📅 Hari ini ({{ today_sessions_count }} sesi)</h2>
+      <a href="{% url 'academics:student_schedule_sessions' %}" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Jadwal lengkap →</a>
+    </div>
+    <div class="bg-white border border-gray-200 rounded-xl p-2">
+      {% for s in today_sessions %}
+      <div class="flex gap-2 sm:gap-3 px-2 py-2 {% if not forloop.last %}border-b border-gray-100{% endif %} items-center">
+        <div class="bg-emerald-50 text-emerald-700 px-2 sm:px-2.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold min-w-[56px] sm:min-w-[64px] text-center leading-tight shrink-0">
+          {% if s.start_time %}{{ s.start_time|time:"H:i" }}{% else %}—{% endif %}
+          {% if s.end_time %}<br><span class="text-[9px] opacity-70 font-normal">–{{ s.end_time|time:"H:i" }}</span>{% endif %}
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-semibold m-0 text-gray-900 truncate">
+            {{ s.kelas.name }} — Pertemuan #{{ s.session_number }}
+          </p>
+          <p class="text-[11px] text-gray-500 m-0 mt-0.5 truncate">
+            {{ s.kelas.teacher_profile.user.get_full_name|default:s.kelas.teacher_profile.user.username }}
+            {% if s.topic %} · {{ s.topic|truncatewords:5 }}{% endif %}
+          </p>
+        </div>
+        <a href="{% url 'sessions_app:session_detail' s.id %}"
+           class="hidden sm:inline text-xs text-emerald-600 hover:text-emerald-700 font-semibold whitespace-nowrap">Buka →</a>
       </div>
+      {% empty %}
+      <p class="text-xs text-gray-500 text-center py-6 m-0">Tidak ada sesi hari ini 🌴</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Latest journal -->
+  <div>
+    <div class="flex justify-between items-center mb-3">
+      <h2 class="text-base font-semibold m-0">📝 Jurnal Terbaru</h2>
+      <a href="{% url 'journals:my_journals' %}" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Semua →</a>
+    </div>
+    {% if latest_journal %}
+    <div class="rounded-2xl p-5 h-full" style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);">
+      <h3 class="text-sm font-semibold text-emerald-900 m-0 mb-1.5 inline-flex items-center gap-1.5">
+        <i class="ti ti-quote"></i> Laporan {{ latest_journal.month|month_name }} {{ latest_journal.year }}
+      </h3>
+      <p class="text-xs text-emerald-800 m-0 mb-2">
+        <b>{{ latest_journal.enrollment.kelas.name }}</b> ·
+        {{ latest_journal.written_by_teacher.user.get_full_name|default:latest_journal.written_by_teacher.user.username }}
+      </p>
+      <p class="text-xs text-emerald-700 m-0 my-2 leading-relaxed italic">
+        "{{ latest_journal.summary|truncatewords:25 }}"
+      </p>
+      <div class="flex justify-between text-xs text-emerald-700 mt-3">
+        <span>
+          Skor bulan ini:
+          <b>{% if latest_journal.month_score is not None %}{{ latest_journal.month_score }}{% else %}—{% endif %}</b>
+        </span>
+        <a href="{% url 'journals:journal_detail' latest_journal.id %}" class="font-semibold hover:text-emerald-900">
+          Baca lengkap →
+        </a>
+      </div>
+    </div>
+    {% else %}
+    <div class="bg-gray-50 rounded-xl p-6 text-center text-sm text-gray-500 h-full flex items-center justify-center">
+      Belum ada jurnal bulanan dari guru.
     </div>
     {% endif %}
-
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-      <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-        <h3 class="text-sm font-semibold text-gray-900">Pertemuan Mendatang</h3>
-        <a href="{% url 'sessions:my_attendance' %}"
-           class="text-xs text-primary-600 hover:text-primary-800 font-medium">Kehadiran →</a>
-      </div>
-      {% if upcoming_sessions %}
-      <ul class="divide-y divide-gray-50">
-        {% for session in upcoming_sessions %}
-        <li class="px-5 py-3 flex items-center gap-4">
-          <div class="w-10 h-10 rounded-lg bg-blue-50 flex flex-col items-center justify-center shrink-0">
-            <span class="text-xs font-bold text-blue-700 leading-none">{{ session.date|date:"d" }}</span>
-            <span class="text-xs text-blue-500 leading-none">{{ session.date|date:"M" }}</span>
-          </div>
-          <div class="min-w-0">
-            <p class="text-sm font-medium text-gray-900 truncate">{{ session.kelas.subject.name }}</p>
-            <p class="text-xs text-gray-400 mt-0.5">Pertemuan ke-{{ session.session_number }}</p>
-          </div>
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}
-      <div class="px-5 py-8 text-center text-sm text-gray-400">Tidak ada pertemuan mendatang.</div>
-      {% endif %}
-    </div>
   </div>
-
 </div>
-
-<!-- ===== ANNOUNCEMENTS ===== -->
-{% if recent_announcements %}
-<div class="mt-6 bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-  <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-    <h3 class="text-sm font-semibold text-gray-900">Pengumuman</h3>
-    <a href="{% url 'announcements:list' %}" class="text-xs text-primary-600 hover:text-primary-800 font-medium">Lihat semua →</a>
-  </div>
-  <ul class="divide-y divide-gray-50">
-    {% for ann in recent_announcements %}
-    <li class="px-5 py-3 flex items-start gap-3">
-      {% if ann.is_pinned %}
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-4 h-4 text-primary-500 shrink-0 mt-0.5">
-        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-      </svg>
-      {% endif %}
-      <div class="min-w-0 flex-1">
-        <a href="{% url 'announcements:detail' ann.pk %}" class="text-sm font-medium text-gray-900 hover:text-primary-600 transition-colors truncate block">{{ ann.title }}</a>
-        <p class="text-xs text-gray-400 mt-0.5">{{ ann.content|truncatechars:80 }}</p>
-      </div>
-      <span class="text-xs text-gray-400 shrink-0 whitespace-nowrap">{{ ann.created_at|date:"d M" }}</span>
-    </li>
-    {% endfor %}
-  </ul>
-</div>
-{% endif %}
-
-<!-- ===== CHARTS ===== -->
-<div class="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-  <!-- Attendance pie -->
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-    <h3 class="text-sm font-semibold text-gray-900 mb-4">Ringkasan Kehadiran</h3>
-    <div class="flex justify-center">
-      <div style="position:relative;height:220px;width:220px;">
-        <canvas id="chartAttendance"></canvas>
-      </div>
-    </div>
-  </div>
-
-  <!-- Grades bar -->
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-    <h3 class="text-sm font-semibold text-gray-900 mb-4">Rata-rata Nilai per Kelas</h3>
-    <div style="position:relative;height:220px;">
-      <canvas id="chartGrades"></canvas>
-    </div>
-  </div>
-
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-(function() {
-  var attData = {{ chart_attendance|safe }};
-  var gradesData = {{ chart_grades|safe }};
-
-  // --- Attendance Pie ---
-  new Chart(document.getElementById('chartAttendance'), {
-    type: 'pie',
-    data: {
-      labels: ['Hadir', 'Izin', 'Alpha'],
-      datasets: [{
-        data: [attData.hadir, attData.izin, attData.alpha],
-        backgroundColor: ['#22c55e', '#eab308', '#ef4444'],
-        borderWidth: 2,
-        borderColor: '#fff',
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 12 }, padding: 12 } },
-        tooltip: {
-          callbacks: {
-            label: function(ctx) {
-              var total = ctx.dataset.data.reduce(function(a,b){return a+b;},0);
-              var pct = total > 0 ? Math.round(ctx.parsed / total * 100) : 0;
-              return ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
-            }
-          }
-        }
-      }
-    }
-  });
-
-  // --- Grades Bar ---
-  var gradeLabels = gradesData.map(function(d){return d.name;});
-  var gradeValues = gradesData.map(function(d){return d.avg;});
-  var gradeColors = gradeValues.map(function(v){
-    return v >= 80 ? '#22c55e' : v >= 60 ? '#eab308' : '#ef4444';
-  });
-
-  new Chart(document.getElementById('chartGrades'), {
-    type: 'bar',
-    data: {
-      labels: gradeLabels.length ? gradeLabels : ['Belum ada data'],
-      datasets: [{
-        label: 'Rata-rata Nilai',
-        data: gradeValues.length ? gradeValues : [0],
-        backgroundColor: gradeColors.length ? gradeColors : ['#e5e7eb'],
-        borderRadius: 6,
-        borderSkipped: false,
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        y: { min: 0, max: 100, ticks: { font: { size: 11 } }, grid: { color: '#f3f4f6' } },
-        x: { ticks: { font: { size: 11 } }, grid: { display: false } }
-      },
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: function(ctx){ return 'Rata-rata: ' + ctx.parsed.y; } } }
-      }
-    }
-  });
-})();
-</script>
 
 {% endblock %}

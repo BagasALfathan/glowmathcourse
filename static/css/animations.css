@@ -1,0 +1,152 @@
+/* GlowMath Course — shared animation utilities
+   GPU-accelerated only (transform, opacity, box-shadow).
+   Keep durations under 0.5s. */
+
+/* ── Keyframes ───────────────────────────────────────────────────────── */
+
+@keyframes glowFadeIn        { from { opacity: 0; } to { opacity: 1; } }
+@keyframes glowFadeUp        { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes glowSlideInRight  { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes glowSlideInLeft   { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes glowShake         {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+@keyframes glowPulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  50%      { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+}
+@keyframes glowSpinnerSpin   { to { transform: rotate(360deg); } }
+@keyframes glowSuccessPop {
+  0%   { transform: scale(0);    opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+
+/* ── Utility classes ─────────────────────────────────────────────────── */
+
+.animate-fade-in     { animation: glowFadeIn 0.2s ease-out; }
+.animate-fade-up     { animation: glowFadeUp 0.3s ease-out; }
+.animate-slide-right { animation: glowSlideInRight 0.3s ease-out; }
+.animate-slide-left  { animation: glowSlideInLeft 0.3s ease-out; }
+.animate-shake       { animation: glowShake 0.4s ease-in-out; }
+.animate-pulse-glow  { animation: glowPulseGlow 1.5s ease-in-out infinite; }
+.animate-success-pop { animation: glowSuccessPop 0.4s ease-out; }
+
+/* ── Spinner (white, for emerald buttons) ────────────────────────────── */
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: glowSpinnerSpin 0.6s linear infinite;
+}
+
+/* Dark spinner for light backgrounds */
+.spinner-dark {
+  border-color: rgba(16, 185, 129, 0.2);
+  border-top-color: #10b981;
+}
+
+/* ── Button states ───────────────────────────────────────────────────── */
+
+.btn-loading {
+  opacity: 0.7;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-success {
+  background: #10b981 !important;
+  background-image: none !important;  /* override gradient */
+  transition: background 0.3s ease;
+}
+
+/* ── Input error state ───────────────────────────────────────────────── */
+
+.input-error {
+  border-color: #ef4444 !important;
+  background: #fef2f2;
+}
+
+.input-error:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+  border-color: #ef4444 !important;
+}
+
+.error-message {
+  font-size: 11px;
+  color: #b91c1c;
+  margin-top: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  animation: glowSlideInRight 0.2s ease-out;
+}
+
+/* ── Card hover variants ─────────────────────────────────────────────── */
+
+/* Student playful — lift + shadow */
+.card-hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.card-hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* Teacher / admin minimal — emerald border on hover */
+.card-hover-border {
+  transition: border-color 0.2s ease;
+}
+.card-hover-border:hover {
+  border-color: #10b981;
+}
+
+/* ── Pill press feedback ─────────────────────────────────────────────── */
+
+.pill-press {
+  transition: transform 0.1s ease;
+}
+.pill-press:active {
+  transform: scale(0.96);
+}
+
+/* ── Animated progress bar width ─────────────────────────────────────── */
+
+.progress-bar-anim {
+  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Wizard step circle pulsing glow (student only) ──────────────────── */
+
+.step-circle-active {
+  animation: glowPulseGlow 1.5s ease-in-out infinite;
+}
+
+/* ── Honour reduced-motion users ─────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in,
+  .animate-fade-up,
+  .animate-slide-right,
+  .animate-slide-left,
+  .animate-shake,
+  .animate-pulse-glow,
+  .animate-success-pop,
+  .step-circle-active,
+  .spinner {
+    animation: none !important;
+  }
+  .card-hover-lift,
+  .card-hover-border,
+  .pill-press,
+  .progress-bar-anim {
+    transition: none !important;
+  }
+}

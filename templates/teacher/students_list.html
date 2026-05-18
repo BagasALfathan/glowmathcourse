@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Semua Siswa{% endblock %}
+{% block page_title %}Semua Siswa{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="flex justify-between items-center mb-5 gap-3 flex-wrap">
+  <div>
+    <h1 class="text-xl font-semibold text-gray-900 m-0">Semua Siswa</h1>
+    <p class="text-sm text-gray-500 m-0 mt-0.5">{{ total_count }} siswa terdaftar di kelas Anda</p>
+  </div>
+</div>
+
+<!-- Filter bar -->
+<form method="get" class="bg-white border border-gray-200 rounded-xl p-4 mb-5 flex flex-wrap gap-3 items-end">
+  <div class="flex-1 min-w-[220px]">
+    <label class="text-[11px] text-gray-500 mb-1 block">Cari siswa</label>
+    <input type="text" name="search" value="{{ search }}" placeholder="Nama, username, atau sekolah…"
+           class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+  </div>
+  <div>
+    <label class="text-[11px] text-gray-500 mb-1 block">Status</label>
+    <select name="status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="">Semua</option>
+      <option value="ACTIVE"    {% if status_filter == 'ACTIVE' %}selected{% endif %}>Aktif</option>
+      <option value="COMPLETED" {% if status_filter == 'COMPLETED' %}selected{% endif %}>Selesai</option>
+      <option value="DROPPED"   {% if status_filter == 'DROPPED' %}selected{% endif %}>Keluar</option>
+    </select>
+  </div>
+  <div>
+    <label class="text-[11px] text-gray-500 mb-1 block">Level</label>
+    <select name="level" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="">Semua</option>
+      {% for v in 'TK,SD,SMP,SMA,UMUM'|cut:'' %}{% endfor %}
+      <option value="TK"   {% if level_filter == 'TK'   %}selected{% endif %}>TK</option>
+      <option value="SD"   {% if level_filter == 'SD'   %}selected{% endif %}>SD</option>
+      <option value="SMP"  {% if level_filter == 'SMP'  %}selected{% endif %}>SMP</option>
+      <option value="SMA"  {% if level_filter == 'SMA'  %}selected{% endif %}>SMA</option>
+      <option value="UMUM" {% if level_filter == 'UMUM' %}selected{% endif %}>Umum</option>
+    </select>
+  </div>
+  <div>
+    <label class="text-[11px] text-gray-500 mb-1 block">Kelas</label>
+    <select name="class" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="">Semua kelas</option>
+      {% for k in teacher_classes %}
+      <option value="{{ k.id }}" {% if class_filter == k.id|stringformat:"s" %}selected{% endif %}>{{ k.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold inline-flex items-center gap-1.5">
+    <i class="ti ti-search"></i> Cari
+  </button>
+</form>
+
+<!-- Table -->
+<div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr class="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">
+          <th class="text-left px-4 py-3">Siswa</th>
+          <th class="text-left px-4 py-3">Kelas</th>
+          <th class="text-center px-4 py-3">Level</th>
+          <th class="text-center px-4 py-3">Kehadiran</th>
+          <th class="text-center px-4 py-3">Nilai Avg</th>
+          <th class="text-center px-4 py-3">Status</th>
+          <th class="text-right px-4 py-3">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-b border-gray-100 hover:bg-gray-50/60">
+          <td class="px-4 py-3">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-semibold shrink-0">
+                {{ r.enrollment.student_profile.user.first_name|first|default:r.enrollment.student_profile.user.username|first|upper }}
+              </div>
+              <div class="min-w-0">
+                <p class="text-xs font-semibold text-gray-900 m-0 truncate">
+                  {{ r.enrollment.student_profile.user.get_full_name|default:r.enrollment.student_profile.user.username }}
+                </p>
+                <p class="text-[11px] text-gray-500 m-0 truncate">
+                  {{ r.enrollment.student_profile.school_name|default:"—" }}
+                </p>
+              </div>
+            </div>
+          </td>
+          <td class="px-4 py-3 text-xs text-gray-800 truncate">{{ r.enrollment.kelas.name }}</td>
+          <td class="px-4 py-3 text-center">
+            <span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-semibold">{{ r.enrollment.kelas.level }}</span>
+          </td>
+          <td class="px-4 py-3 text-center text-xs text-gray-800">
+            {% if r.attendance_rate is not None %}{{ r.attendance_rate }}%{% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-3 text-center text-xs text-gray-800">
+            {% if r.avg_score is not None %}{{ r.avg_score }}{% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-3 text-center">
+            {% if r.enrollment.status == 'ACTIVE' %}
+              <span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-semibold">Aktif</span>
+            {% elif r.enrollment.status == 'COMPLETED' %}
+              <span class="text-[10px] bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-semibold">Selesai</span>
+            {% else %}
+              <span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded font-semibold">Keluar</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-right">
+            <a href="{% url 'academics:teacher_class_students' r.enrollment.kelas.id %}"
+               class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold whitespace-nowrap">Detail →</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center py-12 text-sm text-gray-500">
+            {% if search or status_filter or level_filter or class_filter %}
+              Tidak ada siswa cocok dengan filter Anda.
+            {% else %}
+              Belum ada siswa terdaftar.
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<div class="flex justify-between items-center mt-4 text-sm">
+  <p class="text-gray-500 m-0">
+    Menampilkan {{ page_obj.start_index }}–{{ page_obj.end_index }} dari {{ total_count }} siswa
+  </p>
+  <div class="flex gap-1 items-center">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}&{{ qs_preserve }}"
+       class="px-3 py-1.5 border border-gray-200 rounded-md hover:bg-gray-50 text-gray-600">‹</a>
+    {% endif %}
+    <span class="px-3 py-1.5 bg-emerald-500 text-white rounded-md font-semibold">{{ page_obj.number }}</span>
+    <span class="px-2 py-1.5 text-gray-500">/ {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}&{{ qs_preserve }}"
+       class="px-3 py-1.5 border border-gray-200 rounded-md hover:bg-gray-50 text-gray-600">›</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

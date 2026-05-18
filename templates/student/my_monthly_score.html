@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+{% load dashboard_filters %}
+
+{% block title %}Nilai per Bulan{% endblock %}
+{% block page_title %}Nilai per Bulan{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="flex justify-between items-end mb-5 gap-3 flex-wrap">
+  <div>
+    <h1 class="text-xl md:text-2xl font-semibold text-gray-900 m-0">⭐ Nilai per Bulan</h1>
+    <p class="text-xs md:text-sm text-gray-500 m-0 mt-1">
+      Total {{ total_months }} bulan tercatat · rata-rata keseluruhan:
+      <b class="text-emerald-700">{{ overall_avg }}</b>
+    </p>
+  </div>
+</div>
+
+<!-- Filter bar -->
+<form method="get" class="bg-white border border-gray-200 rounded-xl p-4 mb-5 flex flex-wrap gap-3 items-end">
+  <div>
+    <label class="text-[11px] text-gray-500 mb-1 block">Kelas</label>
+    <select name="class" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="">Semua kelas</option>
+      {% for k in my_classes %}
+      <option value="{{ k.kelas_id }}" {% if class_filter == k.kelas_id|stringformat:"s" %}selected{% endif %}>{{ k.kelas__name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold inline-flex items-center gap-1.5">
+    <i class="ti ti-filter"></i> Terapkan
+  </button>
+</form>
+
+<!-- Monthly cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+  {% for m in page_obj %}
+  {% if m.journal %}
+  <!-- WITH journal — mint gradient -->
+  <div class="card-hover-lift rounded-2xl p-5"
+       style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border: 1px solid #bbf7d0;">
+    <div class="flex justify-between items-start gap-3 mb-3">
+      <div class="min-w-0">
+        <p class="text-sm font-semibold text-emerald-900 m-0">
+          <i class="ti ti-calendar text-emerald-700"></i>
+          {{ m.month|month_name }} {{ m.year }}
+        </p>
+        <p class="text-xs text-emerald-800 m-0 mt-0.5 truncate">
+          <b>{{ m.kelas.name }}</b>
+        </p>
+        <p class="text-[11px] text-emerald-700 m-0 mt-0.5 truncate">
+          {{ m.kelas.teacher_profile.user.get_full_name|default:m.kelas.teacher_profile.user.username }}
+        </p>
+      </div>
+      <div class="text-right shrink-0">
+        <div class="text-3xl font-bold text-emerald-700 leading-none">{{ m.avg_score }}</div>
+        <div class="text-[10px] text-emerald-800 mt-1">{{ m.grade_count }} nilai</div>
+      </div>
+    </div>
+    <div class="bg-white/60 rounded-lg p-3 mt-2">
+      <p class="text-[10px] uppercase tracking-wider font-semibold text-emerald-800 mb-1.5 inline-flex items-center gap-1">
+        <i class="ti ti-quote"></i> Jurnal Bulanan
+      </p>
+      <p class="text-xs text-emerald-900 italic m-0 leading-relaxed">
+        "{{ m.journal.summary|truncatewords:18 }}"
+      </p>
+      <a href="{% url 'journals:journal_detail' m.journal.id %}"
+         class="inline-flex items-center gap-1 text-xs text-emerald-700 hover:text-emerald-900 font-semibold mt-2">
+        Baca jurnal lengkap <i class="ti ti-arrow-right"></i>
+      </a>
+    </div>
+  </div>
+  {% else %}
+  <!-- WITHOUT journal — plain white -->
+  <div class="card-hover-lift bg-white border border-gray-200 rounded-2xl p-5">
+    <div class="flex justify-between items-start gap-3 mb-3">
+      <div class="min-w-0">
+        <p class="text-sm font-semibold text-gray-900 m-0">
+          <i class="ti ti-calendar text-gray-400"></i>
+          {{ m.month|month_name }} {{ m.year }}
+        </p>
+        <p class="text-xs text-gray-700 m-0 mt-0.5 truncate">
+          <b>{{ m.kelas.name }}</b>
+        </p>
+        <p class="text-[11px] text-gray-500 m-0 mt-0.5 truncate">
+          {{ m.kelas.teacher_profile.user.get_full_name|default:m.kelas.teacher_profile.user.username }}
+        </p>
+      </div>
+      <div class="text-right shrink-0">
+        <div class="text-3xl font-bold text-emerald-700 leading-none">{{ m.avg_score }}</div>
+        <div class="text-[10px] text-gray-500 mt-1">{{ m.grade_count }} nilai</div>
+      </div>
+    </div>
+    <p class="text-[11px] text-gray-400 italic mt-3 m-0">
+      <i class="ti ti-notebook-off"></i> Belum ada jurnal bulan ini
+    </p>
+  </div>
+  {% endif %}
+  {% empty %}
+  <div class="col-span-full text-center p-8 bg-gray-50 rounded-xl text-sm text-gray-500">
+    {% if class_filter %}
+      Tidak ada nilai untuk kelas yang dipilih.
+    {% else %}
+      Belum ada nilai tercatat.
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<div class="flex justify-between items-center text-sm">
+  <p class="text-gray-500 m-0">Menampilkan {{ page_obj.start_index }}–{{ page_obj.end_index }} dari {{ total_months }} bulan</p>
+  <div class="flex gap-1 items-center">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}&{{ qs_preserve }}" class="px-3 py-1.5 border border-gray-200 rounded-md hover:bg-gray-50 text-gray-600">‹</a>
+    {% endif %}
+    <span class="px-3 py-1.5 bg-emerald-500 text-white rounded-md font-semibold">{{ page_obj.number }}</span>
+    <span class="px-2 py-1.5 text-gray-500">/ {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}&{{ qs_preserve }}" class="px-3 py-1.5 border border-gray-200 rounded-md hover:bg-gray-50 text-gray-600">›</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

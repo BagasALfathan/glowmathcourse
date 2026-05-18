@@ -14,6 +14,8 @@ class ActivityLog(models.Model):
     action = models.CharField(max_length=50)       # "created", "updated", "deleted", etc.
     target_type = models.CharField(max_length=50)  # "kelas", "enrollment", "grade", etc.
     target_id = models.PositiveIntegerField(null=True, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
     class Meta:

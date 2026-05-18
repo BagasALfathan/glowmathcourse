@@ -1,102 +1,67 @@
-# GlowMathCourse — Feature Priority Matrix
+# Feature Priority Matrix
 
-> MVP = must ship in weeks 1-3 | Phase 2 = after client delivery
-> Locked on March 28, 2026
+> **Last reviewed:** 2026-05-18 — Phase 3 UI redesign in progress.
 
----
+## ✅ COMPLETED
 
-## MVP — Build First (Weeks 1-3)
+### Phase 1 — Database (ERD v4)
+- 26-table database, all migrations applied
+- 11 new tables in 4 new apps (notifications, course_materials, journals, billing) + split ratings
+- **TK + UMUM** added to all level fields (StudentProfile, TeacherJenjang, Kelas)
+- Backward-compat `@property` shims (`Kelas.teacher`, `Enrollment.student`)
+- Dummy data generator (`generate_dummy_data`) covers all 26 tables
+- Named test users via `create_test_users` / `populate_rafael` / `populate_trista`
+- Activity logs with IP + user-agent tracking
 
-### Week 1 — Foundation (~6 days)
+### Phase 2 — Authentication & onboarding
+- 3 separate login portals (siswa / guru / admin) with distinct visual styles
+- 2 register wizards (siswa Khan V3 + guru Notion V1) with 5-level jenjang
+- 2 forgot-password pages (WhatsApp deeplink + pre-filled message)
+- Waiting / pending-approval page (animated pulse + 3-step timeline)
+- Role-strict authentication (wrong portal → friendly error message)
+- Admin login writes `ActivityLog(ip, user_agent)`
 
-| Feature | Effort | Days |
-|---------|--------|------|
-| Django project setup + settings + Tailwind config | Low | 0.5 |
-| User model with role field (STUDENT, TEACHER, ADMIN) | Low | 0.5 |
-| StudentProfile, TeacherProfile, AdminProfile models | Med | 0.5 |
-| Login page (email + password) | Low | 0.5 |
-| Student registration (form + auto-create profile) | Med | 1 |
-| Teacher registration (form + auto-create profile) | Med | 0.5 |
-| Role-based redirect after login (dashboard router) | Low | 0.5 |
-| Base template + navbar + sidebar (responsive) | Med | 1 |
-| Category, Subject, AcademicPeriod models | Low | 0.5 |
-| Admin: seed data (categories, subjects, periods) | Low | 0.5 |
+### Phase 3 — UI Redesign (in progress)
+- **Animations.css** shared utility classes (fade-in, fade-up, slide, shake, pulse-glow, spinner, success-pop, card-hover-lift/border)
+- **Student Dashboard** (Khan V3 — discovery-focused, real data)
+- **Teacher Dashboard** (Notion V2 — work-focused, to-do widget)
+- **Sidebar** collapse desktop (manual toggle + localStorage) + mobile drawer (<768px)
+- **3 teacher See-All pages**: `/teacher/students/`, `/teacher/sessions/`, plus existing `/teacher/classes/`
+- **Cached top-teachers query** (1h) on the student dashboard
+- **Responsive design** on both dashboards (sm / md / lg / xl breakpoints)
 
-### Week 2 — Core Features (~6.5 days)
+## 🟡 IN PROGRESS / NEXT
 
-| Feature | Effort | Days |
-|---------|--------|------|
-| Kelas model + Schedule model | Med | 0.5 |
-| Teacher: create class + multi-day schedule | High | 1.5 |
-| Teacher: edit/delete class | Med | 0.5 |
-| Student: browse classes (filtered by level) | Med | 1 |
-| Student: class detail page | Low | 0.5 |
-| Enrollment model + enroll logic (level match + capacity) | High | 1 |
-| Student: my enrolled classes page | Low | 0.5 |
-| Student: drop class | Low | 0.5 |
-| Teacher: view enrolled students per class | Low | 0.5 |
+### Phase 3 (continuing)
+1. **Admin Dashboard** (V4 Data Pro) — NEXT
+2. Student-facing pages redesign: browse classes, class detail, my-classes, monthly-score, attendance
+3. Teacher CRUD redesign: create/edit class, edit session, input grades, write monthly journal, session notes
+4. Admin management redesign: approve users, manage classes/enrollments/ratings/logs, announcement editor
+5. New-feature pages (models exist, no UI yet): notifications inbox, course material upload/download, monthly journal write/view, split ratings UI
 
-### Week 3 — Sessions, Attendance, Grades (~6 days)
+## ⏳ TODO
 
-| Feature | Effort | Days |
-|---------|--------|------|
-| Session model + teacher creates sessions | Med | 0.5 |
-| Attendance model + teacher marks attendance | High | 1.5 |
-| Student: view own attendance | Low | 0.5 |
-| Grade model + teacher inputs grades | Med | 1 |
-| Student: view own grades | Low | 0.5 |
-| Student + teacher dashboards (basic stats) | Med | 1 |
-| Profile view + edit page | Low | 0.5 |
-| Logout | Low | 0.5 hr |
+### Phase 4 — Deployment
+- VPS Hostinger KVM 1 (already provisioned)
+- Code clone, nginx, gunicorn, PostgreSQL setup
+- SSL with Let's Encrypt
+- Custom domain `glowmathclass.com`
+- Production-ready settings (`DEBUG=False`, real `ALLOWED_HOSTS`)
 
-**MVP Total: ~18.5 working days**
+### Phase 5 — Polish
+- Real-user acceptance testing
+- Performance optimization (query budgets, N+1 audits)
+- Mobile responsive verification across all pages
+- Print layouts for reports
 
----
+## 🔮 FUTURE (post-launch)
+- Payment feature (Invoice, Payment, Refund) — models migrated, gated behind `ENABLE_PAYMENT_FEATURE = False`. Integration with Midtrans or Xendit
+- Email notifications (alongside WhatsApp)
+- AI features (optional — homework feedback, study suggestions)
 
-## Phase 2 — After MVP Ships (Week 4+)
-
-### Enhancement Features
-
-| Feature | Effort | Days |
-|---------|--------|------|
-| Rating system (student rates teacher 1-5) | Med | 1 |
-| Teacher: view own ratings | Low | 0.5 |
-| HTMX class filtering (by subject, day, teacher) | Med | 1 |
-| HTMX inline grade editing | Med | 0.5 |
-| HTMX inline attendance save | Med | 0.5 |
-| Teacher/room schedule conflict detection | High | 1 |
-| Admin dashboard with full stats | High | 1.5 |
-| Admin: manage users (CRUD + search/filter) | Med | 1 |
-| Admin: manage classes, subjects, categories | Med | 1 |
-| Admin: manage academic periods | Low | 0.5 |
-| Admin: manage enrollments | Med | 0.5 |
-| Admin: manage grades + ratings | Low | 0.5 |
-| Activity log (record who did what) | Med | 1 |
-| Soft delete implementation (all 3 tables) | Med | 0.5 |
-| Admin: view activity logs + filter | Med | 0.5 |
-
-**Phase 2 Total: ~11 working days**
-
----
-
-## Future / Out of Scope
-
-| Feature | Effort | Estimate |
-|---------|--------|----------|
-| Payment & billing system | High | 2 weeks |
-| Discount / promo codes | High | 1 week |
-| Email notifications | Med | 2 days |
-| SMS / WhatsApp notifications | High | 3 days |
-| File uploads (report cards, certificates) | Med | 2 days |
-| Multi-branch support | High | 2 weeks |
-
----
-
-## Key Decisions
-
-1. **Admin features are Phase 2** — use Django's built-in admin panel (`/admin/`) during MVP
-2. **Ratings are Phase 2** — nice to have, not required to operate the bimbel
-3. **HTMX enhancements are Phase 2** — MVP uses full page reloads, Phase 2 adds dynamic partial updates
-4. **Activity logging is Phase 2** — the model exists but logging logic comes later
-5. **Soft delete is Phase 2** — MVP uses Django's built-in admin for deletions
-6. **Conflict detection is Phase 2** — teachers manage their own schedules manually in MVP
+## ❌ EXPLICITLY OUT OF SCOPE
+- Multi-branch support
+- SMS notifications (use WhatsApp instead)
+- Student file upload (no certificate upload, etc.) — exceptions: teacher profile photo, teacher course materials
+- Public-facing landing/marketing page (separate site if needed)
+- REST API / DRF / SPA

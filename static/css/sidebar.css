@@ -1,0 +1,194 @@
+/* GlowMath Course — sidebar collapse + tooltips + mobile drawer
+   GPU-accelerated transitions only (transform / width / opacity). */
+
+/* ── Sidebar widths ──────────────────────────────────────────────────── */
+
+.sidebar {
+  /* Desktop default: sits in the flex flow as a sticky 100vh column.
+     IMPORTANT: these were previously inline on the <aside>, which beat the
+     mobile media query below. Keep them here so @media can override cleanly. */
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  align-self: flex-start;
+  flex-shrink: 0;
+  width: 240px;
+  min-width: 240px;
+  transition:
+    width    0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 0.3s ease,
+    left      0.3s ease;
+}
+
+.sidebar-collapsed { width: 64px; min-width: 64px; }
+.sidebar-expanded  { width: 240px; min-width: 240px; }
+
+/* ── Collapsed: hide labels, center icons, allow tooltip overflow ───── */
+
+aside.sidebar-collapsed .nav-item {
+  font-size: 0 !important;        /* hides text + badge-number; beats Tailwind's text-sm */
+  justify-content: center !important;
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  position: relative;
+  gap: 0 !important;
+}
+
+/* Keep icons (svg / <i class="ti...">) at their normal visual size */
+aside.sidebar-collapsed .nav-item svg,
+aside.sidebar-collapsed .nav-item i {
+  font-size: 20px !important;     /* tabler icons */
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* Hide pill badges (e.g. pending-users count) when collapsed */
+aside.sidebar-collapsed .nav-item .nav-badge { display: none !important; }
+
+/* Brand-text + profile-text should hide too */
+aside.sidebar-collapsed .sidebar-label,
+aside.sidebar-collapsed .sidebar-profile-info { display: none !important; }
+
+/* Logo / profile section: center their inner content */
+aside.sidebar-collapsed .sidebar-brand,
+aside.sidebar-collapsed .sidebar-profile {
+  justify-content: center;
+}
+
+/* When collapsed, the toggle button is centered with the avatar/logo */
+aside.sidebar-collapsed .sidebar-toggle-row { justify-content: center; }
+
+/* Allow tooltips to escape the nav scroll container when collapsed */
+aside.sidebar-collapsed nav { overflow: visible !important; }
+
+/* ── Tooltip on hover (collapsed only) ───────────────────────────────── */
+
+aside.sidebar-collapsed .nav-item::after {
+  content: attr(data-label);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  background: #111827;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  padding: 6px 10px;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 60;
+}
+
+/* Tooltip arrow */
+aside.sidebar-collapsed .nav-item::before {
+  content: '';
+  position: absolute;
+  left: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-right: 4px solid #111827;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 60;
+}
+
+aside.sidebar-collapsed .nav-item:hover::after,
+aside.sidebar-collapsed .nav-item:focus-visible::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+aside.sidebar-collapsed .nav-item:hover::before,
+aside.sidebar-collapsed .nav-item:focus-visible::before {
+  opacity: 1;
+}
+
+/* No tooltip when sidebar is expanded — items already show their label */
+
+/* ── Mobile drawer (< 768px) ─────────────────────────────────────────── */
+
+@media (max-width: 767px) {
+  /* Drawer mode: pulled out of normal flow so main gets full width.
+     `!important` on width/position to be defensive against any Tailwind
+     utility that lands on the <aside>. */
+  .sidebar,
+  .sidebar.sidebar-collapsed,
+  .sidebar.sidebar-expanded {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    height: 100vh !important;
+    z-index: 50;
+    transform: translateX(-100%);
+    width: 280px !important;
+    min-width: 280px !important;
+    flex-shrink: 0;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
+  }
+  /* On mobile we ALWAYS show the expanded layout — collapsed is desktop-only */
+  aside.sidebar.sidebar-collapsed .sidebar-label,
+  aside.sidebar.sidebar-collapsed .sidebar-profile-info,
+  aside.sidebar.sidebar-collapsed .nav-item .nav-badge {
+    display: revert !important;
+  }
+  aside.sidebar.sidebar-collapsed .nav-item {
+    font-size: revert !important;
+    justify-content: flex-start !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    gap: 0.75rem !important;
+  }
+  .sidebar.sidebar-collapsed nav { overflow-y: auto !important; }
+  /* Don't show tooltips on mobile */
+  aside.sidebar.sidebar-collapsed .nav-item::after,
+  aside.sidebar.sidebar-collapsed .nav-item::before { content: none !important; }
+
+  /* Open state slides in */
+  .sidebar.sidebar-open { transform: translateX(0); }
+
+  /* Hide the desktop collapse toggle on mobile */
+  .sidebar-toggle-desktop { display: none; }
+}
+
+/* ── Mobile backdrop ────────────────────────────────────────────────── */
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(17, 24, 39, 0.5);
+  z-index: 40;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.sidebar-backdrop.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (min-width: 768px) {
+  .sidebar-backdrop { display: none !important; }
+}
+
+/* ── Respect prefers-reduced-motion ─────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar-backdrop,
+  .sidebar-collapsed .nav-item::after,
+  aside.sidebar-collapsed .nav-item::before {
+    transition: none !important;
+  }
+}

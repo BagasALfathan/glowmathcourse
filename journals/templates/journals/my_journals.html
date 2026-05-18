@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Jurnal Bulanan{% endblock %}
+{% block page_title %}Jurnal Bulanan{% endblock %}
+
+{% block content %}
+{% load dashboard_filters %}
+
+<div class="space-y-3">
+  {% for j in journals %}
+  <a href="{% url 'journals:journal_detail' j.pk %}"
+     class="block bg-white border border-gray-200 rounded-xl p-4 hover:border-emerald-500 transition">
+    <div class="flex items-start justify-between gap-3 mb-1.5">
+      <div class="min-w-0">
+        <p class="text-sm font-semibold text-gray-900 m-0">
+          {{ j.month|month_name }} {{ j.year }} — {{ j.enrollment.kelas.name }}
+        </p>
+        <p class="text-xs text-gray-500 m-0 mt-0.5">
+          Oleh {{ j.written_by_teacher.user.get_full_name|default:j.written_by_teacher.user.username }}
+        </p>
+      </div>
+      <span class="text-[10px] text-gray-400 whitespace-nowrap">
+        {{ j.published_at|date:"d M Y" }}
+      </span>
+    </div>
+    <p class="text-xs text-gray-600 italic m-0">
+      "{{ j.summary|truncatewords:25 }}"
+    </p>
+  </a>
+  {% empty %}
+  <div class="bg-gray-50 rounded-xl p-8 text-center">
+    <p class="text-sm text-gray-500">Belum ada jurnal bulanan yang diterbitkan.</p>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

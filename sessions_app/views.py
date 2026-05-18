@@ -31,7 +31,7 @@ def teacher_attendance_overview(request):
 
     klasses = list(
         Kelas.objects
-        .filter(teacher=request.user, is_deleted=False)
+        .filter(teacher_profile__user=request.user, is_deleted=False)
         .select_related('subject')
         .order_by('name')
     )
@@ -81,7 +81,7 @@ def teacher_sessions(request, pk):
     from academics.utils import update_expired_classes
     update_expired_classes()
 
-    kelas = get_object_or_404(Kelas, pk=pk, teacher=request.user, is_deleted=False)
+    kelas = get_object_or_404(Kelas, pk=pk, teacher_profile__user=request.user, is_deleted=False)
     today = timezone.localdate()
 
     sessions = list(
@@ -127,7 +127,7 @@ def teacher_sessions(request, pk):
 
 @role_required('TEACHER')
 def teacher_session_create(request, kelas_id):
-    kelas = get_object_or_404(Kelas, pk=kelas_id, teacher=request.user, is_deleted=False)
+    kelas = get_object_or_404(Kelas, pk=kelas_id, teacher_profile__user=request.user, is_deleted=False)
 
     # Determine next session number
     last_session = Session.objects.filter(kelas=kelas).order_by('-session_number').first()
@@ -238,7 +238,7 @@ def teacher_session_update_status(request, pk):
 @role_required('TEACHER')
 def teacher_attendance(request, pk):
     session = get_object_or_404(
-        Session.objects.select_related('kelas__teacher'),
+        Session.objects.select_related('kelas__teacher_profile__user'),
         pk=pk,
     )
     if session.kelas.teacher != request.user:
@@ -258,8 +258,8 @@ def teacher_attendance(request, pk):
     enrollments = (
         Enrollment.objects
         .filter(pk__in=booked_enrollment_ids, is_deleted=False)
-        .select_related('student__student_profile')
-        .order_by('student__last_name', 'student__first_name')
+        .select_related('student_profile__user')
+        .order_by('student_profile__user__last_name', 'student_profile__user__first_name')
     )
 
     # Existing attendance records for this session (keyed by enrollment_id)
@@ -365,13 +365,35 @@ def teacher_attendance(request, pk):
 
 # ─── Student booking views ────────────────────────────────────────────────────
 
+def student_session_redirect(request, pk):
+    """Resolve a bare session id to the enrollment-scoped session list (which is
+    where students actually interact with it). Falls back to dashboard if the
+    student isn't enrolled in that class."""
+    from django.shortcuts import get_object_or_404, redirect
+    from enrollments.models import Enrollment, EnrollmentStatus
+    session = get_object_or_404(Session, pk=pk)
+    enrollment = (
+        Enrollment.objects
+        .filter(
+            student_profile__user=request.user,
+            kelas=session.kelas,
+            status=EnrollmentStatus.ACTIVE,
+            is_deleted=False,
+        )
+        .first()
+    )
+    if enrollment:
+        return redirect('sessions_app:student_session_list', enrollment_id=enrollment.pk)
+    return redirect('dashboard:student')
+
+
 @role_required('STUDENT')
 def student_session_list(request, enrollment_id):
     from enrollments.models import Enrollment, EnrollmentStatus
     enrollment = get_object_or_404(
         Enrollment,
         pk=enrollment_id,
-        student=request.user,
+        student_profile__user=request.user,
         status=EnrollmentStatus.ACTIVE,
         is_deleted=False,
     )
@@ -459,7 +481,7 @@ def student_book_session(request, enrollment_id, session_id):
     enrollment = get_object_or_404(
         Enrollment,
         pk=enrollment_id,
-        student=request.user,
+        student_profile__user=request.user,
         status=EnrollmentStatus.ACTIVE,
         is_deleted=False,
     )
@@ -532,7 +554,7 @@ def student_cancel_booking(request, enrollment_id, session_id):
     enrollment = get_object_or_404(
         Enrollment,
         pk=enrollment_id,
-        student=request.user,
+        student_profile__user=request.user,
         status=EnrollmentStatus.ACTIVE,
         is_deleted=False,
     )
@@ -563,8 +585,8 @@ def _build_attendance_data(kelas):
     enrollments = list(
         Enrollment.objects
         .filter(kelas=kelas, status=EnrollmentStatus.ACTIVE, is_deleted=False)
-        .select_related('student')
-        .order_by('student__last_name', 'student__first_name')
+        .select_related('student_profile__user')
+        .order_by('student_profile__user__last_name', 'student_profile__user__first_name')
     )
     att_map = {
         (a.enrollment_id, a.session_id): a.status
@@ -598,7 +620,7 @@ def export_attendance_excel(request, pk):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
 
-    kelas = get_object_or_404(Kelas, pk=pk, teacher=request.user, is_deleted=False)
+    kelas = get_object_or_404(Kelas, pk=pk, teacher_profile__user=request.user, is_deleted=False)
     sessions, enrollments, att_map = _build_attendance_data(kelas)
 
     wb = Workbook()
@@ -663,7 +685,7 @@ def export_attendance_pdf(request, pk):
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-    kelas = get_object_or_404(Kelas, pk=pk, teacher=request.user, is_deleted=False)
+    kelas = get_object_or_404(Kelas, pk=pk, teacher_profile__user=request.user, is_deleted=False)
     sessions, enrollments, att_map = _build_attendance_data(kelas)
 
     buffer = io.BytesIO()

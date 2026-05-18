@@ -2,15 +2,23 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
-from django.views.generic import RedirectView, TemplateView
+from django.views.generic import TemplateView
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    # Django built-in admin moved here to free /admin/ for the custom admin portal
+    path('django-admin/', admin.site.urls),
     path('robots.txt', TemplateView.as_view(template_name='robots.txt', content_type='text/plain')),
-    path('', RedirectView.as_view(url='/login/', permanent=False), name='home'),
+
+    # Auth (3-portal layout)
     path('', include('accounts.urls')),
+
     path('dashboard/', include('dashboard.urls')),
     path('admin-panel/', include('admin_panel.urls')),
+
+    # Student see-all pages — must come BEFORE enrollments/sessions/grades
+    # so /my-classes/, /my-attendance/, /my-monthly-score/ resolve here.
+    path('', include('student.urls')),
+
     path('', include('academics.urls')),
     path('', include('enrollments.urls')),
     path('', include('grades.urls')),
@@ -18,6 +26,7 @@ urlpatterns = [
     path('', include('sessions_app.urls')),
     path('', include('ratings.urls')),
     path('', include('announcements.urls')),
+    path('', include('journals.urls')),
 ]
 
 if settings.DEBUG:

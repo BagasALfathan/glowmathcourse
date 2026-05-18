@@ -2,7 +2,33 @@
 
 > This file is read by Claude Code at the start of every session.
 > It defines the project context, tech stack, conventions, and rules.
-> Last updated: March 28, 2026
+> Last updated: 2026-05-18
+
+---
+
+## Project Status
+
+**Phase 3 — UI Redesign (in progress)**
+
+✅ Database ERD v4 (26 tables, all migrated, supports TK + UMUM levels)
+✅ 3 separate login portals (siswa / guru / admin) at `/`, `/guru/login/`, `/admin/login/`
+✅ 2 register wizards (siswa + guru) with 5-level jenjang pills (TK / SD / SMP / SMA / UMUM)
+✅ 2 forgot-password pages (WhatsApp deeplink with pre-filled username)
+✅ Waiting / pending-approval page (animated pulse + timeline)
+✅ **Student Dashboard** (Khan V3 — discovery-focused: announcement hero, best teacher of the month, popular + new classes, today's sessions, latest journal)
+✅ **Teacher Dashboard** (Notion V2 — clean: today's sessions priority, to-do list, kelas table, students perlu perhatian)
+✅ Sidebar collapse (desktop, localStorage-persisted) + mobile drawer (<768px)
+✅ 3 teacher "See All" pages: `/teacher/students/`, `/teacher/classes/`, `/teacher/sessions/` (paginated + filterable)
+✅ Animations on auth pages: page fade-in, step slide/fade, error shake, loading spinner, success pop, card-hover lift/border
+✅ Responsive design on both dashboards (mobile/tablet/desktop)
+
+🟡 **Admin Dashboard** (V4 Data Pro) — NOT yet built
+🟡 ~50 student/teacher/admin feature pages still on the legacy design — to be redesigned next
+🟡 Deployment paused (Hostinger VPS ready, waiting for redesign to complete)
+
+**Theme:** Emerald (`#10b981` family) replaced the old teal. Tabler icons loaded in [base.html](templates/base.html) and [base_auth.html](templates/base_auth.html). See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for the full palette and per-role styling rules.
+
+**Dev server runs on port 8765** (not 8000 — port 8000 was held by a stale PHP process). Use `python manage.py runserver 8765`.
 
 ---
 
@@ -11,7 +37,7 @@
 **Name:** GlowMathCourse — Tutoring Class Registration System
 **Type:** Multi-role web application (Student, Teacher, Admin)
 **Purpose:** Streamline class registration, scheduling, attendance, and grade management for a single tutoring center (bimbel) in Indonesia
-**Target users:** SD/SMP/SMA students, teachers, and admin staff
+**Target users:** TK / SD / SMP / SMA / UMUM (universitas + adult) students, teachers, and admin staff
 **UI language:** Bahasa Indonesia (all user-facing text)
 **Code language:** English (all variable names, column names, enum values, comments)
 
@@ -55,9 +81,14 @@
 
 ## Database Schema
 
-**Reference file:** `ERD_REFERENCE.md` in project root — read this for complete table definitions.
+**Reference file:** [ERD_REFERENCE.md](ERD_REFERENCE.md) — read this for complete table definitions.
 
-**14 tables:** User, StudentProfile, TeacherProfile, AdminProfile, AcademicPeriod, Category, Subject, Kelas, Schedule, Session, Enrollment, Grade, Attendance, Rating, ActivityLog
+**26 tables (ERD v4 — LOCKED).** Existing 15 from v1 (`Rating` removed) plus 11 new in 4 new apps:
+- **notifications/** Notification
+- **course_materials/** CourseMaterial
+- **journals/** MonthlyJournal, SessionNote
+- **ratings/** TeacherRating + ClassRating (replaced old `Rating`)
+- **billing/** Invoice, Payment, Refund (feature-flagged off via `ENABLE_PAYMENT_FEATURE = False`)
 
 ### Key rules:
 - `Kelas` (not `Class`) — because `Class` is a Python reserved word
@@ -68,6 +99,7 @@
 - Soft delete on User, Kelas, Enrollment (is_deleted + deleted_at)
 - All queries must include `.filter(is_deleted=False)` by default
 - Attendance and Rating link to Enrollment (not directly to User + Kelas)
+- **Backward-compat `@property` shims:** `Kelas.teacher` → `teacher_profile.user`, `Enrollment.student` → `student_profile.user`. Attribute access still works; ORM lookups must use the real path (e.g. `kelas__teacher_profile__user=user`)
 
 ### Enum values (all English in code):
 ```python
@@ -77,11 +109,13 @@ class Role(models.TextChoices):
     TEACHER = 'TEACHER', 'Guru'
     ADMIN = 'ADMIN', 'Admin'
 
-# Education levels (Indonesian acronyms — keep as-is)
+# Education levels (5 jenjang — Indonesian acronyms preserved)
 class Level(models.TextChoices):
+    TK = 'TK', 'TK'
     SD = 'SD', 'SD'
     SMP = 'SMP', 'SMP'
     SMA = 'SMA', 'SMA'
+    UMUM = 'UMUM', 'Umum'   # universitas + dewasa (UTBK, TOEFL, IELTS, business English…)
 
 # Days (full English)
 class Day(models.TextChoices):
@@ -214,17 +248,19 @@ class Quarter(models.TextChoices):
 
 ## Scope Boundaries — DO NOT BUILD
 
-These features are explicitly OUT OF SCOPE for MVP:
-- ❌ Payment / transaction / billing integration
-- ❌ Discount / promo codes
+These features are explicitly OUT OF SCOPE:
 - ❌ Multi-branch support
-- ❌ SMS / WhatsApp notifications
-- ❌ File upload (report cards, certificates, photos) — **EXCEPTION: teacher profile photo is allowed** (ImageField on TeacherProfile, max 2 MB, jpg/png/webp only, stored under `/media/teacher_photos/`)
+- ❌ SMS notifications (use WhatsApp instead)
+- ❌ File upload by students (no certificate upload, etc.) — **EXCEPTIONS:** teacher profile photo (ImageField on TeacherProfile, ≤ 2 MB, jpg/png/webp) and `CourseMaterial.file` uploaded by teachers (under `/media/course_materials/YYYY/MM/`)
 - ❌ REST API / DRF
 - ❌ React / Vue / any JS framework
 - ❌ Microservices architecture
 - ❌ Real-time chat or messaging
-- ❌ Email notifications (Phase 2)
+- ❌ Public-facing marketing landing page (separate site if needed)
+
+### Deferred (Phase 3, models exist, no UI)
+- 💤 **Payment / Invoice / Refund** — billing app + models are migrated, but UI is gated behind `ENABLE_PAYMENT_FEATURE = False` in [config/settings/base.py](config/settings/base.py). Don't build UI for these until the flag flips.
+- 💤 **Email notifications** — WhatsApp is the only channel today.
 
 Any feature not listed in the Roles & Access Control section above requires separate discussion before building.
 
@@ -339,8 +375,62 @@ glowmathcourse/
 
 ## Deployment Target
 
-- **Platform:** Railway (free tier) or Contabo VPS
-- **Database:** PostgreSQL (provided by platform)
+- **Platform:** Hostinger VPS KVM 1 (provisioned, deployment paused pending UI redesign)
+- **Domain:** glowmathclass.com (planned)
+- **Database:** PostgreSQL
 - **Static files:** whitenoise
 - **WSGI server:** gunicorn
-- **Budget:** Rp 5-12 juta (client project)
+- **TLS:** Let's Encrypt
+- **Budget:** Rp 5–12 juta (client project)
+
+---
+
+## Conventions (confirmed)
+
+- **All code in English** — variables, functions, columns, enum values, comments
+- **All UI text in Bahasa Indonesia** — labels, buttons, messages, validation errors
+- **TK / SD / SMP / SMA / UMUM stay as Indonesian acronyms** — both in code and UI (UMUM display label = "Umum")
+- **Class → `Kelas`** — `class` is a Python reserved word; always `Kelas` in model/code
+- **Soft delete on User, Kelas, Enrollment** — `is_deleted` + `deleted_at`; default queries must include `.filter(is_deleted=False)`
+
+---
+
+## Test Users
+
+All test passwords are simple by design — these are dev credentials only.
+
+### Admin Portal (`/admin/login/`)
+- `admin` / `admin1234` — legacy superuser
+- `glowmathcourse` / `ikanbuvivid` — new named admin (superuser + staff, department: "Management")
+
+### Student Portal (`/`)
+- **APPROVED** — `student001` … `student180` / `murid123`
+  - `student009` has dense real data (recommended for testing dashboard at scale)
+  - **`rafaeladhikabagasalfathan`** / `ikanbuvivid` — UMUM level, fully populated by `populate_rafael` (6 UMUM enrollments, sessions, grades, journals, ratings)
+- **PENDING** (redirects to `/waiting/` on login) — `student181` … `student195` / `murid123`
+- **REJECTED** (login fails with error) — `student196` … `student200` / `murid123`
+
+### Teacher Portal (`/guru/login/`)
+- **APPROVED** — `teacher001` … `teacher045` / `teacher123`
+  - **`candrarinitristaharidewati`** / `ikanbuvivid` — populated by `populate_trista` (5 classes across SD/SMP/SMA/UMUM, ~34 active students, sessions today, partial attendance/journals to fill the "to-do" widget)
+- **PENDING** — `teacher046` … `teacher048` / `teacher123`
+- **REJECTED** — `teacher049` … `teacher050` / `teacher123`
+
+---
+
+## Management Commands
+
+### Data generation
+- `python manage.py generate_dummy_data` — wipe + regenerate the full dummy dataset (200 students + 50 teachers + classes + sessions + grades + ratings + journals + notifications)
+- `python manage.py create_test_users` — idempotently create the 3 named test users (Rafael, Trista, GlowMath). Supports `--reset-passwords` to force-rewrite passwords/flags on existing rows
+- `python manage.py populate_rafael` — enroll Rafael into UMUM classes + create sessions/grades/journals/ratings. Idempotent.
+- `python manage.py populate_trista` — create Trista's 5 classes (SD/SMP/SMA/UMUM mix) + enroll students + sessions/grades/journals/ratings. Idempotent.
+
+### Server
+- **Dev port: 8765** (not 8000 — port 8000 was held by a stale PHP process)
+- `python manage.py runserver 8765`
+
+### Verification
+- `python manage.py check` — must return "0 silenced" before deploy
+- `python manage.py makemigrations --check --dry-run` — confirm no pending model changes
+- `python manage.py migrate` — apply pending migrations

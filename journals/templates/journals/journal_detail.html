@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Jurnal — {{ journal.enrollment.kelas.name }}{% endblock %}
+{% block page_title %}Jurnal Bulanan{% endblock %}
+
+{% block content %}
+{% load dashboard_filters %}
+
+<div class="max-w-2xl mx-auto space-y-4">
+
+  <div class="bg-white border border-gray-200 rounded-xl p-5">
+    <div class="flex items-center gap-2 mb-2">
+      <i class="ti ti-book-2 text-emerald-600 text-lg"></i>
+      <h2 class="text-base font-semibold text-gray-900 m-0">
+        {{ journal.month|month_name }} {{ journal.year }}
+      </h2>
+    </div>
+    <p class="text-sm text-gray-600 m-0">
+      {{ journal.enrollment.kelas.name }}
+      <span class="text-gray-400"> · </span>
+      Oleh {{ journal.written_by_teacher.user.get_full_name|default:journal.written_by_teacher.user.username }}
+    </p>
+  </div>
+
+  <div class="bg-white border border-gray-200 rounded-xl p-5">
+    <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Ringkasan</h3>
+    <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line m-0">{{ journal.summary }}</p>
+  </div>
+
+  <div class="bg-white border border-gray-200 rounded-xl p-5">
+    <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-2">Materi yang Dipelajari</h3>
+    <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line m-0">{{ journal.topics_covered }}</p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="bg-white border border-gray-200 rounded-xl p-5">
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-emerald-700 mb-2">Kekuatan</h3>
+      <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line m-0">{{ journal.strengths }}</p>
+    </div>
+    <div class="bg-white border border-gray-200 rounded-xl p-5">
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-amber-700 mb-2">Perlu Ditingkatkan</h3>
+      <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line m-0">{{ journal.areas_for_improvement }}</p>
+    </div>
+  </div>
+
+  <a href="{% url 'journals:my_journals' %}"
+     class="inline-flex items-center gap-1.5 text-sm text-emerald-600 font-semibold">
+    <i class="ti ti-arrow-left"></i> Kembali ke daftar jurnal
+  </a>
+</div>
+{% endblock %}

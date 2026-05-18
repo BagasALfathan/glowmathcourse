@@ -126,9 +126,10 @@ class TeacherRegistrationForm(UserCreationForm):
     address = forms.CharField(
         widget=forms.Textarea(attrs={'rows': 3}), label='Alamat', required=False
     )
-    teaches_sd = forms.BooleanField(label='SD', required=False)
-    teaches_smp = forms.BooleanField(label='SMP', required=False)
-    teaches_sma = forms.BooleanField(label='SMA', required=False)
+    jenjang_levels = forms.MultipleChoiceField(
+        choices=Level.choices, widget=forms.CheckboxSelectMultiple,
+        required=True, label='Jenjang yang Dapat Diajar',
+    )
 
     class Meta(UserCreationForm.Meta):
         model = User
@@ -175,23 +176,14 @@ class TeacherRegistrationForm(UserCreationForm):
             Field('phone'),
             Field('address'),
             HTML('<p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-6">Jenjang yang Dapat Diajar</p>'),
-            Row(
-                Column('teaches_sd', css_class='md:col-span-1'),
-                Column('teaches_smp', css_class='md:col-span-1'),
-                Column('teaches_sma', css_class='md:col-span-1'),
-                css_class='grid grid-cols-3 gap-4',
-            ),
+            Field('jenjang_levels'),
         )
 
-    def clean(self):
-        cleaned_data = super().clean()
-        if not any([
-            cleaned_data.get('teaches_sd'),
-            cleaned_data.get('teaches_smp'),
-            cleaned_data.get('teaches_sma'),
-        ]):
+    def clean_jenjang_levels(self):
+        levels = self.cleaned_data.get('jenjang_levels') or []
+        if not levels:
             raise forms.ValidationError('Pilih minimal satu jenjang yang dapat diajar.')
-        return cleaned_data
+        return levels
 
     def clean_email(self):
         email = self.cleaned_data.get('email', '').strip()
@@ -243,9 +235,12 @@ class ProfileUserForm(forms.ModelForm):
 
 
 class StudentProfileEditForm(forms.ModelForm):
+    # phone is on User now; expose it here for backward-compat editing
+    phone = forms.CharField(max_length=20, label='No. HP Siswa', required=False)
+
     class Meta:
         model = StudentProfile
-        fields = ['level', 'school_name', 'school_grade', 'phone',
+        fields = ['level', 'school_name', 'school_grade',
                   'parent_name', 'parent_phone', 'address']
 
     def __init__(self, *args, **kwargs):
@@ -254,10 +249,11 @@ class StudentProfileEditForm(forms.ModelForm):
         self.fields['level'].required = True
         self.fields['school_name'].label = 'Nama Sekolah'
         self.fields['school_grade'].label = 'Kelas (1–12)'
-        self.fields['phone'].label = 'No. HP Siswa'
         self.fields['parent_name'].label = 'Nama Orang Tua'
         self.fields['parent_phone'].label = 'No. HP Orang Tua'
         self.fields['address'].label = 'Alamat'
+        if self.instance and self.instance.pk and self.instance.user_id:
+            self.fields['phone'].initial = self.instance.user.phone
         self.helper = FormHelper()
         self.helper.form_tag = False
         self.helper.layout = Layout(
@@ -276,12 +272,29 @@ class StudentProfileEditForm(forms.ModelForm):
             Field('address'),
         )
 
+    def save(self, commit=True):
+        instance = super().save(commit=commit)
+        if commit and instance.user_id:
+            instance.user.phone = self.cleaned_data.get('phone', '') or ''
+            instance.user.save(update_fields=['phone', 'updated_at'])
+        return instance
+
 
 class TeacherProfileEditForm(forms.ModelForm):
+    # phone is on User now; expose it here for backward-compat editing
+    phone = forms.CharField(max_length=20, label='No. HP', required=False)
+
+    # Jenjang via TeacherJenjang model (multi-select)
+    jenjang_levels = forms.MultipleChoiceField(
+        choices=Level.choices,
+        widget=forms.CheckboxSelectMultiple,
+        required=True,
+        label='Jenjang yang Dapat Diajar',
+    )
+
     class Meta:
         model = TeacherProfile
-        fields = ['education', 'specialization', 'bio', 'experience_years', 'phone', 'address',
-                  'teaches_sd', 'teaches_smp', 'teaches_sma']
+        fields = ['education', 'specialization', 'bio', 'experience_years', 'address']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -289,11 +302,10 @@ class TeacherProfileEditForm(forms.ModelForm):
         self.fields['specialization'].label = 'Spesialisasi / Mata Pelajaran'
         self.fields['bio'].label = 'Bio Singkat'
         self.fields['experience_years'].label = 'Pengalaman Mengajar (tahun)'
-        self.fields['phone'].label = 'No. HP'
         self.fields['address'].label = 'Alamat'
-        self.fields['teaches_sd'].label = 'SD'
-        self.fields['teaches_smp'].label = 'SMP'
-        self.fields['teaches_sma'].label = 'SMA'
+        if self.instance and self.instance.pk and self.instance.user_id:
+            self.fields['phone'].initial = self.instance.user.phone
+            self.fields['jenjang_levels'].initial = self.instance.get_jenjang_list()
         self.helper = FormHelper()
         self.helper.form_tag = False
         self.helper.layout = Layout(
@@ -307,33 +319,43 @@ class TeacherProfileEditForm(forms.ModelForm):
             Field('phone'),
             Field('address'),
             HTML('<p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 mt-6">Jenjang yang Dapat Diajar</p>'),
-            Row(
-                Column('teaches_sd', css_class='md:col-span-1'),
-                Column('teaches_smp', css_class='md:col-span-1'),
-                Column('teaches_sma', css_class='md:col-span-1'),
-                css_class='grid grid-cols-3 gap-4',
-            ),
+            Field('jenjang_levels'),
         )
 
-    def clean(self):
-        cleaned_data = super().clean()
-        if not any([
-            cleaned_data.get('teaches_sd'),
-            cleaned_data.get('teaches_smp'),
-            cleaned_data.get('teaches_sma'),
-        ]):
+    def clean_jenjang_levels(self):
+        levels = self.cleaned_data.get('jenjang_levels') or []
+        if not levels:
             raise forms.ValidationError('Pilih minimal satu jenjang yang dapat diajar.')
-        return cleaned_data
+        return levels
+
+    def save(self, commit=True):
+        instance = super().save(commit=commit)
+        if commit and instance.user_id:
+            instance.user.phone = self.cleaned_data.get('phone', '') or ''
+            instance.user.save(update_fields=['phone', 'updated_at'])
+            instance.set_jenjang(self.cleaned_data.get('jenjang_levels', []))
+        return instance
 
 
 class AdminProfileEditForm(forms.ModelForm):
+    # phone is on User now; expose it here for backward-compat editing
+    phone = forms.CharField(max_length=20, label='No. HP', required=False)
+
     class Meta:
         model = AdminProfile
-        fields = ['phone']
+        fields = []
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['phone'].label = 'No. HP'
+        if self.instance and self.instance.pk and self.instance.user_id:
+            self.fields['phone'].initial = self.instance.user.phone
         self.helper = FormHelper()
         self.helper.form_tag = False
         self.helper.layout = Layout(Field('phone'))
+
+    def save(self, commit=True):
+        instance = super().save(commit=commit)
+        if commit and instance.user_id:
+            instance.user.phone = self.cleaned_data.get('phone', '') or ''
+            instance.user.save(update_fields=['phone', 'updated_at'])
+        return instance

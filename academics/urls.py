@@ -19,6 +19,8 @@ urlpatterns = [
     path('classes/partial/', views.class_browse_partial, name='class_browse_partial'),
     path('classes/<int:pk>/', views.class_detail, name='class_detail'),
     # Teacher-facing
+    path('teacher/students/', views.teacher_all_students, name='teacher_all_students'),
+    path('teacher/sessions/', views.teacher_all_sessions, name='teacher_all_sessions'),
     path('teacher/classes/', views.teacher_classes_list, name='teacher_classes'),
     path('teacher/classes/create/', views.teacher_class_create, name='teacher_class_create'),
     path('teacher/classes/<int:pk>/edit/', views.teacher_class_edit, name='teacher_class_edit'),

@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% load dashboard_filters %}
+
+{% block title %}Kelas Saya{% endblock %}
+{% block page_title %}Kelas Saya{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="flex justify-between items-end mb-5 gap-3 flex-wrap">
+  <div>
+    <h1 class="text-xl md:text-2xl font-semibold text-gray-900 m-0">📚 Kelas Saya</h1>
+    <p class="text-xs md:text-sm text-gray-500 m-0 mt-1">{{ total_count }} kelas total · klik kartu untuk detail</p>
+  </div>
+  <a href="{% url 'academics:class_browse' %}"
+     class="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-colors">
+    <i class="ti ti-plus"></i> Cari Kelas Baru
+  </a>
+</div>
+
+<!-- Filter bar -->
+<form method="get" class="bg-white border border-gray-200 rounded-xl p-4 mb-5 flex flex-wrap gap-3 items-end">
+  <div class="flex-1 min-w-[220px]">
+    <label class="text-[11px] text-gray-500 mb-1 block">Cari kelas</label>
+    <input type="text" name="search" value="{{ search }}"
+           placeholder="Nama kelas, mapel, atau guru…"
+           class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+  </div>
+  <div>
+    <label class="text-[11px] text-gray-500 mb-1 block">Status</label>
+    <select name="status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="">Semua</option>
+      <option value="ACTIVE"    {% if status_filter == 'ACTIVE'    %}selected{% endif %}>Aktif</option>
+      <option value="COMPLETED" {% if status_filter == 'COMPLETED' %}selected{% endif %}>Selesai</option>
+      <option value="DROPPED"   {% if status_filter == 'DROPPED'   %}selected{% endif %}>Keluar</option>
+    </select>
+  </div>
+  <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold inline-flex items-center gap-1.5">
+    <i class="ti ti-search"></i> Cari
+  </button>
+</form>
+
+<!-- Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
+  {% for enr in page_obj %}
+  <a href="{% url 'academics:class_detail' enr.kelas.id %}"
+     class="card-hover-lift block bg-white border border-gray-200 rounded-xl p-4">
+    <div class="flex items-start gap-3 mb-3">
+      <div class="w-11 h-11 rounded-lg bg-emerald-50 flex items-center justify-center text-2xl shrink-0">
+        {{ enr.kelas.subject.name|subject_emoji }}
+      </div>
+      <div class="min-w-0 flex-1">
+        <p class="text-sm font-semibold text-gray-900 m-0 leading-snug line-clamp-2">{{ enr.kelas.name }}</p>
+        <p class="text-[11px] text-gray-500 m-0 mt-0.5 truncate">
+          {{ enr.kelas.teacher_profile.user.get_full_name|default:enr.kelas.teacher_profile.user.username }}
+        </p>
+      </div>
+      <span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-semibold shrink-0">{{ enr.kelas.level }}</span>
+    </div>
+
+    <div class="flex items-center gap-2 mb-3">
+      <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div class="h-full bg-emerald-500 rounded-full progress-bar-anim" style="width: {{ enr.progress_pct }}%"></div>
+      </div>
+      <span class="text-[11px] font-semibold text-emerald-700 w-9 text-right">{{ enr.progress_pct }}%</span>
+    </div>
+
+    <div class="flex items-center justify-between text-[11px]">
+      {% if enr.status == 'ACTIVE' %}
+        <span class="bg-green-100 text-green-700 px-2 py-0.5 rounded font-semibold">Aktif</span>
+      {% elif enr.status == 'COMPLETED' %}
+        <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded font-semibold">Selesai</span>
+      {% else %}
+        <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded font-semibold">Keluar</span>
+      {% endif %}
+      <span class="text-emerald-600 font-semibold inline-flex items-center gap-0.5">
+        Lihat detail <i class="ti ti-arrow-right"></i>
+      </span>
+    </div>
+  </a>
+  {% empty %}
+  <div class="col-span-full text-center p-8 bg-gray-50 rounded-xl text-sm text-gray-500">
+    {% if search or status_filter %}
+      Tidak ada kelas cocok dengan filter.
+    {% else %}
+      Kamu belum terdaftar di kelas apapun.
+      <a href="{% url 'academics:class_browse' %}" class="text-emerald-600 hover:text-emerald-700 font-semibold">Cari kelas →</a>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<div class="flex justify-between items-center text-sm">
+  <p class="text-gray-500 m-0">
+    Menampilkan {{ page_obj.start_index }}–{{ page_obj.end_index }} dari {{ total_count }}
+  </p>
+  <div class="flex gap-1 items-center">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}&{{ qs_preserve }}"
+       class="px-3 py-1.5 border border-gray-200 rounded-md hover:bg-gray-50 text-gray-600">‹</a>
+    {% endif %}
+    <span class="px-3 py-1.5 bg-emerald-500 text-white rounded-md font-semibold">{{ page_obj.number }}</span>
+    <span class="px-2 py-1.5 text-gray-500">/ {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}&{{ qs_preserve }}"
+       class="px-3 py-1.5 border border-gray-200 rounded-md hover:bg-gray-50 text-gray-600">›</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

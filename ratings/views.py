@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 from django.contrib import messages
 from django.db.models import Avg, Count
 from django.shortcuts import get_object_or_404, redirect, render
@@ -8,7 +6,7 @@ from accounts.decorators import role_required
 from activity_logs.utils import log_activity
 from enrollments.models import Enrollment, EnrollmentStatus
 
-from .models import Rating
+from .models import TeacherRating
 
 
 @role_required('STUDENT')
@@ -16,7 +14,7 @@ def rate_teacher(request, enrollment_id):
     enrollment = get_object_or_404(
         Enrollment,
         pk=enrollment_id,
-        student=request.user,
+        student_profile__user=request.user,
         is_deleted=False,
     )
 
@@ -25,13 +23,13 @@ def rate_teacher(request, enrollment_id):
         return redirect('enrollments:my_classes')
 
     try:
-        existing_rating = enrollment.rating
-    except Rating.DoesNotExist:
+        existing_rating = enrollment.teacher_rating
+    except TeacherRating.DoesNotExist:
         existing_rating = None
 
     if request.method == 'POST':
         score_raw = request.POST.get('score', '').strip()
-        comment = request.POST.get('comment', '').strip() or None
+        comment = request.POST.get('comment', '').strip() or ''
 
         if not score_raw.isdigit() or not (1 <= int(score_raw) <= 5):
             messages.error(request, 'Pilih rating bintang 1–5.')
@@ -48,7 +46,12 @@ def rate_teacher(request, enrollment_id):
             log_activity(request.user, 'updated', 'rating', existing_rating.pk)
             messages.success(request, 'Rating berhasil diperbarui!')
         else:
-            new_rating = Rating.objects.create(enrollment=enrollment, score=score, comment=comment)
+            new_rating = TeacherRating.objects.create(
+                enrollment=enrollment,
+                teacher_profile=enrollment.kelas.teacher_profile,
+                score=score,
+                comment=comment,
+            )
             log_activity(request.user, 'created', 'rating', new_rating.pk)
             messages.success(request, 'Rating berhasil diberikan!')
 
@@ -62,13 +65,18 @@ def rate_teacher(request, enrollment_id):
 
 @role_required('TEACHER')
 def teacher_ratings(request):
+    try:
+        teacher_profile = request.user.teacher_profile
+    except Exception:
+        teacher_profile = None
+
     ratings = (
-        Rating.objects.filter(
-            enrollment__kelas__teacher=request.user,
+        TeacherRating.objects.filter(
+            teacher_profile=teacher_profile,
             enrollment__is_deleted=False,
         )
         .select_related(
-            'enrollment__student',
+            'enrollment__student_profile__user',
             'enrollment__kelas',
             'enrollment__kelas__subject',
         )

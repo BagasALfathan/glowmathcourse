@@ -1,224 +1,72 @@
-# GlowMathCourse — Day-by-Day Build Plan
+# Task Breakdown — Current Status
 
-> 21 working days | MVP complete by Day 15 | Deploy by Day 21
-> Locked on March 28, 2026
+> **Last reviewed:** 2026-05-18.
 
----
+## ✅ COMPLETED
 
-## Overview
+### Phase 0 — Foundation (Days 1–21)
+- Django setup, 15-table ERD v1, 65 functional pages
+- HTMX search, charts, exports
+- Approval flow with WhatsApp deeplink
+- Time-aware logic (schedule overlap, auto-close expired classes)
 
-| Phase | Days | Goal |
-|-------|------|------|
-| Week 1 (Days 1-5) | Foundation | Auth, models, layout, profiles |
-| Week 2 (Days 6-10) | Core features | Classes, enrollment, scheduling |
-| Week 3 (Days 11-15) | Teaching workflow | Sessions, attendance, grades → **MVP DONE** |
-| Week 4 (Days 16-21) | Enhancements + deploy | Ratings, admin CRUD, HTMX, deploy |
+### Phase 1 — Database Upgrade (ERD v4)
+- ERD v1 → v4 migration (26 tables)
+- 11 new tables in 4 new apps: notifications, course_materials, journals (×2), ratings (split into Teacher + Class), billing (×3)
+- Field additions on existing tables (User.phone, StudentProfile.dob/gender, TeacherProfile.hourly_rate/bank_account, AdminProfile.department, etc.)
+- **TK + UMUM** levels added to all level fields (StudentProfile, TeacherJenjang, Kelas)
+- Backward-compat `@property` shims (`Kelas.teacher`, `Enrollment.student`)
+- 3 named test users via `create_test_users`
+- Realistic data seeders: `populate_rafael` (UMUM student) + `populate_trista` (5-class teacher across SD/SMP/SMA/UMUM)
 
-Buffer days: Day 5, Day 10, parts of Day 20-21
+### Phase 2 — Auth Redesign
+- 3 login portals (siswa mint / guru clean / admin dark) at `/`, `/guru/login/`, `/admin/login/`
+- 2 register wizards with 5-level jenjang pills
+- 2 forgot-password pages with WhatsApp deeplink
+- Waiting / pending-approval page with animated pulse + timeline
+- Role-strict authentication (cross-portal login → friendly redirect message)
+- Admin login → `ActivityLog(ip, user_agent)`
+- Emerald `#10b981` theme replaced the old teal
 
----
+### Phase 3 — UI Redesign (in progress — see below for what's done vs remaining)
 
-## Week 1 — Foundation
+**Done:**
+- [x] Shared `animations.css` utility (fade-in, fade-up, slide, shake, pulse-glow, spinner, success-pop, card-hover-lift/border, step-circle-active)
+- [x] Register pages with step transitions + spinner + auto-shake on validation
+- [x] **Student Dashboard** (Khan V3 — hero announcement, KPI stats, active classes, best teacher of the month, popular + new, today + journal)
+- [x] **Teacher Dashboard** (Notion V2 — greeting + CTA, 4 KPIs, "Sesi Hari Ini" priority, to-do list, kelas table with mobile-card fallback, siswa perlu perhatian)
+- [x] Sidebar collapse (desktop, localStorage-persisted) + mobile drawer (<768px)
+- [x] 3 teacher see-all pages (`/teacher/students/`, `/teacher/sessions/`, `/teacher/classes/`)
+- [x] Animations on all auth pages (login + register + forgot + waiting)
+- [x] Responsive design on both dashboards (sm / md / lg)
+- [x] `update_expired_classes()` middleware (cached 5min, auto-completes past sessions + auto-closes finished classes)
 
-### Day 1 — Project setup
-- [ ] Create Django project: `django-admin startproject config .`
-- [ ] Setup Tailwind: `python manage.py tailwind init`
-- [ ] Configure settings.py (dotenv, installed apps, middleware)
-- [ ] Create accounts app: `python manage.py startapp accounts`
-- [ ] Custom User model with role field (STUDENT, TEACHER, ADMIN)
-- [ ] StudentProfile, TeacherProfile, AdminProfile models
-- [ ] Django signal: auto-create profile on user save
-- [ ] First migration + create superuser
-- [ ] Git init + .gitignore + first commit
+## 🔄 IN PROGRESS / NEXT
 
-**Goal:** Project runs, User + 3 profiles in DB, superuser can log into /admin/
+### Phase 3 (continuing)
+- [ ] **Admin Dashboard** (V4 Data Pro) — NEXT
+- [ ] Student feature pages: browse classes, class detail, my-classes, monthly score, attendance
+- [ ] Teacher CRUD: create/edit class, edit session, input grades, write monthly journal, session notes
+- [ ] Admin management: approve users, manage classes/enrollments/ratings/logs, announcement editor
+- [ ] New-feature pages (models ready, no UI): notifications inbox, course material upload/download, split ratings, monthly journal viewer
 
-### Day 2 — Auth pages
-- [ ] Base template (base.html) with Tailwind classes
-- [ ] Add HTMX + Alpine.js CDN script tags to base template
-- [ ] Login page + view
-- [ ] Student registration page + form (with level, school, parent info)
-- [ ] Teacher registration page + form (with education, specialization)
-- [ ] Logout view
+## ⏳ TODO
 
-**Goal:** Students and teachers can register, login, and logout
+### Phase 4 — Deployment
+- VPS Hostinger KVM 1 (provisioned, waiting)
+- Code clone, nginx, gunicorn, PostgreSQL setup (~80% done)
+- SSL with Let's Encrypt
+- Custom domain `glowmathclass.com`
+- Production-ready settings
 
-### Day 3 — Layout + role routing
-- [ ] Navbar component (responsive, mobile hamburger menu)
-- [ ] Sidebar component (different menu items per role, Bahasa Indonesia labels)
-- [ ] @role_required decorator (accounts/decorators.py)
-- [ ] Dashboard router view (auto-redirect based on role)
-- [ ] Student dashboard (placeholder page)
-- [ ] Teacher dashboard (placeholder page)
-- [ ] Admin dashboard (placeholder page)
+### Phase 5 — Polish
+- Test all flows with real users
+- Performance optimization (query audits, cache tuning)
+- Mobile responsive verification on remaining pages
+- Print layouts for reports
 
-**Goal:** After login, each role sees their own dashboard with sidebar
+## Notes on dev environment
 
-### Day 4 — Academic models + seed data
-- [ ] Create academics app: `python manage.py startapp academics`
-- [ ] Category model
-- [ ] Subject model (FK to Category)
-- [ ] AcademicPeriod model
-- [ ] Kelas model (with level, capacity, total_sessions, start/end date)
-- [ ] Schedule model (kelas_id, day, start_time, end_time, room)
-- [ ] Register all models in admin.py
-- [ ] Seed script: categories (IPA, IPS, Bahasa, Umum), subjects, 1 academic period
-- [ ] Migrate + verify in Django admin
-
-**Goal:** All academic models in DB, seed data loaded, visible in /admin/
-
-### Day 5 — Profile pages + buffer
-- [ ] Profile view page (shows role-specific data)
-- [ ] Profile edit page + form (edits role-specific profile)
-- [ ] Catch up on any Day 1-4 overflow
-- [ ] Code review + cleanup + git push
-
-**Goal:** Week 1 complete — auth, profiles, layout, all models ready
-
----
-
-## Week 2 — Classes + Enrollment
-
-### Day 6 — Teacher creates classes
-- [ ] Teacher: my classes list page (/teacher/classes/)
-- [ ] Teacher: create class form with multi-day schedule (/teacher/classes/create/)
-- [ ] Class card component (templates/components/_class_card.html)
-
-**Goal:** Teachers can create classes with multi-day schedules
-
-### Day 7 — Teacher manages classes
-- [ ] Teacher: edit class page (/teacher/classes/{id}/edit/)
-- [ ] Teacher: soft delete class (/teacher/classes/{id}/delete/)
-- [ ] Teacher: view enrolled students per class (/teacher/classes/{id}/students/)
-- [ ] Schedule grid component (templates/components/_schedule_grid.html)
-
-**Goal:** Full teacher class management working
-
-### Day 8 — Student browses + enrolls
-- [ ] Student: browse classes page, auto-filtered by level (/classes/)
-- [ ] Student: class detail page (/classes/{id}/)
-- [ ] Create enrollments app: `python manage.py startapp enrollments`
-- [ ] Enrollment model + migration
-- [ ] Enroll view with level match + capacity check (/enroll/{kelas_id}/)
-
-**Goal:** Students can browse classes and enroll with validation
-
-### Day 9 — Enrollment management
-- [ ] Student: my enrolled classes page (/my-classes/)
-- [ ] Student: drop class functionality (/my-classes/{id}/drop/)
-- [ ] Auto-update kelas status (OPEN → FULL when at capacity)
-- [ ] Test enrollment edge cases (duplicate, full class, wrong level)
-
-**Goal:** Full enrollment lifecycle working (enroll, view, drop)
-
-### Day 10 — Buffer + polish
-- [ ] Fix UI issues from week 2
-- [ ] Mobile responsiveness testing
-- [ ] Code cleanup + git push
-
-**Goal:** Week 2 complete — classes + enrollment fully working
-
----
-
-## Week 3 — Sessions, Attendance, Grades
-
-### Day 11 — Sessions
-- [ ] Create sessions app: `python manage.py startapp sessions`
-- [ ] Session model + migration
-- [ ] Teacher: session list per class (/teacher/classes/{id}/sessions/)
-- [ ] Teacher: create session form (/teacher/sessions/create/{kelas_id}/)
-- [ ] Session number validation (cannot exceed kelas.total_sessions)
-
-**Goal:** Teachers can create and manage sessions per class
-
-### Day 12-13 — Attendance (2 days)
-- [ ] Attendance model + migration
-- [ ] Teacher: mark attendance page — all students in one view (/teacher/sessions/{id}/attendance/)
-- [ ] Attendance form logic (bulk save: PRESENT/PERMITTED/ABSENT for each student)
-- [ ] Student: view own attendance summary (/my-attendance/)
-- [ ] Student: attendance per class detail (/my-attendance/{kelas_id}/)
-
-**Goal:** Full attendance workflow — teacher marks, student views
-
-### Day 14 — Grades
-- [ ] Create grades app: `python manage.py startapp grades`
-- [ ] Grade model + migration
-- [ ] Teacher: grade management page per class (/teacher/classes/{id}/grades/)
-- [ ] Teacher: add grade form
-- [ ] Teacher: edit + delete grade
-
-**Goal:** Teachers can input, edit, and delete grades
-
-### Day 15 — Student grades + dashboards
-- [ ] Student: view all grades page (/my-grades/)
-- [ ] Student: grades per class detail (/my-grades/{kelas_id}/)
-- [ ] Grade table component (templates/components/_grade_table.html)
-- [ ] Student dashboard: real data (enrolled count, attendance %, avg grade)
-- [ ] Teacher dashboard: real data (class count, student count, next session)
-- [ ] Code cleanup + git push
-
-**Goal: MVP COMPLETE — all core features working!**
-
----
-
-## Week 4 — Phase 2 Enhancements + Deploy
-
-### Day 16-17 — Ratings + admin dashboard
-- [ ] Create ratings app + Rating model
-- [ ] Student: rate teacher page (/rate/{enrollment_id}/)
-- [ ] Teacher: view my ratings page (/teacher/ratings/)
-- [ ] Rating stars component (templates/components/_rating_stars.html)
-- [ ] Admin dashboard with real stats (total students, active classes, etc.)
-- [ ] Admin: manage users page with search/filter (/admin/users/)
-
-### Day 18-19 — Admin CRUD + HTMX
-- [ ] Admin: manage classes page (/admin/classes/)
-- [ ] Admin: manage subjects + categories (/admin/subjects/, /admin/categories/)
-- [ ] Admin: manage enrollments (/admin/enrollments/)
-- [ ] Admin: manage academic periods (/admin/periods/)
-- [ ] HTMX: class filtering on student browse page
-- [ ] HTMX: user search/filter on admin users page
-- [ ] Activity log model + log_activity() helper function
-- [ ] Admin: view activity logs (/admin/logs/)
-
-### Day 20-21 — Deploy + final polish
-- [ ] Setup Railway (or VPS) + PostgreSQL database
-- [ ] Configure production settings (whitenoise, gunicorn, ALLOWED_HOSTS)
-- [ ] Create Procfile + requirements.txt
-- [ ] Deploy to production + test
-- [ ] Mobile responsive final pass (test on real phone)
-- [ ] Bug fixes + edge case testing
-- [ ] Create admin account for client
-- [ ] Client handoff
-
-**Goal: Project deployed, client handoff ready!**
-
----
-
-## How to use this with Claude Code
-
-Each day, open your terminal and run:
-```
-cd D:\coding\glowmathcourse
-venv\Scripts\activate
-claude
-```
-
-Then tell Claude Code what to build:
-```
-Today is Day 1. Read CLAUDE.md and ERD_REFERENCE.md.
-Create the Django project setup, custom User model with role field,
-and the three profile models (StudentProfile, TeacherProfile, AdminProfile).
-Include the Django signal to auto-create profiles on user creation.
-```
-
-Work through each day's tasks in order. If you finish early, pull from the next day. If you're behind, use the buffer days to catch up.
-
----
-
-## Effort Legend
-
-- **lo** = under 30 minutes
-- **md** = 1-2 hours
-- **hi** = 2-3 hours
-- **buffer** = catch-up time, use as needed
+- **Dev server runs on port 8765** (not 8000 — port 8000 is held by an unrelated long-running PHP process)
+- `python manage.py check` → must return "0 silenced" before deploy
+- `python manage.py makemigrations --check --dry-run` → confirm no pending model changes

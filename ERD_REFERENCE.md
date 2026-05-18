@@ -1,264 +1,228 @@
-# Bimbel GlowMathCourse — Database Schema (ERD v7 FINAL)
+# Database Schema — ERD v4 (FINAL — 26 Tables)
 
-> 14 tables | All English column names | SD/SMP/SMA kept as Indonesian acronyms
-> Locked on March 28, 2026 — no further changes without separate discussion
+> **Migration status (2026-05-18):** Phase 1 ERD v4 (26 tables) + TK / UMUM level additions are COMPLETE.
+> Database wiped + fresh dummy data populated. `populate_rafael` and `populate_trista` management commands seed
+> the named test users with realistic data.
 
----
+## Identity (4 tables)
 
-## Tables Overview
+### User
+- id (PK)
+- username (unique), email (unique)
+- password (hash), phone (NEW: moved from profiles)
+- role: STUDENT | TEACHER | ADMIN
+- approval_status: PENDING | APPROVED | REJECTED
+- is_active, is_deleted, deleted_at
+- date_joined, created_at, updated_at
 
-| # | Table | Purpose | Key Relationships |
-|---|-------|---------|-------------------|
-| 1 | User | Login, auth, role | Base for all roles |
-| 2 | StudentProfile | Level, school, parent info | One-to-one with User (STUDENT) |
-| 3 | TeacherProfile | Education, bio, experience | One-to-one with User (TEACHER) |
-| 4 | AdminProfile | Phone | One-to-one with User (ADMIN) |
-| 5 | AcademicPeriod | Year + quarter grouping | One period has many kelas |
-| 6 | Category | Subject grouping (IPA, IPS, etc.) | One category has many subjects |
-| 7 | Subject | Mata pelajaran | Belongs to category |
-| 8 | Kelas | Class with capacity & duration | Belongs to teacher + subject + period |
-| 9 | Schedule | Day + time slots (multi-day) | Belongs to kelas |
-| 10 | Session | Individual meeting/pertemuan | Belongs to kelas |
-| 11 | Enrollment | Student joins a kelas | Links student to kelas (unique pair) |
-| 12 | Grade | Quiz, Midterm, Final scores | Belongs to enrollment, optionally linked to session |
-| 13 | Attendance | Present/Permitted/Absent per session | Links enrollment to session (unique pair) |
-| 14 | Rating | Student rates teacher 1-5 | One per enrollment (unique) |
-| 15 | ActivityLog | Who did what, when | Links to user |
+### StudentProfile (1-to-1 → User)
+- user (FK unique)
+- level: **TK | SD | SMP | SMA | UMUM** (5 jenjang)
+- school_name, school_grade
+- address
+- parent_name, parent_phone
+- date_of_birth (NEW), gender (NEW)
+- created_at, updated_at
 
----
+### TeacherProfile (1-to-1 → User)
+- user (FK unique)
+- education: S1 | S2 | S3
+- specialization, bio
+- experience_years, address
+- photo (ImageField)
+- hourly_rate (NEW), bank_account (NEW, encrypted)
+- created_at, updated_at
 
-## Table Definitions
+### AdminProfile (1-to-1 → User)
+- user (FK unique)
+- department (NEW), permissions JSON (NEW)
+- created_at, updated_at
 
-### USER
-```
-id              int PK
-first_name      string
-last_name       string
-email           string          unique, indexed
-username        string          unique
-password        string          hashed
-role            enum            STUDENT | TEACHER | ADMIN    indexed
-is_active       boolean         default: true
-is_deleted      boolean         default: false
-deleted_at      datetime        nullable
-created_at      datetime
-updated_at      datetime
-```
+## Multi-level Teaching (1 table)
 
-### STUDENT_PROFILE
-```
-id              int PK
-user_id         int FK          unique, one-to-one → User
-level           enum            SD | SMP | SMA
-school_name     string
-school_grade    int             1-12
-phone           string
-parent_name     string
-parent_phone    string
-address         string
-updated_at      datetime
-```
+### TeacherJenjang
+- teacher_profile (FK)
+- level: **TK | SD | SMP | SMA | UMUM** (5 jenjang) — one row per (teacher, level) the teacher can teach
+- unique (teacher, level)
 
-### TEACHER_PROFILE
-```
-id              int PK
-user_id         int FK          unique, one-to-one → User
-education       enum            S1 | S2 | S3
-specialization  string
-bio             string
-experience_years int
-phone           string
-address         string
-updated_at      datetime
-```
+## Academic Structure (5 tables)
 
-### ADMIN_PROFILE
-```
-id              int PK
-user_id         int FK          unique, one-to-one → User
-phone           string
-updated_at      datetime
-```
+### Category
+- name, description, is_active, created_at, updated_at
 
-### ACADEMIC_PERIOD
-```
-id              int PK
-year            string          "2026-2027"
-quarter         enum            Q1 | Q2 | Q3 | Q4
-name            string          "Q1 2026-2027"
-start_date      date
-end_date        date
-is_active       boolean         default: false
-created_at      datetime
-updated_at      datetime
-```
+### Subject (FK Category)
+- name, is_active, created_at, updated_at
 
-### CATEGORY
-```
-id              int PK
-name            string          "Science", "Language", "General"
-description     string          nullable
-is_active       boolean         default: true
-```
+### AcademicPeriod (NEW: supports both quarter and semester)
+- name, year
+- period_type: QUARTER | SEMESTER
+- quarter: Q1 | Q2 | Q3 | Q4 (if QUARTER)
+- semester: GANJIL | GENAP (if SEMESTER)
+- start_date, end_date, is_active
+- clean() validation
 
-### SUBJECT
-```
-id              int PK
-category_id     int FK          indexed → Category
-name            string          "Mathematics", "Physics", etc.
-description     string
-is_active       boolean         default: true
-```
+### Kelas (UPDATED)
+- name, subject (FK), academic_period (FK)
+- teacher_profile (FK → TeacherProfile, was User; @property teacher kept for compat)
+- level: **TK | SD | SMP | SMA | UMUM** (5 jenjang)
+- capacity, total_sessions
+- start_date, end_date
+- status: OPEN | FULL | CLOSED
+- price (NEW): Decimal Rp per student
+- description (NEW)
+- is_deleted, deleted_at (soft delete)
+- created_at, updated_at
 
-### KELAS
-```
-id              int PK
-teacher_id      int FK          indexed → User
-subject_id      int FK          indexed → Subject
-academic_period_id int FK       indexed → AcademicPeriod
-name            string          "Mathematics Class A"
-level           enum            SD | SMP | SMA
-start_date      date
-end_date        date
-capacity        int
-total_sessions  int             e.g. 4, 8, 12
-status          enum            OPEN | FULL | CLOSED       indexed
-is_deleted      boolean         default: false
-deleted_at      datetime        nullable
-created_at      datetime
-updated_at      datetime
-```
+### Schedule
+- kelas (FK), day: MONDAY-SATURDAY
+- start_time, end_time, room
+- unique (kelas, day, start_time)
+- = operating hours
 
-### SCHEDULE
-```
-id              int PK
-kelas_id        int FK          indexed → Kelas
-day             enum            MONDAY | TUESDAY | WEDNESDAY | THURSDAY | FRIDAY | SATURDAY
-start_time      time
-end_time        time
-room            string          nullable, e.g. "Room A"
-```
+## Sessions (1 table)
 
-### SESSION
-```
-id              int PK
-kelas_id        int FK          indexed → Kelas
-session_number  int             1, 2, 3, etc.
-date            date            indexed
-topic           string          nullable
-status          enum            SCHEDULED | COMPLETED | CANCELLED
-created_at      datetime
-updated_at      datetime
-```
+### Session (UPDATED)
+- kelas (FK)
+- session_number, date, start_time, end_time
+- capacity, topic
+- status: SCHEDULED | COMPLETED | CANCELLED
+- session_type (NEW): REGULAR | MAKEUP | OPTIONAL
+- meeting_url (NEW): URLField for online sessions
 
-### ENROLLMENT
-```
-id              int PK
-student_id      int FK          indexed → User
-kelas_id        int FK          indexed → Kelas
-status          enum            ACTIVE | COMPLETED | DROPPED    indexed
-is_deleted      boolean         default: false
-deleted_at      datetime        nullable
-enrolled_at     datetime
-updated_at      datetime
+## Participation (2 tables)
 
-unique_together: (student_id, kelas_id)
-```
+### Enrollment (UPDATED)
+- student_profile (FK → StudentProfile, was User; @property student kept for compat)
+- kelas (FK)
+- status: ACTIVE | COMPLETED | DROPPED
+- enrolled_at
+- price_at_enrollment (NEW): snapshot
+- unique (student, kelas)
 
-### GRADE
-```
-id              int PK
-enrollment_id   int FK          indexed → Enrollment
-session_id      int FK          nullable, indexed → Session
-grade_type      enum            QUIZ | MIDTERM | FINAL | ASSIGNMENT
-score           decimal         0-100
-notes           string          nullable
-graded_at       datetime
-updated_at      datetime
-```
+### SessionBooking
+- enrollment (FK), session (FK)
+- status: BOOKED | CANCELLED
+- unique constraint
+- Note: only for sessions with session_type=MAKEUP or OPTIONAL
 
-### ATTENDANCE
-```
-id              int PK
-enrollment_id   int FK          indexed → Enrollment
-session_id      int FK          indexed → Session
-status          enum            PRESENT | PERMITTED | ABSENT
-marked_at       datetime
-updated_at      datetime
+## Records (3 tables)
 
-unique_together: (enrollment_id, session_id)
-```
+### Attendance (UPDATED)
+- enrollment (FK), session (FK)
+- status: PRESENT | PERMITTED | ABSENT (Hadir | Izin | Alpha)
+- marked_by (NEW, FK User)
+- marked_at
+- unique (enrollment, session)
 
-### RATING
-```
-id              int PK
-enrollment_id   int FK          unique, indexed → Enrollment
-score           int             1-5
-comment         string          nullable
-created_at      datetime
-updated_at      datetime
-```
+### Grade (UPDATED)
+- enrollment (FK), session (FK, nullable)
+- grade_type: QUIZ | MIDTERM | FINAL | ASSIGNMENT
+- score (0-100), notes
+- graded_by_teacher (NEW, FK TeacherProfile)
+- clean(): if grade_type IN (QUIZ, ASSIGNMENT), session_id required
 
-### ACTIVITY_LOG
-```
-id              int PK
-user_id         int FK          indexed → User
-action          string          "created", "updated", "deleted"
-target_type     string          "kelas", "enrollment", etc.
-target_id       int
-created_at      datetime        indexed (for archiving/purging)
-```
+### ratings/TeacherRating (NEW — split from old Rating)
+- enrollment (FK unique)
+- teacher_profile (FK)
+- score (1-5), comment
+- is_anonymous, axes (JSON for future axes)
+- created_at, updated_at
 
----
+### ratings/ClassRating (NEW — split from old Rating)
+- enrollment (FK unique)
+- kelas (FK)
+- score (1-5), comment
+- is_anonymous
+- created_at, updated_at
 
-## Constraints Summary
+## Communication (2 tables)
 
-### DB-Level Unique Constraints
-- `Enrollment`: unique_together (student_id, kelas_id)
-- `Attendance`: unique_together (enrollment_id, session_id)
-- `Rating`: unique (enrollment_id)
-- `Schedule`: unique_together (kelas_id, day, start_time)
+### Announcement (UPDATED)
+- author (FK User), title, content
+- target_role: ALL | STUDENT | TEACHER
+- level: ALL | SD | SMP | SMA
+- is_pinned, is_active
+- scheduled_at (NEW), expires_at (NEW)
+- created_at, updated_at
 
-### View-Level Validation Rules
-- **Level matching**: student_profile.level must match kelas.level on enrollment
-- **Capacity check**: active enrollment count < kelas.capacity
-- **Rating guard**: enrollment.status must be COMPLETED to rate
-- **Grade ownership**: kelas.teacher_id must match request.user
-- **Teacher conflict**: same teacher, same day, no overlapping times
-- **Room conflict**: same room, same day, no overlapping times
-- **Session limit**: session_number must not exceed kelas.total_sessions
+### notifications/Notification (NEW)
+- user (FK)
+- type: GRADE | SESSION | PAYMENT | ANNOUNCEMENT | ENROLLMENT | RATING | OTHER
+- title, message, link_url
+- is_read, read_at
+- created_at, updated_at
 
-### Indexes
-- User: email, role
-- Kelas: teacher_id, subject_id, academic_period_id, status
-- Enrollment: student_id, kelas_id, status
-- Session: kelas_id, date
-- Grade: enrollment_id, session_id
-- Attendance: enrollment_id, session_id
-- Schedule: kelas_id
-- ActivityLog: user_id, created_at
+## Course Materials (1 table)
 
----
+### course_materials/CourseMaterial (NEW)
+- session (FK, nullable), kelas (FK)
+- uploaded_by (FK User)
+- title, description
+- file (FileField), file_type (auto), file_size (auto)
+- is_visible
+- created_at, updated_at
 
-## Enum Reference (All English)
+## Progress Reporting (2 tables)
 
-| Field | Values | Indonesian UI Label |
-|-------|--------|-------------------|
-| User.role | STUDENT, TEACHER, ADMIN | Siswa, Guru, Admin |
-| level | SD, SMP, SMA | SD, SMP, SMA |
-| Schedule.day | MONDAY-SATURDAY | Senin-Sabtu |
-| Grade.grade_type | QUIZ, MIDTERM, FINAL, ASSIGNMENT | Kuis, UTS, UAS, Tugas |
-| Attendance.status | PRESENT, PERMITTED, ABSENT | Hadir, Izin, Alpha |
-| Enrollment.status | ACTIVE, COMPLETED, DROPPED | Aktif, Selesai, Keluar |
-| Kelas.status | OPEN, FULL, CLOSED | Buka, Penuh, Tutup |
-| Session.status | SCHEDULED, COMPLETED, CANCELLED | Terjadwal, Selesai, Dibatalkan |
-| AcademicPeriod.quarter | Q1, Q2, Q3, Q4 | Kuartal 1-4 |
+### journals/MonthlyJournal (NEW)
+- enrollment (FK)
+- month (1-12), year
+- written_by_teacher (FK TeacherProfile)
+- summary, topics_covered, strengths, areas_for_improvement
+- viewed_by_parent, viewed_at, parent_response
+- published_at, created_at, updated_at
+- unique (enrollment, month, year)
 
----
+### journals/SessionNote (NEW)
+- session (FK), enrollment (FK)
+- written_by_teacher (FK TeacherProfile)
+- note_type: BEHAVIOR | UNDERSTANDING | PARTICIPATION | GENERAL
+- content, visibility: TEACHER_ONLY | VISIBLE_TO_PARENT
+- created_at, updated_at
 
-## Soft Delete Tables
-- User (is_deleted, deleted_at)
-- Kelas (is_deleted, deleted_at)
-- Enrollment (is_deleted, deleted_at)
+## Payment (3 tables) — Feature flag ENABLE_PAYMENT_FEATURE = False
 
-All queries must include `.filter(is_deleted=False)` by default.
+### billing/Invoice (NEW)
+- invoice_number (auto INV-YYYY-NNNNN)
+- enrollment (FK)
+- amount, currency (default IDR), tax_amount, discount_amount, total_amount (computed)
+- status: UNPAID | PAID | OVERDUE | REFUNDED
+- due_date, paid_at
+- created_at, updated_at
+
+### billing/Payment (NEW)
+- invoice (FK), amount
+- method: BANK_TRANSFER | EWALLET | CARD | CASH
+- gateway: MIDTRANS | XENDIT | MANUAL
+- transaction_id (unique), status: PENDING | SUCCESS | FAILED
+- paid_at, notes
+- created_at, updated_at
+
+### billing/Refund (NEW)
+- payment (FK), invoice (FK)
+- amount (validate ≤ payment.amount), reason
+- status: REQUESTED | APPROVED | REJECTED | PROCESSED
+- requested_by (FK User), approved_by (FK User)
+- approved_at, processed_at, rejection_reason
+- gateway_refund_id (unique), notes
+- created_at, updated_at
+
+## Audit (1 table)
+
+### activity_logs/ActivityLog (UPDATED)
+- user (FK), action, target_type, target_id
+- ip_address (NEW), user_agent (NEW)
+- created_at
+
+## Key Constraints & Rules
+
+- Soft delete: User, Kelas, Enrollment
+- @property compatibility: Kelas.teacher → teacher_profile.user, Enrollment.student → student_profile.user
+- Time-aware: auto-close expired Kelas, auto-complete Enrollments when class end_date passes
+- Overlap validation: schedule per teacher, session per kelas (back-to-back OK, true overlap rejected)
+- Rating: 1 TeacherRating + 1 ClassRating per Enrollment max
+- MonthlyJournal: 1 per (enrollment, month, year)
+- Invoice: 1 per Enrollment
+
+## Migration Status
+Phase 1 (ERD v4) COMPLETE: All 26 tables migrated. Database wiped + fresh dummy data populated.

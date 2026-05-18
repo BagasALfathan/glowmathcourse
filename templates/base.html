@@ -18,23 +18,27 @@
       theme: {
         extend: {
           colors: {
+            // Emerald-based primary palette (was teal — switched 2026-05-17)
             primary: {
-              50:  '#f0fafa',
-              100: '#d9f2f3',
-              200: '#b5e6e8',
-              300: '#7fcacd',
-              400: '#5ab5b9',
-              500: '#3d9da1',
-              600: '#2f7d80',
-              700: '#286265',
-              800: '#234f51',
-              900: '#1f4143',
+              50:  '#ecfdf5',
+              100: '#d1fae5',
+              200: '#a7f3d0',
+              300: '#6ee7b7',
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#064e3b',
             }
           }
         }
       }
     }
   </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+  <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
   <script src="https://unpkg.com/htmx.org@1.9/dist/htmx.min.js"></script>
   <script defer src="https://unpkg.com/alpinejs@3/dist/cdn.min.js"></script>
   <style>
@@ -43,40 +47,42 @@
     [x-cloak] { display: none !important; }
   </style>
 </head>
-<body class="bg-gray-50 font-sans antialiased" x-data="{ sidebarOpen: false }">
+<body class="bg-gray-50 font-sans antialiased"
+      x-data="{
+        collapsed: localStorage.getItem('sidebar_collapsed') === 'true',
+        mobileOpen: false,
+        toggle() {
+          this.collapsed = !this.collapsed;
+          localStorage.setItem('sidebar_collapsed', this.collapsed);
+        },
+        closeMobile() { this.mobileOpen = false; }
+      }">
 
-  <!-- ───── Mobile overlay ───── -->
-  <div
-    x-show="sidebarOpen"
-    x-transition:enter="transition-opacity duration-200"
-    x-transition:enter-start="opacity-0"
-    x-transition:enter-end="opacity-100"
-    x-transition:leave="transition-opacity duration-200"
-    x-transition:leave-start="opacity-100"
-    x-transition:leave-end="opacity-0"
-    x-on:click="sidebarOpen = false"
-    class="fixed inset-0 bg-gray-900/60 z-20 lg:hidden"
-    style="display:none;"
-  ></div>
+  <div class="flex min-h-screen">
 
   <!-- ───── Sidebar ───── -->
-  <aside
-    :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
-    class="fixed top-0 left-0 h-screen w-64 bg-white border-r border-gray-100 shadow-sm z-30
-           flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0"
-  >
-    <!-- Logo -->
-    <div class="h-16 flex items-center gap-3 px-5 border-b border-gray-100 shrink-0">
-      <a href="/dashboard/" class="flex-1 min-w-0 flex items-center">
-        <img src="{% static 'images/logo.png' %}" alt="GlowMathCourse" class="h-10 w-auto">
+  <aside class="sidebar bg-white border-r border-gray-100 shadow-sm flex flex-col"
+         :class="{ 'sidebar-collapsed': collapsed, 'sidebar-expanded': !collapsed, 'sidebar-open': mobileOpen }">
+
+    <!-- Sidebar header: logo + collapse toggle -->
+    <div class="sidebar-brand sidebar-toggle-row h-16 flex items-center gap-2 px-3 border-b border-gray-100 shrink-0">
+      <a href="/dashboard/" class="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
+        <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 text-white"
+             style="background: linear-gradient(135deg, #10b981, #059669);">
+          <i class="ti ti-math-symbols text-xl"></i>
+        </div>
+        <span class="sidebar-label font-semibold text-gray-900 text-sm whitespace-nowrap">GlowMath</span>
       </a>
+      <!-- Collapse toggle (desktop) -->
+      <button @click="toggle()"
+              class="sidebar-toggle-desktop w-7 h-7 rounded-md hover:bg-gray-100 flex items-center justify-center text-gray-500 transition-colors shrink-0"
+              :title="collapsed ? 'Buka sidebar' : 'Tutup sidebar'">
+        <i class="ti" :class="collapsed ? 'ti-layout-sidebar-left-expand' : 'ti-layout-sidebar-left-collapse'"></i>
+      </button>
       <!-- Close button (mobile only) -->
-      <button x-on:click="sidebarOpen = false"
-              class="ml-auto text-gray-400 hover:text-gray-600 lg:hidden">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-             stroke-width="2" stroke="currentColor" class="w-5 h-5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-        </svg>
+      <button @click="mobileOpen = false"
+              class="md:hidden w-7 h-7 rounded-md hover:bg-gray-100 flex items-center justify-center text-gray-500 shrink-0">
+        <i class="ti ti-x"></i>
       </button>
     </div>
 
@@ -94,46 +100,41 @@
     </nav>
 
     <!-- User info + logout (bottom) -->
-    <div class="shrink-0 border-t border-gray-100 p-4">
-      <div class="flex items-center gap-3">
-        <!-- Avatar initial -->
-        <div class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 font-semibold text-sm
-          bg-primary-100 text-primary-700">
-          {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
-        </div>
-        <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-gray-900 truncate">{{ user.get_full_name }}</p>
-          <p class="text-xs text-gray-500">{{ user.get_role_display }}</p>
-        </div>
-        <!-- Logout button -->
-        <form method="post" action="{% url 'accounts:logout' %}">
-          {% csrf_token %}
-          <button type="submit" title="Keluar"
-                  class="text-gray-400 hover:text-red-500 transition-colors p-1 rounded">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                 stroke-width="1.75" stroke="currentColor" class="w-5 h-5">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
-            </svg>
-          </button>
-        </form>
+    <div class="sidebar-profile shrink-0 border-t border-gray-100 p-4 flex items-center gap-3">
+      <!-- Avatar initial -->
+      <div class="w-9 h-9 rounded-full flex items-center justify-center shrink-0 font-semibold text-sm bg-primary-100 text-primary-700">
+        {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
       </div>
+      <div class="sidebar-profile-info flex-1 min-w-0">
+        <p class="text-sm font-medium text-gray-900 truncate">{{ user.get_full_name }}</p>
+        <p class="text-xs text-gray-500">{{ user.get_role_display }}</p>
+      </div>
+      <!-- Logout button -->
+      <form method="post" action="{% url 'accounts:logout' %}" class="sidebar-profile-info">
+        {% csrf_token %}
+        <button type="submit" title="Keluar"
+                class="text-gray-400 hover:text-red-500 transition-colors p-1 rounded">
+          <i class="ti ti-logout text-lg"></i>
+        </button>
+      </form>
     </div>
   </aside>
 
+  <!-- Mobile backdrop -->
+  <div class="sidebar-backdrop"
+       :class="{ 'active': mobileOpen }"
+       @click="mobileOpen = false"></div>
+
   <!-- ───── Main area ───── -->
-  <div class="lg:pl-64 min-h-screen flex flex-col">
+  <div class="flex-1 min-w-0 flex flex-col">
 
     <!-- Top navbar -->
     <header class="sticky top-0 z-10 bg-white border-b border-gray-100 h-16 flex items-center px-4 gap-3 shrink-0">
       <!-- Hamburger (mobile) -->
-      <button x-on:click="sidebarOpen = true"
-              class="lg:hidden text-gray-500 hover:text-gray-700 p-1 rounded-md">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-             stroke-width="2" stroke="currentColor" class="w-6 h-6">
-          <path stroke-linecap="round" stroke-linejoin="round"
-                d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-        </svg>
+      <button @click="mobileOpen = true"
+              class="md:hidden text-gray-500 hover:text-gray-700 p-1 rounded-md"
+              aria-label="Buka menu">
+        <i class="ti ti-menu-2 text-2xl"></i>
       </button>
 
       <!-- Page title -->
@@ -189,6 +190,8 @@
     </footer>
   </div>
 
+  </div><!-- end .flex min-h-screen -->
+
   <!-- Global HTMX loading spinner -->
   <div id="htmx-global-spinner"
        class="hidden fixed top-4 right-4 z-[200] flex items-center gap-2
@@ -206,6 +209,43 @@
       var spinner = document.getElementById('htmx-global-spinner');
       document.addEventListener('htmx:beforeRequest', function () { spinner.classList.remove('hidden'); });
       document.addEventListener('htmx:afterRequest', function () { spinner.classList.add('hidden'); });
+    })();
+
+    // Backfill .nav-item class + data-label on every <a> inside the sidebar nav,
+    // so the collapse/tooltip CSS works without touching the per-role nav partials.
+    (function () {
+      function extractLabel(el) {
+        var parts = [];
+        for (var i = 0; i < el.childNodes.length; i++) {
+          var n = el.childNodes[i];
+          if (n.nodeType === Node.TEXT_NODE) {
+            var t = n.textContent.trim();
+            if (t) parts.push(t);
+          } else if (n.nodeType === Node.ELEMENT_NODE) {
+            var tag = n.tagName.toLowerCase();
+            if (tag === 'svg' || tag === 'img' || tag === 'i') continue;
+            // Skip badge pills (red dot with a number)
+            if (n.classList && n.classList.contains('bg-red-500')) continue;
+            if (n.classList && n.classList.contains('nav-badge')) continue;
+            // First non-badge span typically holds the label
+            var t = n.textContent.trim();
+            if (t && !/^\d+$/.test(t)) {
+              parts.push(t);
+              break;
+            }
+          }
+        }
+        return parts.join(' ').trim();
+      }
+      document.querySelectorAll('aside.sidebar nav a').forEach(function (a) {
+        a.classList.add('nav-item');
+        if (!a.hasAttribute('data-label')) {
+          var label = extractLabel(a);
+          if (label) a.setAttribute('data-label', label);
+        }
+        // Tag pending-users count etc. as nav-badge so it hides when collapsed
+        a.querySelectorAll('.bg-red-500').forEach(function (b) { b.classList.add('nav-badge'); });
+      });
     })();
   </script>
 

@@ -26,7 +26,7 @@ def teacher_grades_overview(request):
     from academics.models import KelasStatus
     qs = list(
         Kelas.objects
-        .filter(teacher=request.user, is_deleted=False)
+        .filter(teacher_profile__user=request.user, is_deleted=False)
         .select_related('subject')
         .annotate(
             active_enrolled=Count(
@@ -51,13 +51,13 @@ def teacher_grades_overview(request):
 
 @role_required('TEACHER')
 def teacher_grades(request, pk):
-    kelas = get_object_or_404(Kelas, pk=pk, teacher=request.user, is_deleted=False)
+    kelas = get_object_or_404(Kelas, pk=pk, teacher_profile__user=request.user, is_deleted=False)
 
     enrollments = (
         Enrollment.objects
         .filter(kelas=kelas, status=EnrollmentStatus.ACTIVE, is_deleted=False)
-        .select_related('student__student_profile')
-        .order_by('student__last_name', 'student__first_name')
+        .select_related('student_profile__user')
+        .order_by('student_profile__user__last_name', 'student_profile__user__first_name')
     )
 
     # Prefetch grades per enrollment to avoid N+1
@@ -90,7 +90,7 @@ def teacher_grades(request, pk):
 def teacher_grade_create(request):
     # kelas_id comes from GET (initial load) or POST (hidden field on submit)
     kelas_id = request.POST.get('kelas_id') or request.GET.get('kelas_id')
-    kelas = get_object_or_404(Kelas, pk=kelas_id, teacher=request.user, is_deleted=False)
+    kelas = get_object_or_404(Kelas, pk=kelas_id, teacher_profile__user=request.user, is_deleted=False)
 
     form = GradeForm(request.POST or None, kelas=kelas)
 
@@ -158,11 +158,11 @@ def my_grades(request):
     all_enrollments = list(
         Enrollment.objects
         .filter(
-            student=request.user,
+            student_profile__user=request.user,
             status__in=[EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED],
             is_deleted=False,
         )
-        .select_related('kelas__subject', 'kelas__teacher')
+        .select_related('kelas__subject', 'kelas__teacher_profile__user')
         .order_by('kelas__name')
     )
     enrollment_ids = [e.pk for e in all_enrollments]
@@ -207,7 +207,7 @@ def my_grades_detail(request, kelas_id):
     kelas = get_object_or_404(Kelas, pk=kelas_id, is_deleted=False)
     enrollment = get_object_or_404(
         Enrollment,
-        student=request.user,
+        student_profile__user=request.user,
         kelas=kelas,
         is_deleted=False,
     )
@@ -343,12 +343,12 @@ def export_grades_excel(request, pk):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
 
-    kelas = get_object_or_404(Kelas, pk=pk, teacher=request.user, is_deleted=False)
+    kelas = get_object_or_404(Kelas, pk=pk, teacher_profile__user=request.user, is_deleted=False)
     enrollments = list(
         Enrollment.objects
         .filter(kelas=kelas, status=EnrollmentStatus.ACTIVE, is_deleted=False)
-        .select_related('student')
-        .order_by('student__last_name', 'student__first_name')
+        .select_related('student_profile__user')
+        .order_by('student_profile__user__last_name', 'student_profile__user__first_name')
     )
     columns, rows = _build_grades_columns_and_rows(kelas, enrollments)
 
@@ -400,12 +400,12 @@ def export_grades_pdf(request, pk):
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
-    kelas = get_object_or_404(Kelas, pk=pk, teacher=request.user, is_deleted=False)
+    kelas = get_object_or_404(Kelas, pk=pk, teacher_profile__user=request.user, is_deleted=False)
     enrollments = list(
         Enrollment.objects
         .filter(kelas=kelas, status=EnrollmentStatus.ACTIVE, is_deleted=False)
-        .select_related('student')
-        .order_by('student__last_name', 'student__first_name')
+        .select_related('student_profile__user')
+        .order_by('student_profile__user__last_name', 'student_profile__user__first_name')
     )
     columns, rows = _build_grades_columns_and_rows(kelas, enrollments)
 
@@ -479,9 +479,9 @@ def export_grades_pdf(request, pk):
 def print_my_grades(request):
     enrollments = list(
         Enrollment.objects
-        .filter(student=request.user, is_deleted=False)
+        .filter(student_profile__user=request.user, is_deleted=False)
         .exclude(status=EnrollmentStatus.DROPPED)
-        .select_related('kelas__subject', 'kelas__teacher', 'kelas__academic_period')
+        .select_related('kelas__subject', 'kelas__teacher_profile__user', 'kelas__academic_period')
         .order_by('kelas__name')
     )
     enrollment_ids = [e.pk for e in enrollments]
@@ -614,13 +614,13 @@ def _build_progress_ctx(enrollment):
 
 def _progress_enrollment_qs():
     return Enrollment.objects.select_related(
-        'student__student_profile', 'kelas__subject', 'kelas__teacher', 'kelas__academic_period'
+        'student_profile__user', 'kelas__subject', 'kelas__teacher_profile__user', 'kelas__academic_period'
     )
 
 
 @role_required('TEACHER')
 def teacher_student_progress(request, pk, enrollment_id):
-    kelas = get_object_or_404(Kelas, pk=pk, teacher=request.user, is_deleted=False)
+    kelas = get_object_or_404(Kelas, pk=pk, teacher_profile__user=request.user, is_deleted=False)
     enrollment = get_object_or_404(_progress_enrollment_qs(), pk=enrollment_id, kelas=kelas)
     ctx = _build_progress_ctx(enrollment)
     ctx['back_url'] = f'/teacher/classes/{kelas.pk}/students/'
@@ -631,7 +631,7 @@ def teacher_student_progress(request, pk, enrollment_id):
 
 @role_required('TEACHER')
 def teacher_student_progress_print(request, pk, enrollment_id):
-    kelas = get_object_or_404(Kelas, pk=pk, teacher=request.user, is_deleted=False)
+    kelas = get_object_or_404(Kelas, pk=pk, teacher_profile__user=request.user, is_deleted=False)
     enrollment = get_object_or_404(_progress_enrollment_qs(), pk=enrollment_id, kelas=kelas)
     ctx = _build_progress_ctx(enrollment)
     ctx['printed_date'] = timezone.localdate()
@@ -640,7 +640,7 @@ def teacher_student_progress_print(request, pk, enrollment_id):
 
 @role_required('TEACHER')
 def teacher_student_progress_pdf(request, pk, enrollment_id):
-    kelas = get_object_or_404(Kelas, pk=pk, teacher=request.user, is_deleted=False)
+    kelas = get_object_or_404(Kelas, pk=pk, teacher_profile__user=request.user, is_deleted=False)
     enrollment = get_object_or_404(_progress_enrollment_qs(), pk=enrollment_id, kelas=kelas)
     return _generate_progress_pdf(enrollment)
 
@@ -649,7 +649,7 @@ def teacher_student_progress_pdf(request, pk, enrollment_id):
 def student_progress(request, kelas_id):
     kelas = get_object_or_404(Kelas, pk=kelas_id, is_deleted=False)
     enrollment = get_object_or_404(
-        _progress_enrollment_qs(), student=request.user, kelas=kelas,
+        _progress_enrollment_qs(), student_profile__user=request.user, kelas=kelas,
     )
     ctx = _build_progress_ctx(enrollment)
     ctx['back_url'] = '/my-classes/'
@@ -661,7 +661,7 @@ def student_progress(request, kelas_id):
 def student_progress_print(request, kelas_id):
     kelas = get_object_or_404(Kelas, pk=kelas_id, is_deleted=False)
     enrollment = get_object_or_404(
-        _progress_enrollment_qs(), student=request.user, kelas=kelas,
+        _progress_enrollment_qs(), student_profile__user=request.user, kelas=kelas,
     )
     ctx = _build_progress_ctx(enrollment)
     ctx['printed_date'] = timezone.localdate()

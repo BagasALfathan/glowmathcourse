@@ -1,0 +1,130 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Admin Portal — GlowMath Course</title>
+  <link rel="icon" type="image/png" href="{% static 'images/logo.png' %}">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary:        '#10b981',
+            'primary-hover':'#059669',
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+  <script defer src="https://unpkg.com/alpinejs@3/dist/cdn.min.js"></script>
+</head>
+<body class="font-sans antialiased text-gray-100 animate-fade-in" style="background:#111827;">
+
+  <main class="min-h-screen flex flex-col items-center justify-center px-4 py-10">
+
+    <!-- Card -->
+    <div class="w-full max-w-[380px] rounded-xl p-7"
+         style="background:#1f2937; border:0.5px solid #374151;"
+         x-data="{ loading: false, hasError: {{ messages|length|default:0 }} > 0 }"
+         x-init="if (hasError) { $el.classList.add('animate-shake'); setTimeout(() => $el.classList.remove('animate-shake'), 450); }">
+
+      <!-- Brand row with bottom border -->
+      <div class="flex items-center gap-3 pb-5 mb-5 border-b" style="border-color:#374151;">
+        <div class="w-9 h-9 rounded-lg flex items-center justify-center text-white shadow-sm"
+             style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);">
+          <i class="ti ti-shield-lock text-xl"></i>
+        </div>
+        <div class="leading-tight">
+          <div class="font-bold text-white text-sm">GlowMath Course</div>
+          <div class="text-[10px] tracking-[0.18em] uppercase text-emerald-400 font-semibold">Admin Portal</div>
+        </div>
+      </div>
+
+      <!-- Warning box -->
+      <div class="mb-5 flex items-start gap-2.5 px-3 py-2.5 rounded-md text-[11px] leading-snug"
+           style="background:rgba(239,68,68,0.10); border:1px solid rgba(239,68,68,0.30); color:#fca5a5;">
+        <i class="ti ti-alert-triangle text-base shrink-0 mt-0.5"></i>
+        <span>Area terbatas. Hanya untuk staff administrasi. Aktivitas akan dicatat di log sistem.</span>
+      </div>
+
+      <!-- Title -->
+      <h1 class="text-[17px] font-semibold text-white mb-5">Autentikasi Admin</h1>
+
+      <!-- Flash messages -->
+      {% if messages %}
+        <div class="space-y-2 mb-4">
+          {% for message in messages %}
+          <div class="text-[11px] rounded-md px-3 py-2 border"
+               style="
+               {% if message.tags == 'error' %}background:rgba(239,68,68,0.10); border-color:rgba(239,68,68,0.30); color:#fca5a5;
+               {% else %}background:rgba(16,185,129,0.10); border-color:rgba(16,185,129,0.30); color:#86efac;
+               {% endif %}">
+            {% if 'safe' in message.tags %}{{ message|safe }}{% else %}{{ message }}{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <!-- Form -->
+      <form method="post" action="/admin/login/" class="space-y-4" novalidate
+            @submit="loading = true">
+        {% csrf_token %}
+
+        <div>
+          <label class="block text-[10px] tracking-[0.15em] uppercase font-semibold mb-1.5"
+                 style="color:#9ca3af;">Username</label>
+          <input type="text" name="username" required autofocus autocomplete="username"
+                 class="w-full px-3 py-2.5 text-sm rounded-md text-white placeholder:text-gray-500
+                        focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition"
+                 style="background:#111827; border:1px solid #374151;">
+        </div>
+
+        <div>
+          <label class="block text-[10px] tracking-[0.15em] uppercase font-semibold mb-1.5"
+                 style="color:#9ca3af;">Password</label>
+          <input type="password" name="password" required autocomplete="current-password"
+                 class="w-full px-3 py-2.5 text-sm rounded-md text-white placeholder:text-gray-500
+                        focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500 transition"
+                 style="background:#111827; border:1px solid #374151;">
+        </div>
+
+        <label class="inline-flex items-center gap-2 text-xs text-gray-400">
+          <input type="checkbox" name="trust_device"
+                 class="h-3.5 w-3.5 rounded text-emerald-500 border-gray-600 focus:ring-emerald-500"
+                 style="background:#111827;">
+          Trust this device for 7 days
+        </label>
+
+        <button type="submit"
+                :disabled="loading"
+                :class="{ 'btn-loading': loading }"
+                class="w-full py-2.5 px-4 rounded-md text-white text-sm font-semibold inline-flex items-center justify-center gap-2 transition active:scale-[0.98]"
+                style="background:#10b981;"
+                onmouseover="if(!this.disabled)this.style.background='#059669'"
+                onmouseout="this.style.background='#10b981'">
+          <template x-if="!loading">
+            <span class="inline-flex items-center gap-2"><i class="ti ti-lock-open"></i> Authenticate</span>
+          </template>
+          <template x-if="loading">
+            <span class="inline-flex items-center gap-2"><span class="spinner"></span> Authenticating…</span>
+          </template>
+        </button>
+      </form>
+
+      <!-- Footer -->
+      <div class="mt-6 pt-4 border-t text-center" style="border-color:#374151;">
+        <p class="text-[10px] tracking-[0.18em] uppercase font-semibold" style="color:#6b7280;">
+          Protected Endpoint • IP Logged
+        </p>
+      </div>
+    </div>
+
+  </main>
+</body>
+</html>

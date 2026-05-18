@@ -38,22 +38,28 @@ class ScheduleInline(admin.TabularInline):
 @admin.register(Kelas)
 class KelasAdmin(admin.ModelAdmin):
     list_display = [
-        'name', 'teacher', 'subject', 'level', 'status',
+        'name', 'teacher_display', 'subject', 'level', 'status',
         'capacity', 'total_sessions', 'academic_period', 'is_deleted',
     ]
     search_fields = [
         'name',
-        'teacher__first_name', 'teacher__last_name', 'teacher__username',
+        'teacher_profile__user__first_name',
+        'teacher_profile__user__last_name',
+        'teacher_profile__user__username',
         'subject__name',
     ]
     list_filter = ['level', 'status', 'is_deleted', 'subject__category', 'academic_period']
-    raw_id_fields = ['teacher', 'subject', 'academic_period']
+    raw_id_fields = ['teacher_profile', 'subject', 'academic_period']
     inlines = [ScheduleInline]
     readonly_fields = ['created_at', 'updated_at', 'deleted_at']
 
+    @admin.display(description='Guru', ordering='teacher_profile__user__last_name')
+    def teacher_display(self, obj):
+        return obj.teacher_profile.user.get_full_name()
+
     def get_queryset(self, request):
         return super().get_queryset(request).select_related(
-            'teacher', 'subject', 'subject__category', 'academic_period'
+            'teacher_profile__user', 'subject', 'subject__category', 'academic_period'
         )
 
 

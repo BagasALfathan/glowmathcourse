@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Kehadiran Saya{% endblock %}
+{% block page_title %}Kehadiran Saya{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="mb-5">
+  <h1 class="text-xl md:text-2xl font-semibold text-gray-900 m-0">📅 Kehadiran Saya</h1>
+  <p class="text-xs md:text-sm text-gray-500 m-0 mt-1">{{ total_records }} record kehadiran total</p>
+</div>
+
+<!-- Stats: 5 KPI -->
+<div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+  <div class="bg-white border border-gray-200 rounded-xl p-4">
+    <div class="w-8 h-8 rounded-lg bg-gray-50 text-gray-600 flex items-center justify-center mb-2">
+      <i class="ti ti-list-numbers"></i>
+    </div>
+    <div class="text-2xl font-semibold text-gray-900 leading-none">{{ total_records }}</div>
+    <div class="text-xs text-gray-500 mt-1">Total Sesi</div>
+  </div>
+  <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+    <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center mb-2">
+      <i class="ti ti-check"></i>
+    </div>
+    <div class="text-2xl font-semibold text-emerald-900 leading-none">{{ present_count }}</div>
+    <div class="text-xs text-emerald-800 mt-1">Hadir</div>
+  </div>
+  <div class="bg-amber-50 border border-amber-200 rounded-xl p-4">
+    <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center mb-2">
+      <i class="ti ti-clipboard-text"></i>
+    </div>
+    <div class="text-2xl font-semibold text-amber-900 leading-none">{{ permitted_count }}</div>
+    <div class="text-xs text-amber-800 mt-1">Izin</div>
+  </div>
+  <div class="bg-red-50 border border-red-200 rounded-xl p-4">
+    <div class="w-8 h-8 rounded-lg bg-red-100 text-red-700 flex items-center justify-center mb-2">
+      <i class="ti ti-x"></i>
+    </div>
+    <div class="text-2xl font-semibold text-red-900 leading-none">{{ absent_count }}</div>
+    <div class="text-xs text-red-800 mt-1">Alpha</div>
+  </div>
+  <div class="col-span-2 md:col-span-1 bg-white border border-gray-200 rounded-xl p-4">
+    <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2">
+      <i class="ti ti-percentage"></i>
+    </div>
+    <div class="text-2xl font-semibold text-emerald-700 leading-none">{{ attendance_rate }}%</div>
+    <div class="text-xs text-gray-500 mt-1">Tingkat Kehadiran</div>
+  </div>
+</div>
+
+<!-- Filter bar -->
+<form method="get" class="bg-white border border-gray-200 rounded-xl p-4 mb-5 flex flex-wrap gap-3 items-end">
+  <div>
+    <label class="text-[11px] text-gray-500 mb-1 block">Kelas</label>
+    <select name="class" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="">Semua kelas</option>
+      {% for k in my_classes %}
+      <option value="{{ k.kelas_id }}" {% if class_filter == k.kelas_id|stringformat:"s" %}selected{% endif %}>{{ k.kelas__name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="text-[11px] text-gray-500 mb-1 block">Status</label>
+    <select name="status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="">Semua</option>
+      <option value="PRESENT"   {% if status_filter == 'PRESENT'   %}selected{% endif %}>Hadir</option>
+      <option value="PERMITTED" {% if status_filter == 'PERMITTED' %}selected{% endif %}>Izin</option>
+      <option value="ABSENT"    {% if status_filter == 'ABSENT'    %}selected{% endif %}>Alpha</option>
+    </select>
+  </div>
+  <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold inline-flex items-center gap-1.5">
+    <i class="ti ti-filter"></i> Terapkan
+  </button>
+</form>
+
+<!-- Table -->
+<div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr class="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">
+          <th class="text-left px-4 py-3">Tanggal</th>
+          <th class="text-left px-4 py-3">Waktu</th>
+          <th class="text-left px-4 py-3">Kelas</th>
+          <th class="text-left px-4 py-3">Topik</th>
+          <th class="text-center px-4 py-3">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in page_obj %}
+        <tr class="border-b border-gray-100 hover:bg-gray-50/60">
+          <td class="px-4 py-3 text-xs text-gray-800 whitespace-nowrap">
+            {{ a.session.date|date:"d M Y" }}
+            <div class="text-[10px] text-gray-500">{{ a.session.date|date:"l" }}</div>
+          </td>
+          <td class="px-4 py-3 text-xs text-gray-800 whitespace-nowrap">
+            {% if a.session.start_time %}{{ a.session.start_time|time:"H:i" }}{% else %}—{% endif %}
+            {% if a.session.end_time %}–{{ a.session.end_time|time:"H:i" }}{% endif %}
+          </td>
+          <td class="px-4 py-3 text-xs">
+            <div class="font-semibold text-gray-900 truncate" title="{{ a.enrollment.kelas.name }}">{{ a.enrollment.kelas.name }}</div>
+            <div class="text-[10px] text-gray-500">Pertemuan #{{ a.session.session_number }}</div>
+          </td>
+          <td class="px-4 py-3 text-xs text-gray-700 truncate max-w-[260px]">{{ a.session.topic|default:"—" }}</td>
+          <td class="px-4 py-3 text-center">
+            {% if a.status == 'PRESENT' %}
+              <span class="inline-flex items-center gap-1 text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-semibold"><i class="ti ti-check"></i> Hadir</span>
+            {% elif a.status == 'PERMITTED' %}
+              <span class="inline-flex items-center gap-1 text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-semibold"><i class="ti ti-clipboard-text"></i> Izin</span>
+            {% else %}
+              <span class="inline-flex items-center gap-1 text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded font-semibold"><i class="ti ti-x"></i> Alpha</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center py-12 text-sm text-gray-500">
+            {% if class_filter or status_filter %}
+              Tidak ada record cocok dengan filter.
+            {% else %}
+              Belum ada record kehadiran.
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<div class="flex justify-between items-center mt-4 text-sm">
+  <p class="text-gray-500 m-0">Menampilkan {{ page_obj.start_index }}–{{ page_obj.end_index }} dari {{ total_records }}</p>
+  <div class="flex gap-1 items-center">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}&{{ qs_preserve }}" class="px-3 py-1.5 border border-gray-200 rounded-md hover:bg-gray-50 text-gray-600">‹</a>
+    {% endif %}
+    <span class="px-3 py-1.5 bg-emerald-500 text-white rounded-md font-semibold">{{ page_obj.number }}</span>
+    <span class="px-2 py-1.5 text-gray-500">/ {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}&{{ qs_preserve }}" class="px-3 py-1.5 border border-gray-200 rounded-md hover:bg-gray-50 text-gray-600">›</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

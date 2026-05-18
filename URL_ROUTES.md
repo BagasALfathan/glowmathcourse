@@ -1,143 +1,94 @@
-# GlowMathCourse — URL Routes Reference
+# URL Routes — GlowMath Course
 
-> ~50 Django URL routes across 8 apps
-> Locked on March 28, 2026
-> No REST API — all server-rendered pages + HTMX partials
+> **Last reviewed:** 2026-05-18. Auth + teacher see-all routes are implemented with the new emerald theme.
 
----
+## Public (no login required) — ✅ all implemented with emerald redesign
 
-## Legend
+- `/` — Student login (mint gradient + bubbles, animate-fade-in + auto-shake on error)
+- `/register/` — Student register (3-step Khan V3 wizard, 5-level jenjang pills)
+- `/forgot-password/` — Student forgot password (WhatsApp deeplink with pre-filled username)
+- `/guru/login/` — Teacher login (Notion clean white card)
+- `/guru/register/` — Teacher register (3-step Notion V1 wizard, minimal animations)
+- `/guru/forgot-password/` — Teacher forgot password (numbered steps + WhatsApp deeplink)
+- `/admin/login/` — Admin login (dark theme `#111827`; successful login writes `ActivityLog(action='ADMIN_LOGIN', ip_address=…)`)
 
-- **GET** — full page load
-- **POST** — form submission
-- **HTMX** — partial HTML response (swapped into existing page)
+## Authentication
+- `/logout/` — POST only; clears session + flash message + redirect to `/`
+- `/waiting/` — Pending approval status (animate-fade-up card + animated pulse-ring on the clock icon + 3-step timeline)
+- `/django-admin/` — Django built-in admin (developer use only — moved from `/admin/` to free that prefix for the custom admin portal)
 
----
+## Dashboards (login required)
+- `/dashboard/router/` — Auto-redirect based on role
+- `/dashboard/student/` — Student dashboard ✅ (Khan V3 — discovery-focused: hero announcement, KPI stats, active class mini cards, best teacher of the month, popular + new classes, today + journal)
+- `/dashboard/teacher/` — Teacher dashboard ✅ (Notion V2 — work-focused: greeting + CTA, 4 KPIs, "Sesi Hari Ini" priority, to-do list, kelas table, siswa perlu perhatian)
+- `/dashboard/admin/` — Admin dashboard 🔴 (TBD — not yet redesigned)
 
-## accounts/ — Auth & Profiles
+## Student
+- `/classes/` — Browse classes (filtered by student level)
+- `/classes/<id>/` — Class detail
+- `/my-classes/` — My enrolled classes
+- `/my-classes/<id>/sessions/` — Session booking per class
+- `/my-grades/` — My grades (HIDDEN — shows monthly score instead)
+- `/my-monthly-score/` — Monthly aggregated score (NEW UI)
+- `/my-attendance/` — My attendance per class
+- `/my-schedule/classes/` — Weekly schedule (operating hours)
+- `/my-schedule/sessions/` — Weekly schedule (actual sessions)
+- `/my-progress/<id>/` — Progress report per class
+- `/teachers/` — Browse teachers
+- `/teachers/<id>/` — Teacher public profile
+- `/rate/<enrollment_id>/` — Rate teacher + class after completion
+- `/notifications/` — NEW: notification inbox
+- `/journals/` — NEW: monthly journal view (from teacher)
+- `/materials/` — NEW: course materials list
 
-| Method | URL | Description | Role |
-|--------|-----|-------------|------|
-| GET | `/` | Landing page / redirect to login | PUBLIC |
-| GET | `/login/` | Login page | PUBLIC |
-| POST | `/login/` | Process login | PUBLIC |
-| GET | `/register/` | Role selection page | PUBLIC |
-| GET | `/register/student/` | Student registration form | PUBLIC |
-| POST | `/register/student/` | Create student + StudentProfile | PUBLIC |
-| GET | `/register/teacher/` | Teacher registration form | PUBLIC |
-| POST | `/register/teacher/` | Create teacher + TeacherProfile | PUBLIC |
-| POST | `/logout/` | Logout and redirect to login | ALL |
-| GET | `/profile/` | View own profile | ALL |
-| GET | `/profile/edit/` | Edit own profile form | ALL |
-| POST | `/profile/edit/` | Save profile changes | ALL |
+## Teacher
 
----
+### See-All pages (NEW — paginated + filterable, all ✅)
+- `/teacher/students/` — All students enrolled in teacher's classes (paginated 25/page; search by name/username/school; filter by status / level / class)
+- `/teacher/classes/` — All teacher's classes
+- `/teacher/sessions/` — All teacher's sessions (paginated 25/page; filter by class / status / date range)
 
-## dashboard/ — Role-Based Dashboards
+### Class & session management
+- `/teacher/classes/create/` — Create new class
+- `/teacher/classes/<id>/edit/` — Edit class
+- `/teacher/classes/<id>/students/` — Students enrolled
+- `/teacher/classes/<id>/sessions/` — Sessions list
+- `/teacher/sessions/create/<id>/` — Create session
+- `/teacher/sessions/<id>/edit/` — Edit session
+- `/teacher/sessions/<id>/attendance/` — Mark attendance
+- `/teacher/classes/<id>/grades/` — Grade management
+- `/teacher/grades/create/` — Add/edit grade
+- `/teacher/ratings/` — My ratings (split: teacher + class)
+- `/teacher/schedule/classes/` — My class schedule
+- `/teacher/schedule/sessions/` — My sessions schedule
+- `/teacher/notifications/` — NEW
+- `/teacher/journals/<enrollment_id>/` — NEW: write monthly journal
+- `/teacher/notes/<session_id>/` — NEW: session notes
+- `/teacher/materials/upload/` — NEW: upload course material
 
-| Method | URL | Description | Role |
-|--------|-----|-------------|------|
-| GET | `/dashboard/` | Auto-redirect based on user role | ALL |
-| GET | `/dashboard/student/` | Student dashboard (enrolled classes, upcoming sessions) | STUDENT |
-| GET | `/dashboard/teacher/` | Teacher dashboard (my classes, recent attendance) | TEACHER |
-| GET | `/dashboard/admin/` | Admin dashboard (stats, overview) | ADMIN |
+## Admin
+- `/admin-panel/pending-users/` — Approve/reject users
+- `/admin-panel/users/` — Manage users (CRUD)
+- `/admin-panel/classes/` — Manage all classes
+- `/admin-panel/subjects/` — Subjects CRUD
+- `/admin-panel/categories/` — Categories CRUD
+- `/admin-panel/periods/` — Academic periods (quarter or semester)
+- `/admin-panel/enrollments/` — Manage enrollments
+- `/admin-panel/grades/` — All grades
+- `/admin-panel/ratings/` — All ratings (teacher + class)
+- `/admin-panel/logs/` — Activity logs (with IP)
+- `/admin-panel/schedule/classes/` — Master schedule (all teachers)
+- `/admin-panel/schedule/sessions/` — Master sessions
+- `/admin-panel/announcements/` — Manage announcements
+- `/admin-panel/notifications/` — NEW: manage notifications
+- `/admin-panel/billing/invoices/` — NEW: invoices (when payment enabled)
+- `/admin-panel/billing/payments/` — NEW: payments
+- `/admin-panel/billing/refunds/` — NEW: refunds
 
----
+## Shared (authenticated)
+- `/profile/` — View profile
+- `/profile/edit/` — Edit profile
+- `/profile/change-password/` — Change password
 
-## academics/ — Subjects, Categories, Kelas, Schedule
-
-| Method | URL | Description | Role |
-|--------|-----|-------------|------|
-| GET | `/classes/` | Browse classes (auto-filtered by student level) | STUDENT |
-| HTMX | `/classes/filter/` | Filter classes by subject, day, teacher | STUDENT |
-| GET | `/classes/{id}/` | Class detail page (schedule, teacher, rating) | ALL |
-| GET | `/teacher/classes/` | My classes list | TEACHER |
-| GET | `/teacher/classes/create/` | Create new class form | TEACHER |
-| POST | `/teacher/classes/create/` | Save new class + schedule slots | TEACHER |
-| GET | `/teacher/classes/{id}/edit/` | Edit class form | TEACHER |
-| POST | `/teacher/classes/{id}/edit/` | Save class changes | TEACHER |
-| POST | `/teacher/classes/{id}/delete/` | Soft delete class | TEACHER |
-| GET | `/teacher/classes/{id}/students/` | View enrolled students for a class | TEACHER |
-| GET | `/admin/classes/` | Manage all classes | ADMIN |
-| GET | `/admin/subjects/` | Manage subjects (CRUD) | ADMIN |
-| GET | `/admin/categories/` | Manage categories (CRUD) | ADMIN |
-| GET | `/admin/periods/` | Manage academic periods (CRUD) | ADMIN |
-
----
-
-## enrollments/ — Class Registration
-
-| Method | URL | Description | Role |
-|--------|-----|-------------|------|
-| POST | `/enroll/{kelas_id}/` | Enroll in a class (with level + capacity check) | STUDENT |
-| GET | `/my-classes/` | My enrolled classes list | STUDENT |
-| POST | `/my-classes/{id}/drop/` | Drop a class (soft delete enrollment) | STUDENT |
-| GET | `/admin/enrollments/` | Manage all enrollments | ADMIN |
-| HTMX | `/admin/enrollments/filter/` | Filter enrollments by student, class, status | ADMIN |
-
----
-
-## sessions/ — Meetings & Attendance
-
-| Method | URL | Description | Role |
-|--------|-----|-------------|------|
-| GET | `/teacher/classes/{id}/sessions/` | Session list for a class | TEACHER |
-| GET | `/teacher/sessions/create/{kelas_id}/` | Create new session form | TEACHER |
-| POST | `/teacher/sessions/create/{kelas_id}/` | Save new session | TEACHER |
-| GET | `/teacher/sessions/{id}/attendance/` | Mark attendance page (all enrolled students) | TEACHER |
-| POST | `/teacher/sessions/{id}/attendance/` | Save attendance for all students | TEACHER |
-| HTMX | `/teacher/sessions/{id}/attendance/save/` | Inline save single student attendance | TEACHER |
-| GET | `/my-attendance/` | View own attendance summary | STUDENT |
-| GET | `/my-attendance/{kelas_id}/` | Attendance detail per class | STUDENT |
-
----
-
-## grades/ — Grade Management
-
-| Method | URL | Description | Role |
-|--------|-----|-------------|------|
-| GET | `/teacher/classes/{id}/grades/` | Grade management page (all students) | TEACHER |
-| POST | `/teacher/grades/create/` | Add new grade entry | TEACHER |
-| HTMX | `/teacher/grades/{id}/edit/` | Inline edit grade | TEACHER |
-| POST | `/teacher/grades/{id}/delete/` | Delete grade | TEACHER |
-| GET | `/my-grades/` | View all my grades | STUDENT |
-| GET | `/my-grades/{kelas_id}/` | Grades per class | STUDENT |
-| GET | `/admin/grades/` | Manage all grades | ADMIN |
-
----
-
-## ratings/ — Teacher Ratings
-
-| Method | URL | Description | Role |
-|--------|-----|-------------|------|
-| GET | `/rate/{enrollment_id}/` | Rating form (1-5 stars + comment) | STUDENT |
-| POST | `/rate/{enrollment_id}/` | Submit rating | STUDENT |
-| GET | `/teacher/ratings/` | View my ratings from students | TEACHER |
-| GET | `/admin/ratings/` | Manage all ratings | ADMIN |
-
----
-
-## Admin Management — Users & Logs
-
-| Method | URL | Description | Role |
-|--------|-----|-------------|------|
-| GET | `/admin/users/` | Manage all users (students, teachers, admins) | ADMIN |
-| HTMX | `/admin/users/filter/` | Filter/search users by name, level, school, role | ADMIN |
-| GET | `/admin/users/{id}/` | User detail page | ADMIN |
-| GET | `/admin/users/{id}/edit/` | Edit user form | ADMIN |
-| POST | `/admin/users/{id}/delete/` | Soft delete user | ADMIN |
-| GET | `/admin/logs/` | Activity logs list | ADMIN |
-| HTMX | `/admin/logs/filter/` | Filter logs by user, action, date | ADMIN |
-
----
-
-## URL Design Rules
-
-1. **Student-facing:** clean URLs — `/my-classes/`, `/my-grades/`, `/my-attendance/`
-2. **Teacher-facing:** prefixed — `/teacher/classes/`, `/teacher/grades/`
-3. **Admin-facing:** prefixed — `/admin/users/`, `/admin/classes/`
-4. **HTMX endpoints** return partial HTML fragments, not full pages
-5. **All deletes use POST** — HTML forms only support GET and POST
-6. **No `/api/` prefix** — this is NOT a REST API
-7. **Role protection** via `@role_required()` decorator on every view
-8. **{id} parameters** use Django's `<int:pk>` converter
+## Error pages
+- 404, 500, 403 custom templates

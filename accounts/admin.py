@@ -20,22 +20,34 @@ class UserAdmin(BaseUserAdmin):
 
 @admin.register(StudentProfile)
 class StudentProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'level', 'school_name', 'school_grade', 'phone')
+    list_display = ('user', 'level', 'school_name', 'school_grade', 'user_phone')
     list_filter = ('level',)
     search_fields = ('user__username', 'user__first_name', 'user__last_name', 'school_name')
     raw_id_fields = ('user',)
 
+    @admin.display(description='No. HP')
+    def user_phone(self, obj):
+        return obj.user.phone
+
 
 @admin.register(TeacherProfile)
 class TeacherProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'education', 'specialization', 'experience_years', 'phone')
+    list_display = ('user', 'education', 'specialization', 'experience_years', 'user_phone')
     list_filter = ('education',)
     search_fields = ('user__username', 'user__first_name', 'user__last_name', 'specialization')
     raw_id_fields = ('user',)
 
+    @admin.display(description='No. HP')
+    def user_phone(self, obj):
+        return obj.user.phone
+
 
 @admin.register(AdminProfile)
 class AdminProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'phone')
+    list_display = ('user', 'user_phone')
     search_fields = ('user__username', 'user__first_name', 'user__last_name')
     raw_id_fields = ('user',)
+
+    @admin.display(description='No. HP')
+    def user_phone(self, obj):
+        return obj.user.phone

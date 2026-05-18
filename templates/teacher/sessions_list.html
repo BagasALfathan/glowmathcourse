@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Semua Sesi{% endblock %}
+{% block page_title %}Semua Sesi{% endblock %}
+
+{% block content %}
+
+<!-- Header -->
+<div class="flex justify-between items-center mb-5 gap-3 flex-wrap">
+  <div>
+    <h1 class="text-xl font-semibold text-gray-900 m-0">Semua Sesi</h1>
+    <p class="text-sm text-gray-500 m-0 mt-0.5">{{ total_count }} sesi total di kelas Anda</p>
+  </div>
+  <a href="{% url 'academics:teacher_schedule_sessions' %}"
+     class="px-3 py-2 border border-gray-200 bg-white text-gray-700 hover:border-emerald-300 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5">
+    <i class="ti ti-calendar-week"></i> Tampilan Kalender
+  </a>
+</div>
+
+<!-- Filter bar -->
+<form method="get" class="bg-white border border-gray-200 rounded-xl p-4 mb-5 flex flex-wrap gap-3 items-end">
+  <div>
+    <label class="text-[11px] text-gray-500 mb-1 block">Kelas</label>
+    <select name="class" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="">Semua kelas</option>
+      {% for k in teacher_classes %}
+      <option value="{{ k.id }}" {% if class_filter == k.id|stringformat:"s" %}selected{% endif %}>{{ k.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="text-[11px] text-gray-500 mb-1 block">Status</label>
+    <select name="status" class="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white">
+      <option value="">Semua</option>
+      <option value="SCHEDULED" {% if status_filter == 'SCHEDULED' %}selected{% endif %}>Terjadwal</option>
+      <option value="COMPLETED" {% if status_filter == 'COMPLETED' %}selected{% endif %}>Selesai</option>
+      <option value="CANCELLED" {% if status_filter == 'CANCELLED' %}selected{% endif %}>Dibatalkan</option>
+    </select>
+  </div>
+  <div>
+    <label class="text-[11px] text-gray-500 mb-1 block">Dari tanggal</label>
+    <input type="date" name="date_from" value="{{ date_from }}"
+           class="px-3 py-2 border border-gray-200 rounded-lg text-sm">
+  </div>
+  <div>
+    <label class="text-[11px] text-gray-500 mb-1 block">Sampai tanggal</label>
+    <input type="date" name="date_to" value="{{ date_to }}"
+           class="px-3 py-2 border border-gray-200 rounded-lg text-sm">
+  </div>
+  <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold inline-flex items-center gap-1.5">
+    <i class="ti ti-filter"></i> Terapkan
+  </button>
+</form>
+
+<!-- Table -->
+<div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50 border-b border-gray-200">
+        <tr class="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">
+          <th class="text-left px-4 py-3">Tanggal</th>
+          <th class="text-left px-4 py-3">Waktu</th>
+          <th class="text-left px-4 py-3">Kelas</th>
+          <th class="text-left px-4 py-3">Topik</th>
+          <th class="text-center px-4 py-3">Status</th>
+          <th class="text-center px-4 py-3">Absen</th>
+          <th class="text-right px-4 py-3">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in page_obj %}
+        <tr class="border-b border-gray-100 hover:bg-gray-50/60">
+          <td class="px-4 py-3 text-xs text-gray-800 whitespace-nowrap">
+            {{ s.date|date:"d M Y" }}<br>
+            <span class="text-[10px] text-gray-500">{{ s.date|date:"l" }}</span>
+          </td>
+          <td class="px-4 py-3 text-xs text-gray-800 whitespace-nowrap">
+            {% if s.start_time %}{{ s.start_time|time:"H:i" }}{% else %}—{% endif %}
+            {% if s.end_time %}–{{ s.end_time|time:"H:i" }}{% endif %}
+          </td>
+          <td class="px-4 py-3 text-xs">
+            <div class="font-semibold text-gray-900 truncate">{{ s.kelas.name }}</div>
+            <div class="text-[10px] text-gray-500">Pertemuan #{{ s.session_number }}</div>
+          </td>
+          <td class="px-4 py-3 text-xs text-gray-700 truncate">{{ s.topic|default:"—" }}</td>
+          <td class="px-4 py-3 text-center">
+            {% if s.status == 'SCHEDULED' %}
+              <span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-semibold">Terjadwal</span>
+            {% elif s.status == 'COMPLETED' %}
+              <span class="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded font-semibold">Selesai</span>
+            {% else %}
+              <span class="text-[10px] bg-red-100 text-red-700 px-2 py-0.5 rounded font-semibold">Dibatalkan</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-center text-xs">
+            {% if s.att_total > 0 %}
+              <span class="text-emerald-700 inline-flex items-center gap-1"><i class="ti ti-check"></i> {{ s.att_total }}/{{ s.enrolled_n }}</span>
+            {% else %}
+              <span class="text-amber-600 inline-flex items-center gap-1"><i class="ti ti-clipboard"></i> Belum</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-right whitespace-nowrap">
+            <a href="{% url 'sessions_app:teacher_attendance' s.id %}"
+               class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Buka →</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center py-12 text-sm text-gray-500">
+            {% if class_filter or status_filter or date_from or date_to %}
+              Tidak ada sesi cocok dengan filter Anda.
+            {% else %}
+              Belum ada sesi terjadwal.
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<div class="flex justify-between items-center mt-4 text-sm">
+  <p class="text-gray-500 m-0">
+    Menampilkan {{ page_obj.start_index }}–{{ page_obj.end_index }} dari {{ total_count }} sesi
+  </p>
+  <div class="flex gap-1 items-center">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}&{{ qs_preserve }}"
+       class="px-3 py-1.5 border border-gray-200 rounded-md hover:bg-gray-50 text-gray-600">‹</a>
+    {% endif %}
+    <span class="px-3 py-1.5 bg-emerald-500 text-white rounded-md font-semibold">{{ page_obj.number }}</span>
+    <span class="px-2 py-1.5 text-gray-500">/ {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}&{{ qs_preserve }}"
+       class="px-3 py-1.5 border border-gray-200 rounded-md hover:bg-gray-50 text-gray-600">›</a>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,5 +1,8 @@
+from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+
+from accounts.models import TeacherProfile
 
 
 class GradeType(models.TextChoices):
@@ -34,7 +37,15 @@ class Grade(models.Model):
         validators=[MinValueValidator(0), MaxValueValidator(100)],
     )
     notes = models.CharField(max_length=500, blank=True)
+    graded_by_teacher = models.ForeignKey(
+        TeacherProfile,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='graded_entries',
+    )
     graded_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -45,6 +56,13 @@ class Grade(models.Model):
             models.Index(fields=['enrollment']),
             models.Index(fields=['session']),
         ]
+
+    def clean(self):
+        super().clean()
+        if self.grade_type in (GradeType.QUIZ, GradeType.ASSIGNMENT) and self.session_id is None:
+            raise ValidationError({
+                'session': f'Sesi wajib diisi untuk {self.get_grade_type_display()}.'
+            })
 
     def __str__(self):
         return (

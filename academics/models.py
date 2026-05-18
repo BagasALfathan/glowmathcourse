@@ -1,8 +1,8 @@
-from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.utils import timezone
 
-from accounts.models import Level
+from accounts.models import Level, TeacherProfile
 
 
 class Quarter(models.TextChoices):
@@ -10,6 +10,16 @@ class Quarter(models.TextChoices):
     Q2 = 'Q2', 'Kuartal 2'
     Q3 = 'Q3', 'Kuartal 3'
     Q4 = 'Q4', 'Kuartal 4'
+
+
+class Semester(models.TextChoices):
+    GANJIL = 'GANJIL', 'Ganjil'
+    GENAP = 'GENAP', 'Genap'
+
+
+class PeriodType(models.TextChoices):
+    QUARTER = 'QUARTER', 'Kuartal'
+    SEMESTER = 'SEMESTER', 'Semester'
 
 
 class Day(models.TextChoices):
@@ -33,6 +43,8 @@ class Category(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
 
     class Meta:
         verbose_name = 'Kategori'
@@ -52,6 +64,8 @@ class Subject(models.Model):
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
 
     class Meta:
         verbose_name = 'Mata Pelajaran'
@@ -67,8 +81,18 @@ class Subject(models.Model):
 
 class AcademicPeriod(models.Model):
     year = models.CharField(max_length=10)          # e.g. "2026-2027"
-    quarter = models.CharField(max_length=2, choices=Quarter.choices)
-    name = models.CharField(max_length=100)         # e.g. "Q1 2026-2027"
+    period_type = models.CharField(
+        max_length=10,
+        choices=PeriodType.choices,
+        default=PeriodType.QUARTER,
+    )
+    quarter = models.CharField(
+        max_length=2, choices=Quarter.choices, blank=True,
+    )
+    semester = models.CharField(
+        max_length=10, choices=Semester.choices, blank=True,
+    )
+    name = models.CharField(max_length=100)
     start_date = models.DateField()
     end_date = models.DateField()
     is_active = models.BooleanField(default=False)
@@ -78,21 +102,26 @@ class AcademicPeriod(models.Model):
     class Meta:
         verbose_name = 'Periode Akademik'
         verbose_name_plural = 'Periode Akademik'
-        ordering = ['-year', 'quarter']
-        unique_together = [('year', 'quarter')]
+        ordering = ['-year', 'quarter', 'semester']
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        super().clean()
+        if self.period_type == PeriodType.QUARTER and not self.quarter:
+            raise ValidationError({'quarter': 'Quarter wajib diisi untuk period_type=QUARTER.'})
+        if self.period_type == PeriodType.SEMESTER and not self.semester:
+            raise ValidationError({'semester': 'Semester wajib diisi untuk period_type=SEMESTER.'})
 
 
 # ── Kelas ─────────────────────────────────────────────────────────────────────
 
 class Kelas(models.Model):
-    teacher = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
+    teacher_profile = models.ForeignKey(
+        TeacherProfile,
         on_delete=models.PROTECT,
         related_name='taught_classes',
-        limit_choices_to={'role': 'TEACHER'},
     )
     subject = models.ForeignKey(
         Subject, on_delete=models.PROTECT, related_name='classes'
@@ -101,11 +130,15 @@ class Kelas(models.Model):
         AcademicPeriod, on_delete=models.PROTECT, related_name='classes'
     )
     name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
     level = models.CharField(max_length=5, choices=Level.choices)
     start_date = models.DateField()
     end_date = models.DateField()
     capacity = models.PositiveSmallIntegerField()
     total_sessions = models.PositiveSmallIntegerField()
+    price = models.DecimalField(
+        max_digits=10, decimal_places=2, default=0,
+    )
     status = models.CharField(
         max_length=10, choices=KelasStatus.choices, default=KelasStatus.OPEN
     )
@@ -119,7 +152,7 @@ class Kelas(models.Model):
         verbose_name_plural = 'Kelas'
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['teacher']),
+            models.Index(fields=['teacher_profile']),
             models.Index(fields=['subject']),
             models.Index(fields=['academic_period']),
             models.Index(fields=['status']),
@@ -127,6 +160,11 @@ class Kelas(models.Model):
 
     def __str__(self):
         return self.name
+
+    # Backward-compat: code/templates still use `kelas.teacher` to get the User
+    @property
+    def teacher(self):
+        return self.teacher_profile.user
 
     def get_enrolled_count(self):
         try:
@@ -190,6 +228,8 @@ class Schedule(models.Model):
     start_time = models.TimeField()
     end_time = models.TimeField()
     room = models.CharField(max_length=100, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
 
     class Meta:
         verbose_name = 'Jadwal'

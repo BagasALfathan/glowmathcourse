@@ -28,12 +28,20 @@ INSTALLED_APPS = [
     'admin_panel',
     'academics',
     'enrollments',
+    'student',
     'grades',
     'sessions_app',
     'ratings',
     'activity_logs',
     'announcements',
+    'notifications',
+    'course_materials',
+    'journals',
+    'billing',
 ]
+
+# Feature flag: hide payment UI until ready (models still active for FK integrity)
+ENABLE_PAYMENT_FEATURE = False
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -92,9 +100,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-LOGIN_URL = '/login/'
+LOGIN_URL = '/'
 LOGIN_REDIRECT_URL = '/dashboard/'
-LOGOUT_REDIRECT_URL = '/login/'
+LOGOUT_REDIRECT_URL = '/'
 
 TAILWIND_APP_NAME = 'theme'
 INTERNAL_IPS = ['127.0.0.1']

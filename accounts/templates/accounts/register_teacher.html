@@ -1,52 +1,388 @@
-﻿{% extends "base_auth.html" %}
-{% load crispy_forms_tags %}
+{% load static %}
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Daftar Guru — GlowMath Course</title>
+  <link rel="icon" type="image/png" href="{% static 'images/logo.png' %}">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = { theme: { extend: { colors: { primary: '#10b981' } } } }
+  </script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="{% static 'css/animations.css' %}">
+  <script defer src="https://unpkg.com/alpinejs@3/dist/cdn.min.js"></script>
+  <style>
+    body { background: #f9fafb; min-height:100vh; }
+    .step-collapse { transition: all 0.3s ease; overflow: hidden; }
+    .progress-fill { transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+    [x-cloak] { display: none !important; }
+  </style>
+</head>
+<body class="font-sans antialiased text-gray-800 animate-fade-in">
 
-{% block title %}Daftar Guru{% endblock %}
+  <main class="min-h-screen flex flex-col items-center px-4 py-10">
 
-{% block card_width %}max-w-2xl{% endblock %}
-
-{% block content %}
-  <!-- Header -->
-  <div class="flex items-center gap-3 mb-6">
-    <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-           stroke-width="1.75" stroke="currentColor" class="w-5 h-5 text-orange-600">
-        <path stroke-linecap="round" stroke-linejoin="round"
-              d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
+    <!-- Top bar: logo + role pill -->
+    <div class="w-full max-w-[480px] flex items-center justify-between mb-6">
+      <a href="/guru/login/" class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-md flex items-center justify-center text-white" style="background:#10b981;">
+          <i class="ti ti-math-symbols text-base"></i>
+        </div>
+        <span class="font-bold text-gray-900 text-sm">GlowMath Course</span>
+      </a>
+      <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold"
+            style="background:#ecfdf5; color:#047857;">
+        <i class="ti ti-school text-sm"></i> Portal Guru
+      </span>
     </div>
-    <div>
-      <h2 class="text-xl font-bold text-gray-900">Daftar sebagai Guru</h2>
-      <p class="text-sm text-gray-500">Lengkapi data di bawah untuk membuat akun pengajar</p>
+
+    <div class="w-full max-w-[480px]">
+
+      <h1 class="text-[22px] font-bold text-gray-900">Daftar sebagai Guru</h1>
+      <p class="text-sm text-gray-500 mt-1 mb-4">Bergabung dengan tim pengajar GlowMath Course</p>
+
+      <!-- Notice -->
+      <div class="mb-5 flex items-start gap-2.5 rounded-lg p-3 text-xs"
+           style="background:#fffbeb; border:1px solid #fde68a; color:#92400e;">
+        <i class="ti ti-info-circle text-base shrink-0 mt-0.5"></i>
+        <span>Akun guru akan diverifikasi admin terlebih dahulu. Estimasi 1×24 jam.</span>
+      </div>
+
+      <div x-data="teacherWizard()" x-cloak>
+
+        {% if messages %}
+          <div class="space-y-2 mb-4">
+            {% for m in messages %}
+            <div class="text-xs rounded-lg px-3 py-2 border
+                  {% if m.tags == 'error' %}bg-red-50 border-red-200 text-red-700
+                  {% else %}bg-emerald-50 border-emerald-200 text-emerald-800{% endif %}">
+              {{ m }}
+            </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <!-- Progress -->
+        <div class="bg-white rounded-xl p-4 mb-5 flex items-center gap-4"
+             style="border:0.5px solid #e5e7eb;">
+          <div class="flex-1">
+            <p class="text-xs font-semibold text-gray-700 leading-tight">Progress pendaftaran</p>
+            <p class="text-[11px] text-gray-500 mt-0.5" x-text="completedCount() + ' dari 3 langkah selesai'"></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <div class="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div class="h-full progress-fill bg-emerald-500 rounded-full"
+                   :style="'width:' + progressPct() + '%'"></div>
+            </div>
+            <span class="text-xs font-bold text-emerald-700 w-8 text-right" x-text="progressPct() + '%'"></span>
+          </div>
+        </div>
+
+        <form method="post" action="/guru/register/" x-ref="form" @submit="loading = true">
+          {% csrf_token %}
+
+          <!-- STEP 1: Account -->
+          <div class="mb-3 rounded-xl bg-white transition-all"
+               :class="step === 1 ? 'ring-1 ring-emerald-200 border border-emerald-300' : 'border border-gray-200'"
+               style="border-width:0.5px;">
+            <button type="button" @click="goto(1)" class="w-full flex items-center gap-3 p-4 text-left">
+              <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-white font-bold text-xs"
+                   :class="done.s1 ? 'bg-emerald-500' : step === 1 ? 'bg-emerald-500' : 'bg-gray-200 text-gray-500'">
+                <i class="ti ti-check" x-show="done.s1"></i>
+                <span x-show="!done.s1">1</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="font-semibold text-gray-900 text-sm">Akun</span>
+                  <span x-show="done.s1" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700">Selesai</span>
+                </div>
+                <p class="text-[11px] text-gray-500" x-text="done.s1 ? form1.username + ' • ' + form1.email : 'Username, email, kata sandi'"></p>
+              </div>
+            </button>
+            <div class="step-collapse px-5 pb-5 space-y-3" x-show="step === 1"
+                 x-transition:enter="animate-fade-in">
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Username</label>
+                <input type="text" name="username" x-model="form1.username" autocomplete="username" placeholder="bu.sari"
+                       :class="{ 'input-error': err1.username }"
+                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                <p class="error-message" x-show="err1.username">
+                  <i class="ti ti-alert-circle"></i> <span x-text="err1.username"></span>
+                </p>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Email</label>
+                <input type="email" name="email" x-model="form1.email" autocomplete="email" placeholder="bu.sari@email.com"
+                       :class="{ 'input-error': err1.email }"
+                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                <p class="error-message" x-show="err1.email">
+                  <i class="ti ti-alert-circle"></i> <span x-text="err1.email"></span>
+                </p>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700 mb-1">Kata Sandi</label>
+                  <input type="password" name="password" x-model="form1.password" autocomplete="new-password"
+                         class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700 mb-1">Konfirmasi</label>
+                  <input type="password" name="password2" x-model="form1.password2" autocomplete="new-password"
+                         class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                </div>
+              </div>
+              <p class="error-message" x-show="err1.password">
+                <i class="ti ti-alert-circle"></i> <span x-text="err1.password"></span>
+              </p>
+            </div>
+          </div>
+
+          <!-- STEP 2: Identity + Qualification -->
+          <div class="mb-3 rounded-xl bg-white transition-all"
+               :class="step === 2 ? 'ring-1 ring-emerald-200 border border-emerald-300'
+                       : done.s2 ? 'border border-gray-200' : 'border border-gray-200 opacity-90'"
+               style="border-width:0.5px;">
+            <button type="button" @click="done.s1 && goto(2)" :disabled="!done.s1"
+                    class="w-full flex items-center gap-3 p-4 text-left">
+              <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-white font-bold text-xs"
+                   :class="done.s2 ? 'bg-emerald-500' : step === 2 ? 'bg-emerald-500' : 'bg-gray-200 text-gray-500'">
+                <i class="ti ti-check" x-show="done.s2"></i>
+                <span x-show="!done.s2">2</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2">
+                  <span class="font-semibold text-gray-900 text-sm">Data Pribadi &amp; Kualifikasi</span>
+                  <span x-show="done.s2" class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700">Selesai</span>
+                </div>
+                <p class="text-[11px] text-gray-500" x-text="done.s2 ? form2.full_name + ' • ' + form2.jenjang_levels.join(', ') : 'Nama, pengalaman, jenjang yang diajar'"></p>
+              </div>
+            </button>
+            <div class="step-collapse px-5 pb-5 space-y-3" x-show="step === 2"
+                 x-transition:enter="animate-fade-in">
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Nama Lengkap</label>
+                <input type="text" name="full_name" x-model="form2.full_name" placeholder="Sari Wijaya, S.Pd."
+                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">No. HP / WA</label>
+                <input type="tel" name="phone" x-model="form2.phone" placeholder="0812xxxxxxxx"
+                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700 mb-1">Pendidikan Terakhir</label>
+                  <select name="education" x-model="form2.education"
+                          class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 bg-white focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                    <option value="">— Pilih —</option>
+                    {% for v, l in education_choices %}
+                    <option value="{{ v }}">{{ l }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-semibold text-gray-700 mb-1">Pengalaman (tahun)</label>
+                  <input type="number" min="0" name="experience_years" x-model="form2.experience_years" placeholder="5"
+                         class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">Spesialisasi</label>
+                <input type="text" name="specialization" x-model="form2.specialization"
+                       placeholder="Matematika SMA, Fisika"
+                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1.5">Jenjang yang Diajar <span class="text-red-500">*</span></label>
+                <div class="grid grid-cols-5 gap-1.5">
+                  {% for value, label in level_choices %}
+                  <label>
+                    <input type="checkbox" name="jenjang_levels" value="{{ value }}" x-model="form2.jenjang_levels" class="peer sr-only">
+                    <div class="peer-checked:bg-emerald-50 peer-checked:border-emerald-400 peer-checked:text-emerald-700
+                                px-2 py-2 rounded-lg border border-gray-200 bg-white text-gray-700
+                                text-center text-xs font-semibold cursor-pointer transition">
+                      {{ label }}
+                    </div>
+                  </label>
+                  {% endfor %}
+                </div>
+                <p class="text-[11px] text-red-600 mt-1" x-show="err2.jenjang" x-text="err2.jenjang"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- STEP 3: Bio + Verification -->
+          <div class="mb-4 rounded-xl bg-white transition-all"
+               :class="step === 3 ? 'ring-1 ring-emerald-200 border border-emerald-300' : 'border border-gray-200 opacity-90'"
+               style="border-width:0.5px;">
+            <button type="button" @click="done.s2 && goto(3)" :disabled="!done.s2"
+                    class="w-full flex items-center gap-3 p-4 text-left">
+              <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-white font-bold text-xs"
+                   :class="step === 3 ? 'bg-emerald-500' : 'bg-gray-200 text-gray-500'">
+                <span>3</span>
+              </div>
+              <div class="flex-1 min-w-0">
+                <span class="font-semibold text-gray-900 text-sm">Bio &amp; Verifikasi</span>
+                <p class="text-[11px] text-gray-500">Cerita singkat dan info pembayaran (opsional)</p>
+              </div>
+            </button>
+            <div class="step-collapse px-5 pb-5 space-y-3" x-show="step === 3"
+                 x-transition:enter="animate-fade-in">
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">
+                  Bio Singkat <span class="text-gray-400 font-normal">(opsional, max 500 karakter)</span>
+                </label>
+                <textarea name="bio" rows="3" maxlength="500" x-model="form3.bio"
+                          placeholder="Ceritakan pengalaman dan metode mengajar Anda..."
+                          class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100"></textarea>
+                <p class="text-[10px] text-gray-400 text-right" x-text="(form3.bio || '').length + '/500'"></p>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">
+                  Tarif per Jam <span class="text-gray-400 font-normal">(opsional, IDR)</span>
+                </label>
+                <div class="relative">
+                  <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">Rp</span>
+                  <input type="text" name="hourly_rate" x-model="form3.hourly_rate" placeholder="100.000"
+                         @input="form3.hourly_rate = formatRate($event.target.value)"
+                         class="w-full pl-9 pr-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-gray-700 mb-1">
+                  Nomor Rekening <span class="text-gray-400 font-normal">(opsional)</span>
+                </label>
+                <input type="text" name="bank_account" x-model="form3.bank_account" placeholder="BCA — 1234567890"
+                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                <p class="text-[11px] text-gray-400 mt-1">Akan dapat diisi/diperbarui setelah verifikasi admin.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex gap-3">
+            <button type="button" x-show="step > 1" @click="back()"
+                    class="px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-semibold inline-flex items-center gap-1.5">
+              <i class="ti ti-arrow-left"></i> Kembali
+            </button>
+            <button type="button" x-show="step < 3" @click="next()"
+                    class="flex-1 py-2.5 rounded-lg text-white text-sm font-semibold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition"
+                    style="background:#10b981;"
+                    onmouseover="this.style.background='#059669'"
+                    onmouseout="this.style.background='#10b981'">
+              <span x-text="'Lanjut ke Langkah ' + (step + 1)"></span>
+              <i class="ti ti-arrow-right"></i>
+            </button>
+            <button type="submit" x-show="step === 3" @click="return validateAll($event)"
+                    :disabled="loading"
+                    :class="{ 'btn-loading': loading }"
+                    class="flex-1 py-2.5 rounded-lg text-white text-sm font-semibold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition"
+                    style="background:#10b981;"
+                    onmouseover="if(!this.disabled)this.style.background='#059669'"
+                    onmouseout="this.style.background='#10b981'">
+              <template x-if="!loading">
+                <span class="inline-flex items-center gap-2"><i class="ti ti-user-plus"></i> Daftar sebagai Guru <i class="ti ti-arrow-right"></i></span>
+              </template>
+              <template x-if="loading">
+                <span class="inline-flex items-center gap-2"><span class="spinner"></span> Memproses…</span>
+              </template>
+            </button>
+          </div>
+        </form>
+
+        <p class="text-center text-xs text-gray-500 mt-6">
+          Sudah punya akun guru?
+          <a href="/guru/login/" class="font-semibold text-emerald-600 hover:text-emerald-700">Login →</a>
+        </p>
+      </div>
     </div>
-  </div>
+  </main>
 
-  <!-- Non-field errors -->
-  {% if form.non_field_errors %}
-  <div class="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
-    {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
-  </div>
-  {% endif %}
-
-  <form method="post" action="{% url 'accounts:register_teacher' %}" novalidate>
-    {% csrf_token %}
-    {% crispy form %}
-
-    <button type="submit"
-            class="mt-6 w-full bg-orange-600 hover:bg-orange-700 active:bg-orange-800
-                   text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm">
-      Buat Akun Guru
-    </button>
-  </form>
-
-  <p class="mt-5 text-center text-sm text-gray-500">
-    Sudah punya akun?
-    <a href="{% url 'accounts:login' %}" class="font-medium text-primary-600 hover:text-primary-700">
-      Masuk di sini
-    </a>
-    &nbsp;·&nbsp;
-    <a href="{% url 'accounts:register' %}" class="text-gray-400 hover:text-gray-600">
-      Kembali
-    </a>
-  </p>
-{% endblock %}
+  <script>
+    function teacherWizard() {
+      return {
+        step: 1,
+        loading: false,
+        done: { s1: false, s2: false },
+        form1: {
+          username: "{{ form_data.username|default:'' }}",
+          email:    "{{ form_data.email|default:'' }}",
+          password: '', password2: '',
+        },
+        err1: { username: '', email: '', password: '' },
+        form2: {
+          full_name:        "{{ form_data.full_name|default:'' }}",
+          phone:            "{{ form_data.phone|default:'' }}",
+          education:        "{{ form_data.education|default:'' }}",
+          experience_years: "{{ form_data.experience_years|default:'' }}",
+          specialization:   "{{ form_data.specialization|default:'' }}",
+          jenjang_levels:   {{ form_data.jenjang_levels|default:'[]'|safe }},
+        },
+        err2: { jenjang: '' },
+        form3: {
+          bio:          "{{ form_data.bio|default:'' }}",
+          hourly_rate:  "{{ form_data.hourly_rate|default:'' }}",
+          bank_account: "{{ form_data.bank_account|default:'' }}",
+        },
+        progressPct() { return Math.round(this.completedCount() * 100 / 3); },
+        completedCount() {
+          return (this.done.s1 ? 1 : 0) + (this.done.s2 ? 1 : 0) + (this.step === 3 ? 1 : 0);
+        },
+        formatRate(v) {
+          const digits = (v || '').replace(/\D/g, '');
+          if (!digits) return '';
+          return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        },
+        validateStep1() {
+          this.err1.username = /^[A-Za-z0-9_.]{3,30}$/.test(this.form1.username) ? '' : 'Username 3-30 karakter (huruf/angka/_/.)';
+          this.err1.email = (this.form1.email.includes('@') && this.form1.email.includes('.')) ? '' : 'Email tidak valid.';
+          let e = '';
+          if (this.form1.password.length < 8) e = 'Kata sandi minimal 8 karakter.';
+          else if (this.form1.password !== this.form1.password2) e = 'Konfirmasi kata sandi tidak cocok.';
+          this.err1.password = e;
+          return !this.err1.username && !this.err1.email && !this.err1.password;
+        },
+        validateStep2() {
+          if (!this.form2.full_name || this.form2.full_name.length < 2) { alert('Nama lengkap wajib diisi.'); return false; }
+          if (!/^(\+?62|0)\d{8,13}$/.test(this.form2.phone.replace(/[\s-]/g, ''))) { alert('No. HP/WA tidak valid.'); return false; }
+          if (!this.form2.specialization) { alert('Spesialisasi wajib diisi.'); return false; }
+          if (!this.form2.jenjang_levels || this.form2.jenjang_levels.length === 0) {
+            this.err2.jenjang = 'Pilih minimal satu jenjang yang dapat Anda ajar.'; return false;
+          }
+          this.err2.jenjang = '';
+          return true;
+        },
+        shakeCurrentStep() {
+          const cards = document.querySelectorAll('form > .rounded-xl');
+          const card = cards[this.step - 1];
+          if (!card) return;
+          card.classList.remove('animate-shake');
+          void card.offsetWidth;
+          card.classList.add('animate-shake');
+          setTimeout(() => card.classList.remove('animate-shake'), 450);
+        },
+        next() {
+          if (this.step === 1) {
+            if (this.validateStep1()) { this.done.s1 = true; this.step = 2; }
+            else this.shakeCurrentStep();
+          } else if (this.step === 2) {
+            if (this.validateStep2()) { this.done.s2 = true; this.step = 3; }
+            else this.shakeCurrentStep();
+          }
+        },
+        back() { if (this.step > 1) this.step--; },
+        goto(s) {
+          if (s === 1) { this.step = 1; return; }
+          if (s === 2 && this.done.s1) { this.step = 2; return; }
+          if (s === 3 && this.done.s2) { this.step = 3; }
+        },
+        validateAll(ev) {
+          // step 3 has no required validation, but stay safe
+          return true;
+        },
+      };
+    }
+  </script>
+</body>
+</html>

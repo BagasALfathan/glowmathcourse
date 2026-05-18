@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
@@ -12,6 +13,12 @@ class SessionStatus(models.TextChoices):
     SCHEDULED = 'SCHEDULED', 'Terjadwal'
     COMPLETED = 'COMPLETED', 'Selesai'
     CANCELLED = 'CANCELLED', 'Dibatalkan'
+
+
+class SessionType(models.TextChoices):
+    REGULAR = 'REGULAR', 'Reguler'
+    MAKEUP = 'MAKEUP', 'Pengganti'
+    OPTIONAL = 'OPTIONAL', 'Opsional'
 
 
 class BookingStatus(models.TextChoices):
@@ -31,6 +38,12 @@ class Session(models.Model):
     end_time = models.TimeField(null=True, blank=True)
     topic = models.CharField(max_length=300, blank=True)
     capacity = models.PositiveSmallIntegerField(default=0)
+    session_type = models.CharField(
+        max_length=10,
+        choices=SessionType.choices,
+        default=SessionType.REGULAR,
+    )
+    meeting_url = models.URLField(blank=True)
     status = models.CharField(
         max_length=15,
         choices=SessionStatus.choices,
@@ -91,7 +104,15 @@ class Attendance(models.Model):
         choices=AttendanceStatus.choices,
         default=AttendanceStatus.PRESENT,
     )
+    marked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='marked_attendances',
+    )
     marked_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -112,6 +133,10 @@ class Attendance(models.Model):
 
 
 class SessionBooking(models.Model):
+    """
+    Booking record — only used for sessions with session_type=MAKEUP or OPTIONAL.
+    Regular sessions auto-enroll all students of the kelas.
+    """
     enrollment = models.ForeignKey(
         'enrollments.Enrollment',
         on_delete=models.CASCADE,
@@ -130,6 +155,7 @@ class SessionBooking(models.Model):
         default=BookingStatus.BOOKED,
     )
     booked_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

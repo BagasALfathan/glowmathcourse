@@ -14,7 +14,7 @@ from accounts.models import (
 )
 from enrollments.models import Enrollment, EnrollmentStatus
 from grades.models import Grade, GradeType
-from ratings.models import Rating
+from ratings.models import TeacherRating
 from activity_logs.models import ActivityLog
 from activity_logs.utils import log_activity
 
@@ -194,15 +194,15 @@ def user_detail(request, user_id):
         from enrollments.models import Enrollment
         enrollments = (
             Enrollment.objects
-            .filter(student=target_user, is_deleted=False)
-            .select_related('kelas__subject', 'kelas__teacher')
+            .filter(student_profile__user=target_user, is_deleted=False)
+            .select_related('kelas__subject', 'kelas__teacher_profile__user')
             .order_by('-enrolled_at')
         )
     elif target_user.role == Role.TEACHER:
         from academics.models import Kelas
         classes_teaching = (
             Kelas.objects
-            .filter(teacher=target_user, is_deleted=False)
+            .filter(teacher_profile__user=target_user, is_deleted=False)
             .select_related('subject')
             .order_by('name')
         )
@@ -571,7 +571,7 @@ def classes_list_partial(request):
     # Include soft-deleted — show all
     qs = (
         Kelas.objects
-        .select_related('subject', 'teacher', 'academic_period')
+        .select_related('subject', 'teacher_profile__user', 'academic_period')
         .order_by('-created_at')
     )
 
@@ -658,15 +658,15 @@ def enrollments_list_partial(request):
     qs = (
         Enrollment.objects
         .filter(is_deleted=False)
-        .select_related('student', 'kelas__subject')
+        .select_related('student_profile__user', 'kelas__subject')
         .order_by('-enrolled_at')
     )
 
     if q:
         qs = qs.filter(
-            Q(student__first_name__icontains=q)
-            | Q(student__last_name__icontains=q)
-            | Q(student__username__icontains=q)
+            Q(student_profile__user__first_name__icontains=q)
+            | Q(student_profile__user__last_name__icontains=q)
+            | Q(student_profile__user__username__icontains=q)
             | Q(kelas__name__icontains=q)
         )
     if status_filter in [EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED, EnrollmentStatus.DROPPED]:
@@ -711,7 +711,7 @@ def grades_list_partial(request):
     qs = (
         Grade.objects
         .select_related(
-            'enrollment__student',
+            'enrollment__student_profile__user',
             'enrollment__kelas__subject',
         )
         .order_by('-graded_at')
@@ -719,8 +719,8 @@ def grades_list_partial(request):
 
     if q:
         qs = qs.filter(
-            Q(enrollment__student__first_name__icontains=q)
-            | Q(enrollment__student__last_name__icontains=q)
+            Q(enrollment__student_profile__user__first_name__icontains=q)
+            | Q(enrollment__student_profile__user__last_name__icontains=q)
             | Q(enrollment__kelas__name__icontains=q)
         )
     if type_filter in [GradeType.QUIZ, GradeType.MIDTERM, GradeType.FINAL, GradeType.ASSIGNMENT]:
@@ -750,10 +750,10 @@ def ratings_list_partial(request):
     page_num = request.GET.get('page', 1)
 
     qs = (
-        Rating.objects
+        TeacherRating.objects
         .select_related(
-            'enrollment__student',
-            'enrollment__kelas__teacher',
+            'enrollment__student_profile__user',
+            'enrollment__kelas__teacher_profile__user',
             'enrollment__kelas__subject',
         )
         .order_by('-created_at')
@@ -761,10 +761,10 @@ def ratings_list_partial(request):
 
     if q:
         qs = qs.filter(
-            Q(enrollment__student__first_name__icontains=q)
-            | Q(enrollment__student__last_name__icontains=q)
-            | Q(enrollment__kelas__teacher__first_name__icontains=q)
-            | Q(enrollment__kelas__teacher__last_name__icontains=q)
+            Q(enrollment__student_profile__user__first_name__icontains=q)
+            | Q(enrollment__student_profile__user__last_name__icontains=q)
+            | Q(enrollment__kelas__teacher_profile__user__first_name__icontains=q)
+            | Q(enrollment__kelas__teacher_profile__user__last_name__icontains=q)
         )
     if score_filter in ['1', '2', '3', '4', '5']:
         qs = qs.filter(score=int(score_filter))
@@ -911,7 +911,7 @@ def export_classes_excel(request):
     klasses = (
         Kelas.objects
         .filter(is_deleted=False)
-        .select_related('subject', 'teacher', 'academic_period')
+        .select_related('subject', 'teacher_profile__user', 'academic_period')
         .annotate(
             student_count=Count(
                 'enrollments',
@@ -985,15 +985,15 @@ def _admin_schedule_ctx(request):
             kelas__is_deleted=False,
             kelas__status__in=[KelasStatus.OPEN, KelasStatus.FULL],
         )
-        .select_related('kelas__subject__category', 'kelas__teacher',
+        .select_related('kelas__subject__category', 'kelas__teacher_profile__user',
                         'kelas__academic_period')
-        .order_by('kelas__teacher__last_name', 'kelas__teacher__first_name',
+        .order_by('kelas__teacher_profile__user__last_name', 'kelas__teacher_profile__user__first_name',
                   'start_time')
     )
 
     if teacher_filter:
         try:
-            qs = qs.filter(kelas__teacher_id=int(teacher_filter))
+            qs = qs.filter(kelas__teacher_profile__user_id=int(teacher_filter))
         except ValueError:
             teacher_filter = ''
     if level_filter:
@@ -1014,7 +1014,7 @@ def _admin_schedule_ctx(request):
     items = []
     for sched in qs:
         kelas = sched.kelas
-        color = teacher_color_map.get(kelas.teacher_id, _COLOR_PALETTE[0])
+        color = teacher_color_map.get(kelas.teacher_profile.user_id, _COLOR_PALETTE[0])
         items.append({'schedule': sched, 'kelas': kelas, 'color': color})
 
     grid_rows, days_list = build_schedule_grid(items)
@@ -1026,7 +1026,7 @@ def _admin_schedule_ctx(request):
     legend = [
         {'teacher': t, 'color': teacher_color_map.get(t.pk, _COLOR_PALETTE[0])}
         for t in teachers
-        if any(i['kelas'].teacher_id == t.pk for i in items)
+        if any(i['kelas'].teacher_profile.user_id == t.pk for i in items)
     ]
 
     return {
@@ -1062,8 +1062,8 @@ def enrollment_progress(request, enrollment_id):
     from grades.views import _build_progress_ctx
     enrollment = get_object_or_404(
         Enrollment.objects.select_related(
-            'student__student_profile', 'kelas__subject',
-            'kelas__teacher', 'kelas__academic_period',
+            'student_profile__user', 'kelas__subject',
+            'kelas__teacher_profile__user', 'kelas__academic_period',
         ),
         pk=enrollment_id,
     )
@@ -1128,7 +1128,7 @@ def enrollment_transfer(request, enrollment_id):
 
     # Check duplicate
     if Enrollment.objects.filter(
-        student=enrollment.student, kelas=target_kelas, is_deleted=False
+        student_profile__user=enrollment.student, kelas=target_kelas, is_deleted=False
     ).exists():
         messages.error(request, 'Siswa sudah terdaftar di kelas tujuan.')
         return redirect('admin_panel:enrollment_progress', enrollment_id=enrollment_id)
@@ -1142,9 +1142,10 @@ def enrollment_transfer(request, enrollment_id):
 
     # Create new enrollment
     new_enrollment = Enrollment.objects.create(
-        student=enrollment.student,
+        student_profile=enrollment.student_profile,
         kelas=target_kelas,
         status=EnrollmentStatus.ACTIVE,
+        price_at_enrollment=target_kelas.price,
     )
     log_activity(request.user, 'updated', 'enrollment', new_enrollment.pk)
     messages.success(

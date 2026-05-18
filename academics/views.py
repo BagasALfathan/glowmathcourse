@@ -14,7 +14,7 @@ from accounts.decorators import role_required
 from accounts.models import ApprovalStatus, Role
 from activity_logs.utils import log_activity
 from enrollments.models import Enrollment, EnrollmentStatus
-from ratings.models import Rating
+from ratings.models import TeacherRating
 from sessions_app.models import BookingStatus, Session, SessionBooking, SessionStatus
 from .forms import KelasEditForm, KelasForm
 from .models import Day, Kelas, KelasStatus, Schedule, Subject
@@ -101,7 +101,7 @@ def _check_teacher_schedule_conflicts(teacher, new_schedules, exclude_kelas_id=N
     from datetime import datetime as _dt_cls
     errors = []
     qs = Schedule.objects.filter(
-        kelas__teacher=teacher, kelas__is_deleted=False,
+        kelas__teacher_profile__user=teacher, kelas__is_deleted=False,
     ).select_related('kelas')
     if exclude_kelas_id:
         qs = qs.exclude(kelas_id=exclude_kelas_id)
@@ -142,7 +142,7 @@ def teacher_classes_list(request):
     today = timezone.localdate()
     qs = (
         Kelas.objects
-        .filter(teacher=request.user, is_deleted=False)
+        .filter(teacher_profile__user=request.user, is_deleted=False)
         .select_related('subject', 'academic_period')
         .prefetch_related('schedules')
         .annotate(
@@ -172,7 +172,7 @@ def teacher_classes_list(request):
 
     deleted_klasses = list(
         Kelas.objects
-        .filter(teacher=request.user, is_deleted=True)
+        .filter(teacher_profile__user=request.user, is_deleted=True)
         .select_related('subject', 'academic_period')
         .prefetch_related('schedules')
         .order_by('-deleted_at')
@@ -225,7 +225,7 @@ def teacher_class_create(request):
 
 @role_required('TEACHER')
 def teacher_class_edit(request, pk):
-    kelas = get_object_or_404(Kelas, pk=pk, teacher=request.user, is_deleted=False)
+    kelas = get_object_or_404(Kelas, pk=pk, teacher_profile__user=request.user, is_deleted=False)
     form = KelasEditForm(request.POST or None, instance=kelas)
     schedule_errors = []
     posted_schedules = []
@@ -270,7 +270,7 @@ def teacher_class_edit(request, pk):
 @role_required('TEACHER')
 @require_POST
 def teacher_class_delete(request, pk):
-    kelas = get_object_or_404(Kelas, pk=pk, teacher=request.user, is_deleted=False)
+    kelas = get_object_or_404(Kelas, pk=pk, teacher_profile__user=request.user, is_deleted=False)
     kelas_pk = kelas.pk
     kelas.soft_delete()
     log_activity(request.user, 'deleted', 'kelas', kelas_pk)
@@ -281,7 +281,7 @@ def teacher_class_delete(request, pk):
 @role_required('TEACHER')
 @require_POST
 def teacher_complete_class(request, pk):
-    kelas = get_object_or_404(Kelas, pk=pk, teacher=request.user, is_deleted=False)
+    kelas = get_object_or_404(Kelas, pk=pk, teacher_profile__user=request.user, is_deleted=False)
     if kelas.status == KelasStatus.CLOSED:
         messages.info(request, 'Kelas ini sudah selesai.')
         return redirect('academics:teacher_classes')
@@ -333,7 +333,7 @@ def class_browse_partial(request):
             level=student_level,
             end_date__gte=today,
         )
-        .select_related('subject', 'academic_period', 'teacher')
+        .select_related('subject', 'academic_period', 'teacher_profile__user')
         .prefetch_related('schedules')
         .order_by('name')
     )
@@ -358,10 +358,10 @@ def class_detail(request, pk):
     kelas = get_object_or_404(Kelas, pk=pk, is_deleted=False)
     from enrollments.models import Enrollment
     enrollment = Enrollment.objects.filter(
-        student=request.user, kelas=kelas, is_deleted=False
+        student_profile__user=request.user, kelas=kelas, is_deleted=False
     ).first()
-    from ratings.models import Rating
-    rating_data = Rating.objects.filter(
+    from ratings.models import TeacherRating
+    rating_data = TeacherRating.objects.filter(
         enrollment__kelas=kelas,
         enrollment__is_deleted=False,
     ).aggregate(avg=Avg('score'), count=Count('id'))
@@ -376,12 +376,12 @@ def class_detail(request, pk):
 
 @role_required('TEACHER')
 def teacher_class_students(request, pk):
-    kelas = get_object_or_404(Kelas, pk=pk, teacher=request.user, is_deleted=False)
+    kelas = get_object_or_404(Kelas, pk=pk, teacher_profile__user=request.user, is_deleted=False)
     from enrollments.models import Enrollment, EnrollmentStatus
     all_enrollments = list(
         Enrollment.objects
         .filter(kelas=kelas, is_deleted=False)
-        .select_related('student', 'student__student_profile')
+        .select_related('student_profile__user')
         .order_by('enrolled_at')
     )
     active_enrollments = [e for e in all_enrollments if e.status == EnrollmentStatus.ACTIVE]
@@ -402,8 +402,8 @@ def teacher_class_students(request, pk):
 def _student_schedule_ctx(user):
     active_enrollments = (
         Enrollment.objects
-        .filter(student=user, status=EnrollmentStatus.ACTIVE, is_deleted=False)
-        .select_related('kelas__subject__category', 'kelas__teacher')
+        .filter(student_profile__user=user, status=EnrollmentStatus.ACTIVE, is_deleted=False)
+        .select_related('kelas__subject__category', 'kelas__teacher_profile__user')
         .prefetch_related('kelas__schedules')
     )
     items = []
@@ -461,8 +461,8 @@ def student_schedule_sessions(request):
 
     active_enrollments = list(
         Enrollment.objects
-        .filter(student=request.user, status=EnrollmentStatus.ACTIVE, is_deleted=False)
-        .select_related('kelas__subject__category', 'kelas__teacher')
+        .filter(student_profile__user=request.user, status=EnrollmentStatus.ACTIVE, is_deleted=False)
+        .select_related('kelas__subject__category', 'kelas__teacher_profile__user')
         .prefetch_related('kelas__schedules')
     )
     kelas_ids = [e.kelas_id for e in active_enrollments]
@@ -528,7 +528,7 @@ def _teacher_schedule_ctx(user):
 
     active_klasses = list(
         Kelas.objects
-        .filter(teacher=user, is_deleted=False,
+        .filter(teacher_profile__user=user, is_deleted=False,
                 status__in=[KelasStatus.OPEN, KelasStatus.FULL])
         .select_related('subject__category')
         .prefetch_related('schedules')
@@ -617,7 +617,7 @@ def teacher_schedule_sessions(request):
 
     active_klasses = list(
         Kelas.objects
-        .filter(teacher=request.user, is_deleted=False,
+        .filter(teacher_profile__user=request.user, is_deleted=False,
                 status__in=[KelasStatus.OPEN, KelasStatus.FULL])
         .select_related('subject__category')
         .prefetch_related('schedules')
@@ -774,15 +774,15 @@ def teacher_profile(request, pk):
     except Exception:
         profile = None
 
-    rating_data = Rating.objects.filter(
-        enrollment__kelas__teacher=teacher,
+    rating_data = TeacherRating.objects.filter(
+        enrollment__kelas__teacher_profile__user=teacher,
         enrollment__is_deleted=False,
     ).aggregate(avg=Avg('score'), count=Count('id'))
     rating_avg = round(rating_data['avg'], 1) if rating_data['avg'] else None
 
     open_classes = (
         Kelas.objects
-        .filter(teacher=teacher, is_deleted=False, status=KelasStatus.OPEN)
+        .filter(teacher_profile__user=teacher, is_deleted=False, status=KelasStatus.OPEN)
         .select_related('subject', 'academic_period')
         .prefetch_related('schedules')
         .order_by('name')
@@ -798,3 +798,183 @@ def teacher_profile(request, pk):
         'open_classes': open_classes,
         'viewer_is_student': viewer_is_student,
     })
+
+
+# ─── Teacher "See All" list pages ───────────────────────────────────────────
+
+
+@role_required('TEACHER')
+def teacher_all_students(request):
+    """Paginated, filterable list of every student enrolled in teacher's classes.
+
+    Filters: search (name / username / school), status, level, class id.
+    """
+    from django.core.paginator import Paginator
+    from grades.models import Grade
+    from sessions_app.models import Attendance, AttendanceStatus
+    from django.db.models import FloatField, ExpressionWrapper, IntegerField
+
+    teacher_profile = request.user.teacher_profile
+
+    enrollments = (
+        Enrollment.objects
+        .filter(
+            kelas__teacher_profile=teacher_profile,
+            kelas__is_deleted=False,
+            is_deleted=False,
+        )
+        .select_related('student_profile__user', 'kelas__subject')
+        .annotate(
+            att_total=Count('attendances', distinct=True),
+            att_present=Count(
+                'attendances',
+                filter=Q(attendances__status=AttendanceStatus.PRESENT),
+                distinct=True,
+            ),
+            avg_score=Avg('grades__score'),
+        )
+    )
+
+    search = (request.GET.get('search') or '').strip()
+    status_filter = (request.GET.get('status') or '').strip()
+    level_filter = (request.GET.get('level') or '').strip()
+    class_filter = (request.GET.get('class') or '').strip()
+
+    if search:
+        enrollments = enrollments.filter(
+            Q(student_profile__user__first_name__icontains=search)
+            | Q(student_profile__user__last_name__icontains=search)
+            | Q(student_profile__user__username__icontains=search)
+            | Q(student_profile__school_name__icontains=search)
+        )
+    if status_filter in {EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED, EnrollmentStatus.DROPPED}:
+        enrollments = enrollments.filter(status=status_filter)
+    if level_filter in {'TK', 'SD', 'SMP', 'SMA', 'UMUM'}:
+        enrollments = enrollments.filter(kelas__level=level_filter)
+    if class_filter.isdigit():
+        enrollments = enrollments.filter(kelas_id=int(class_filter))
+
+    enrollments = enrollments.order_by('-enrolled_at')
+
+    paginator = Paginator(enrollments, 25)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+
+    # Post-process: attach computed attendance_rate (int %) to each row
+    rows = []
+    for e in page_obj.object_list:
+        rate = round(e.att_present * 100 / e.att_total) if e.att_total else None
+        avg = round(float(e.avg_score), 1) if e.avg_score is not None else None
+        rows.append({
+            'enrollment': e,
+            'attendance_rate': rate,
+            'avg_score': avg,
+        })
+
+    teacher_classes = (
+        Kelas.objects
+        .filter(teacher_profile=teacher_profile, is_deleted=False)
+        .order_by('name')
+    )
+
+    qs_preserve = _build_qs(request, drop=['page'])
+
+    return render(request, 'teacher/students_list.html', {
+        'page_obj': page_obj,
+        'rows': rows,
+        'total_count': paginator.count,
+        'search': search,
+        'status_filter': status_filter,
+        'level_filter': level_filter,
+        'class_filter': class_filter,
+        'teacher_classes': teacher_classes,
+        'qs_preserve': qs_preserve,
+    })
+
+
+@role_required('TEACHER')
+def teacher_all_sessions(request):
+    """Paginated, filterable list of every session in teacher's classes.
+
+    Filters: class id, status, date from/to.
+    """
+    from django.core.paginator import Paginator
+    from sessions_app.models import AttendanceStatus
+
+    teacher_profile = request.user.teacher_profile
+
+    sessions = (
+        Session.objects
+        .filter(
+            kelas__teacher_profile=teacher_profile,
+            kelas__is_deleted=False,
+        )
+        .select_related('kelas__subject', 'kelas__teacher_profile__user')
+        .annotate(
+            att_total=Count('attendances', distinct=True),
+            enrolled_n=Count(
+                'kelas__enrollments',
+                filter=Q(
+                    kelas__enrollments__status=EnrollmentStatus.ACTIVE,
+                    kelas__enrollments__is_deleted=False,
+                ),
+                distinct=True,
+            ),
+        )
+    )
+
+    class_filter = (request.GET.get('class') or '').strip()
+    status_filter = (request.GET.get('status') or '').strip()
+    date_from = (request.GET.get('date_from') or '').strip()
+    date_to = (request.GET.get('date_to') or '').strip()
+
+    if class_filter.isdigit():
+        sessions = sessions.filter(kelas_id=int(class_filter))
+    if status_filter in {SessionStatus.SCHEDULED, SessionStatus.COMPLETED, SessionStatus.CANCELLED}:
+        sessions = sessions.filter(status=status_filter)
+    if date_from:
+        try:
+            sessions = sessions.filter(date__gte=_dt.datetime.strptime(date_from, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            sessions = sessions.filter(date__lte=_dt.datetime.strptime(date_to, '%Y-%m-%d').date())
+        except ValueError:
+            pass
+
+    sessions = sessions.order_by('-date', 'start_time')
+
+    paginator = Paginator(sessions, 25)
+    page_obj = paginator.get_page(request.GET.get('page') or 1)
+
+    teacher_classes = (
+        Kelas.objects
+        .filter(teacher_profile=teacher_profile, is_deleted=False)
+        .order_by('name')
+    )
+
+    qs_preserve = _build_qs(request, drop=['page'])
+
+    return render(request, 'teacher/sessions_list.html', {
+        'page_obj': page_obj,
+        'total_count': paginator.count,
+        'class_filter': class_filter,
+        'status_filter': status_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'teacher_classes': teacher_classes,
+        'qs_preserve': qs_preserve,
+    })
+
+
+def _build_qs(request, drop=None):
+    """Rebuild the current query string, dropping `drop` keys. For pagination links."""
+    drop = set(drop or [])
+    parts = []
+    for key, value in request.GET.lists():
+        if key in drop:
+            continue
+        for v in value:
+            if v:
+                parts.append(f'{key}={v}')
+    return '&'.join(parts)
