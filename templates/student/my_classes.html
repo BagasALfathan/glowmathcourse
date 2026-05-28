@@ -43,8 +43,18 @@
 <!-- Grid -->
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
   {% for enr in page_obj %}
+  {% if enr.needs_rating %}
+  <a href="{% url 'ratings:rate_teacher' enr.pk %}"
+     class="card-hover-lift block bg-white border border-gray-200 rounded-xl p-4 relative ring-2 ring-amber-300 ring-offset-2 ring-offset-gray-50">
+    <span class="absolute -top-2 -right-2 z-10 animate-pulse-slow pointer-events-none">
+      <span class="inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg border-2 border-white whitespace-nowrap">
+        ⭐ Beri Rating
+      </span>
+    </span>
+  {% else %}
   <a href="{% url 'academics:class_detail' enr.kelas.id %}"
      class="card-hover-lift block bg-white border border-gray-200 rounded-xl p-4">
+  {% endif %}
     <div class="flex items-start gap-3 mb-3">
       <div class="w-11 h-11 rounded-lg bg-emerald-50 flex items-center justify-center text-2xl shrink-0">
         {{ enr.kelas.subject.name|subject_emoji }}
@@ -73,9 +83,15 @@
       {% else %}
         <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded font-semibold">Keluar</span>
       {% endif %}
-      <span class="text-emerald-600 font-semibold inline-flex items-center gap-0.5">
-        Lihat detail <i class="ti ti-arrow-right"></i>
-      </span>
+      {% if enr.needs_rating %}
+        <span class="text-amber-700 font-bold inline-flex items-center gap-0.5">
+          ⭐ Bagikan pengalamanmu <i class="ti ti-arrow-right"></i>
+        </span>
+      {% else %}
+        <span class="text-emerald-600 font-semibold inline-flex items-center gap-0.5">
+          Lihat detail <i class="ti ti-arrow-right"></i>
+        </span>
+      {% endif %}
     </div>
   </a>
   {% empty %}

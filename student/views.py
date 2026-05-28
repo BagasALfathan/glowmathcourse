@@ -60,10 +60,24 @@ def my_classes(request):
 
     paginator = Paginator(qs, 12)
     page_obj = paginator.get_page(request.GET.get('page') or 1)
+
+    # Mark COMPLETED enrollments on this page that still need a rating.
+    from ratings.models import TeacherRating
+    completed_ids_in_page = [
+        e.pk for e in page_obj.object_list if e.status == EnrollmentStatus.COMPLETED
+    ]
+    rated_ids = set(
+        TeacherRating.objects.filter(enrollment_id__in=completed_ids_in_page)
+        .values_list('enrollment_id', flat=True)
+    ) if completed_ids_in_page else set()
+
     for enr in page_obj.object_list:
         total = enr.kelas.total_sessions or enr.total_sessions_count or 0
         completed = enr.completed_sessions_count or 0
         enr.progress_pct = int(completed * 100 / total) if total else 0
+        enr.needs_rating = (
+            enr.status == EnrollmentStatus.COMPLETED and enr.pk not in rated_ids
+        )
 
     return render(request, 'student/my_classes.html', {
         'page_obj': page_obj,

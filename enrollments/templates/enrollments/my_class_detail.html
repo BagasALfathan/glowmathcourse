@@ -1,0 +1,309 @@
+{% extends 'base.html' %}
+{% load static humanize dashboard_filters %}
+
+{% block title %}{{ kelas.name }} — Kelas Saya{% endblock %}
+
+{% block extra_css %}
+<style>
+.mcd-page { background: linear-gradient(180deg, #ecfdf5 0%, #ffffff 280px); min-height: calc(100vh - 4rem); padding: 18px; margin: -1.5rem; padding-bottom: 32px; }
+
+.mcd-crumb { font-size: 12px; color: #6b7280; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.mcd-crumb a { color: #047857; text-decoration: none; }
+.mcd-crumb a:hover { text-decoration: underline; }
+.mcd-crumb .sep { color: #d1d5db; }
+.mcd-crumb .current { color: #111827; font-weight: 500; }
+
+/* Hero */
+.mcd-hero { background: linear-gradient(135deg, #34d399 0%, #10b981 50%, #059669 100%); border-radius: 20px; padding: 22px; color: #ffffff; position: relative; overflow: hidden; margin-bottom: 18px; box-shadow: 0 10px 28px rgba(16,185,129,0.22); }
+.mcd-hero .deco { position: absolute; opacity: 0.18; pointer-events: none; }
+.mcd-hero .d1 { top: 12px; right: 18px; font-size: 28px; transform: rotate(12deg); }
+.mcd-hero .d2 { bottom: 16px; left: 38%; font-size: 22px; transform: rotate(-10deg); }
+.mcd-hero-inner { display: flex; gap: 14px; align-items: center; position: relative; z-index: 1; }
+.mcd-hero-emoji { width: 64px; height: 64px; border-radius: 16px; background: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 30px; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: rotate(-4deg); }
+@media (min-width: 768px) { .mcd-hero-emoji { width: 76px; height: 76px; font-size: 36px; } }
+.mcd-hero-body { flex: 1; min-width: 0; }
+.mcd-hero-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 5px; }
+.mcd-hero-badges .hb { font-size: 9px; padding: 2px 8px; border-radius: 999px; font-weight: 700; letter-spacing: 0.04em; }
+.mcd-hero-badges .hb.lv { background: #ffffff; color: #047857; }
+.mcd-hero-badges .hb.st { background: rgba(255,255,255,0.22); color: #ffffff; backdrop-filter: blur(4px); }
+.mcd-hero h1 { font-size: 18px; font-weight: 700; margin: 0; line-height: 1.2; color: #ffffff; }
+@media (min-width: 768px) { .mcd-hero h1 { font-size: 22px; } }
+.mcd-hero-teacher { font-size: 12px; opacity: 0.92; margin: 4px 0 0; }
+
+/* KPI grid */
+.kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 18px; }
+@media (min-width: 768px) { .kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+.kpi-card { background: #ffffff; border-radius: 14px; padding: 14px; border: 1px solid; text-align: center; }
+.kpi-card .ic { width: 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 8px; }
+.kpi-card .v { font-size: 22px; font-weight: 700; line-height: 1; }
+.kpi-card .l { font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; font-weight: 600; }
+.kpi-card .sub { font-size: 10px; color: #9ca3af; margin-top: 8px; }
+.kpi-card.violet { border-color: #ddd6fe; }
+.kpi-card.violet .ic { background: #ede9fe; color: #7c3aed; }
+.kpi-card.violet .v { color: #5b21b6; }
+.kpi-bar { height: 5px; background: #ede9fe; border-radius: 999px; overflow: hidden; margin-top: 8px; }
+.kpi-bar .fill { height: 100%; background: linear-gradient(90deg, #a78bfa, #7c3aed); border-radius: 999px; }
+.kpi-card.emerald { border-color: #a7f3d0; }
+.kpi-card.emerald .ic { background: #d1fae5; color: #047857; }
+.kpi-card.emerald .v { color: #064e3b; }
+.kpi-card.amber { border-color: #fde68a; }
+.kpi-card.amber .ic { background: #fef3c7; color: #b45309; }
+.kpi-card.amber .v { color: #92400e; }
+.kpi-card.pink { border-color: #fbcfe8; }
+.kpi-card.pink .ic { background: #fce7f3; color: #be185d; }
+.kpi-card.pink .v { color: #9d174d; font-size: 16px; }
+
+/* Section frame */
+.sect { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+.sect-h { display: flex; align-items: center; gap: 9px; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+.sect-h-left { display: flex; align-items: center; gap: 9px; }
+.sect-h-left .ic { width: 32px; height: 32px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.sect-h-left .ic.pink { background: #fce7f3; color: #be185d; }
+.sect-h-left .ic.teal { background: #ccfbf1; color: #0d9488; }
+.sect-h-left .ic.gray { background: #f3f4f6; color: #4b5563; }
+.sect-h-left h2 { font-size: 14px; font-weight: 600; color: #111827; margin: 0; }
+.sect-h-count { font-size: 11px; color: #6b7280; }
+
+/* Sessions list */
+.sess-list { display: flex; flex-direction: column; gap: 6px; }
+.sess-row { display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; padding: 9px 10px; background: #f9fafb; border-radius: 10px; align-items: center; text-decoration: none; color: inherit; transition: background 0.15s; }
+.sess-row:hover { background: #ecfdf5; }
+.sess-num { width: 32px; height: 32px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+.sess-num.PRESENT { background: #d1fae5; color: #047857; }
+.sess-num.PERMITTED { background: #fef3c7; color: #b45309; }
+.sess-num.ABSENT { background: #fee2e2; color: #b91c1c; }
+.sess-num.UPCOMING { background: #dbeafe; color: #1d4ed8; }
+.sess-num.NO_RECORD { background: #f3f4f6; color: #6b7280; }
+.sess-body { min-width: 0; }
+.sess-topic { font-size: 12px; font-weight: 600; color: #111827; margin: 0; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sess-meta { font-size: 10px; color: #6b7280; margin: 2px 0 0; }
+.sess-status { font-size: 9px; font-weight: 600; padding: 3px 7px; border-radius: 4px; white-space: nowrap; }
+.sess-status.PRESENT { background: #d1fae5; color: #047857; }
+.sess-status.PERMITTED { background: #fef3c7; color: #b45309; }
+.sess-status.ABSENT { background: #fee2e2; color: #b91c1c; }
+.sess-status.UPCOMING { background: #dbeafe; color: #1d4ed8; }
+.sess-status.NO_RECORD { background: #e5e7eb; color: #6b7280; }
+.sess-empty { font-size: 12px; color: #6b7280; text-align: center; padding: 14px; }
+
+/* Journal + Actions row */
+.split-row { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 16px; }
+@media (min-width: 768px) { .split-row { grid-template-columns: 1fr 1fr; } }
+
+.journal-card { background: linear-gradient(135deg, #ccfbf1 0%, #ecfdf5 100%); border: 1px solid #5eead4; border-radius: 16px; padding: 16px; }
+.journal-card h3 { font-size: 13px; font-weight: 700; color: #115e59; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+.journal-card h3 .ic { width: 28px; height: 28px; border-radius: 8px; background: #ffffff; color: #0d9488; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; }
+.journal-period { font-size: 10px; color: #0d9488; font-weight: 600; margin: 0 0 6px; text-transform: uppercase; letter-spacing: 0.04em; }
+.journal-text { font-size: 12px; color: #115e59; line-height: 1.55; margin: 0; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.journal-link { display: inline-block; font-size: 11px; color: #0d9488; font-weight: 600; text-decoration: none; margin-top: 10px; }
+.journal-link:hover { text-decoration: underline; }
+.journal-empty { font-size: 12px; color: #0d9488; font-style: italic; margin: 0; }
+
+/* Actions list */
+.act-list { display: flex; flex-direction: column; gap: 7px; }
+.act-row { display: flex; align-items: center; gap: 11px; padding: 10px 11px; background: #f9fafb; border-radius: 12px; text-decoration: none; color: inherit; transition: background 0.15s; border: 1px solid transparent; }
+.act-row:hover { background: #ecfdf5; border-color: #a7f3d0; }
+.act-row .ic { font-size: 18px; flex-shrink: 0; }
+.act-row .body { flex: 1; min-width: 0; }
+.act-row .ttl { font-size: 12px; font-weight: 600; color: #111827; margin: 0; }
+.act-row .sub { font-size: 10px; color: #6b7280; margin: 1px 0 0; }
+.act-row .arr { color: #10b981; font-size: 14px; }
+.act-row.rate { background: linear-gradient(135deg, #fef3c7 0%, #fef9c3 100%); border-color: #fde68a; }
+.act-row.rate:hover { background: linear-gradient(135deg, #fef3c7 0%, #fef08a 100%); }
+.act-row.rate .ttl { color: #92400e; }
+.act-row.rate .sub { color: #b45309; }
+.act-row.rate .arr { color: #b45309; }
+.act-row.rated { opacity: 0.65; cursor: default; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sess-row, .act-row { transition: none; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mcd-page">
+
+  <nav class="mcd-crumb">
+    <a href="{% url 'dashboard:student' %}">🏠 Beranda</a>
+    <span class="sep">›</span>
+    <a href="{% url 'enrollments:my_classes' %}">📚 Kelas Saya</a>
+    <span class="sep">›</span>
+    <span class="current">{{ kelas.name|truncatechars:36 }}</span>
+  </nav>
+
+  {# ── Rate banner (only when COMPLETED + not yet rated) ──────────────── #}
+  {% if can_rate %}
+  <a href="{% url 'ratings:rate_teacher' enrollment.pk %}"
+     class="block mb-4 rounded-2xl p-4 md:p-5 text-white shadow-xl hover:shadow-2xl transition-all hover:-translate-y-0.5 no-underline relative overflow-hidden"
+     style="background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #ea580c 100%);">
+    <span class="absolute top-2 right-4 text-2xl opacity-30 pointer-events-none">🎉</span>
+    <span class="absolute bottom-2 left-1/3 text-xl opacity-20 pointer-events-none">⭐</span>
+    <span class="absolute top-1/2 right-1/4 text-base opacity-25 pointer-events-none">✨</span>
+    <div class="relative z-10 flex flex-col md:flex-row gap-3 md:items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-white text-amber-600 flex items-center justify-center text-2xl shadow-lg shrink-0">⭐</div>
+        <div>
+          <h3 class="text-base md:text-lg font-bold m-0 leading-tight">Kelas Selesai! Beri Rating Yuk 🎉</h3>
+          <p class="text-xs md:text-sm opacity-95 m-0 mt-1">Bagikan pengalamanmu untuk bantu siswa lain memilih kelas terbaik</p>
+        </div>
+      </div>
+      <div class="flex md:justify-end">
+        <span class="bg-white text-amber-700 text-xs md:text-sm font-bold px-4 py-2 rounded-xl whitespace-nowrap shadow-md">Beri Rating →</span>
+      </div>
+    </div>
+  </a>
+  {% endif %}
+
+  {# ── Hero ───────────────────────────────────────────────────────────── #}
+  <div class="mcd-hero">
+    <span class="deco d1">📚</span>
+    <span class="deco d2">⭐</span>
+    <div class="mcd-hero-inner">
+      <div class="mcd-hero-emoji">{{ kelas.subject.icon|default:"📚" }}</div>
+      <div class="mcd-hero-body">
+        <div class="mcd-hero-badges">
+          <span class="hb lv">{{ kelas.level }}</span>
+          <span class="hb st">
+            {% if enrollment.status == 'ACTIVE' %}📍 Aktif
+            {% elif enrollment.status == 'COMPLETED' %}✓ Selesai
+            {% else %}⏸ {{ enrollment.status }}{% endif %}
+          </span>
+        </div>
+        <h1>{{ kelas.name }}</h1>
+        <p class="mcd-hero-teacher">👩‍🏫 {{ kelas.teacher_profile.user.get_full_name|default:kelas.teacher_profile.user.username }}</p>
+      </div>
+    </div>
+  </div>
+
+  {# ── 4 KPI cards ───────────────────────────────────────────────────── #}
+  <div class="kpi-grid">
+    <div class="kpi-card violet">
+      <div class="ic">📊</div>
+      <div class="v">{{ progress_pct }}%</div>
+      <div class="l">Progress</div>
+      <div class="kpi-bar"><div class="fill" style="width:{{ progress_pct }}%"></div></div>
+      <div class="sub">{{ completed_sessions }}/{{ total_sessions }} sesi</div>
+    </div>
+    <div class="kpi-card emerald">
+      <div class="ic">📅</div>
+      <div class="v">{{ attendance_rate }}%</div>
+      <div class="l">Kehadiran</div>
+      <div class="sub">{{ att_present }} hadir · {{ att_permitted }} izin · {{ att_absent }} alpha</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="ic">⭐</div>
+      <div class="v">{% if avg_score %}{{ avg_score }}{% else %}—{% endif %}</div>
+      <div class="l">Nilai Rata-rata</div>
+      <div class="sub">{{ grade_count }} nilai tercatat</div>
+    </div>
+    <div class="kpi-card pink">
+      <div class="ic">⏰</div>
+      {% if upcoming_sessions %}
+        {% with next_sess=upcoming_sessions.0 %}
+        <div class="v">{{ next_sess.date|date:"d M" }}</div>
+        <div class="l">Sesi Berikutnya</div>
+        <div class="sub">{{ next_sess.start_time|time:"H:i" }}</div>
+        {% endwith %}
+      {% else %}
+        <div class="v">—</div>
+        <div class="l">Sesi Berikutnya</div>
+        <div class="sub">Tidak ada</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Sessions list ────────────────────────────────────────────────── #}
+  <div class="sect">
+    <div class="sect-h">
+      <div class="sect-h-left">
+        <div class="ic pink">📚</div>
+        <h2>Daftar Pertemuan</h2>
+      </div>
+      <span class="sect-h-count">{{ total_sessions }} sesi</span>
+    </div>
+
+    <div class="sess-list">
+      {% for item in all_sessions %}
+      <a href="{% url 'sessions_app:session_detail' item.session.pk %}" class="sess-row">
+        <span class="sess-num {{ item.attendance_status }}">{{ forloop.counter }}</span>
+        <div class="sess-body">
+          <p class="sess-topic">{{ item.session.topic|default:"Pertemuan" }}</p>
+          <p class="sess-meta">📅 {{ item.session.date|date:"l, d M Y" }} · ⏰ {{ item.session.start_time|time:"H:i" }}–{{ item.session.end_time|time:"H:i" }}</p>
+        </div>
+        <span class="sess-status {{ item.attendance_status }}">
+          {% if item.attendance_status == 'PRESENT' %}✓ Hadir
+          {% elif item.attendance_status == 'PERMITTED' %}📝 Izin
+          {% elif item.attendance_status == 'ABSENT' %}✕ Alpha
+          {% elif item.attendance_status == 'UPCOMING' %}⏳ Mendatang
+          {% else %}—{% endif %}
+        </span>
+      </a>
+      {% empty %}
+      <p class="sess-empty">Belum ada sesi dibuat untuk kelas ini.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── Journal + Actions ───────────────────────────────────────────── #}
+  <div class="split-row">
+
+    <div class="journal-card">
+      <h3><span class="ic">📔</span> Jurnal Terbaru</h3>
+      {% if latest_journal %}
+      <p class="journal-period">{{ latest_journal.month|month_name }} {{ latest_journal.year }}</p>
+      <p class="journal-text">{{ latest_journal.summary|default:"-" }}</p>
+      <a href="{% url 'journals:journal_detail' latest_journal.id %}" class="journal-link">Baca lengkap →</a>
+      {% else %}
+      <p class="journal-empty">Belum ada jurnal bulanan untuk kelas ini.</p>
+      {% endif %}
+    </div>
+
+    <div class="sect" style="margin-bottom:0">
+      <div class="sect-h">
+        <div class="sect-h-left">
+          <div class="ic gray">⚡</div>
+          <h2>Aksi Cepat</h2>
+        </div>
+      </div>
+      <div class="act-list">
+        <a href="{% url 'academics:class_detail' kelas.pk %}" class="act-row">
+          <span class="ic">ℹ️</span>
+          <div class="body">
+            <p class="ttl">Info Kelas Lengkap</p>
+            <p class="sub">Deskripsi, jadwal, guru</p>
+          </div>
+          <span class="arr">→</span>
+        </a>
+        <a href="{% url 'student:my_attendance' %}?class={{ kelas.pk }}" class="act-row">
+          <span class="ic">📅</span>
+          <div class="body">
+            <p class="ttl">Riwayat Kehadiran</p>
+            <p class="sub">Semua catatan absen</p>
+          </div>
+          <span class="arr">→</span>
+        </a>
+        {% if can_rate %}
+        <a href="{% url 'ratings:rate_teacher' enrollment.pk %}" class="act-row rate">
+          <span class="ic">⭐</span>
+          <div class="body">
+            <p class="ttl">Beri Rating Guru & Kelas</p>
+            <p class="sub">Bagikan pengalamanmu</p>
+          </div>
+          <span class="arr">→</span>
+        </a>
+        {% elif has_rated %}
+        <div class="act-row rated">
+          <span class="ic">✓</span>
+          <div class="body">
+            <p class="ttl">Sudah Beri Rating</p>
+            <p class="sub">Terima kasih ratingmu</p>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

@@ -8,7 +8,7 @@ from academics.models import Kelas, KelasStatus, Schedule
 from accounts.decorators import role_required
 from activity_logs.utils import log_activity
 
-from .models import Enrollment, EnrollmentStatus
+from .models import Enrollment, EnrollmentStatus, EnrollmentWaitlist
 
 
 # ── Shared helper ──────────────────────────────────────────────────────────────
@@ -187,6 +187,15 @@ def enroll(request, kelas_id):
 
     enrollment = payload
     log_activity(request.user, 'created', 'enrollment', enrollment.pk)
+    # Invalidate detail-page caches so the next view shows the updated capacity.
+    # Sibling related-classes caches also need a refresh since this kelas's active_count changed.
+    from django.core.cache import cache
+    cache.delete(f'kelas_{kelas.id}_capacity')
+    cache.delete(f'kelas_{kelas.id}_related')
+    sibling_ids = Kelas.objects.filter(
+        subject=kelas.subject, level=kelas.level
+    ).exclude(pk=kelas.pk).values_list('pk', flat=True)
+    cache.delete_many([f'kelas_{sid}_related' for sid in sibling_ids])
     messages.success(request, f'Berhasil mendaftar di kelas {kelas.name}!')
     return redirect('enrollments:my_classes')
 
@@ -244,9 +253,184 @@ def drop_class(request, pk):
         enrollment.soft_delete()
         _recalculate_kelas_status(kelas)
     log_activity(request.user, 'deleted', 'enrollment', enrollment_pk)
+    from django.core.cache import cache
+    cache.delete(f'kelas_{kelas.id}_capacity')
 
     messages.success(request, f'Berhasil keluar dari kelas {kelas.name}.')
     return redirect('enrollments:my_classes')
+
+
+# ── My Class Detail (per-enrollment progress page) ──────────────────────────
+
+@role_required('STUDENT')
+def my_class_detail(request, enrollment_id):
+    """Detailed view of a single enrollment — progress, sessions, attendance,
+    grades, latest journal. Khan Playful design."""
+    from django.db.models import Avg, Count
+
+    enrollment = get_object_or_404(
+        Enrollment.objects
+        .select_related(
+            'kelas__subject',
+            'kelas__teacher_profile__user',
+            'student_profile__user',
+        )
+        .prefetch_related('kelas__schedules'),
+        pk=enrollment_id,
+        student_profile=request.user.student_profile,
+    )
+    kelas = enrollment.kelas
+    today = timezone.localdate()
+
+    # Sessions
+    all_sessions_qs = kelas.sessions.all().order_by('date', 'start_time')
+    total_sessions = all_sessions_qs.count()
+    completed_sessions = sum(1 for s in all_sessions_qs if s.status == 'COMPLETED')
+    upcoming_sessions = list(
+        kelas.sessions
+        .filter(status='SCHEDULED', date__gte=today)
+        .order_by('date', 'start_time')[:5]
+    )
+    progress_pct = int(round((completed_sessions / total_sessions) * 100)) if total_sessions else 0
+
+    # Attendance
+    from sessions_app.models import Attendance, AttendanceStatus
+    my_attendances = list(
+        Attendance.objects
+        .filter(enrollment=enrollment)
+        .select_related('session')
+        .order_by('-session__date')
+    )
+    att_total = len(my_attendances)
+    att_present = sum(1 for a in my_attendances if a.status == AttendanceStatus.PRESENT)
+    att_permitted = sum(1 for a in my_attendances if a.status == AttendanceStatus.PERMITTED)
+    att_absent = sum(1 for a in my_attendances if a.status == AttendanceStatus.ABSENT)
+    attendance_rate = int(round((att_present / att_total) * 100)) if att_total else 0
+
+    # Grades
+    from grades.models import Grade
+    my_grades = list(
+        Grade.objects.filter(enrollment=enrollment).order_by('-created_at')
+    )
+    avg_score = (
+        round(sum(g.score for g in my_grades) / len(my_grades), 1)
+        if my_grades else None
+    )
+    grade_count = len(my_grades)
+
+    # Latest journal
+    from journals.models import MonthlyJournal
+    latest_journal = (
+        MonthlyJournal.objects
+        .filter(enrollment=enrollment)
+        .order_by('-year', '-month')
+        .first()
+    )
+
+    # Merge sessions with attendance status
+    att_by_session = {a.session_id: a for a in my_attendances}
+    sessions_with_status = []
+    for sess in all_sessions_qs:
+        a = att_by_session.get(sess.id)
+        if a:
+            status = a.status  # PRESENT / PERMITTED / ABSENT
+        elif sess.date >= today:
+            status = 'UPCOMING'
+        else:
+            status = 'NO_RECORD'
+        sessions_with_status.append({'session': sess, 'attendance_status': status})
+
+    # Rate eligibility
+    from ratings.models import TeacherRating
+    has_rated = TeacherRating.objects.filter(
+        enrollment=enrollment
+    ).exists()
+    can_rate = (
+        enrollment.status == EnrollmentStatus.COMPLETED
+        and not has_rated
+    )
+
+    return render(request, 'enrollments/my_class_detail.html', {
+        'enrollment': enrollment,
+        'kelas': kelas,
+        'today': today,
+        'all_sessions': sessions_with_status,
+        'total_sessions': total_sessions,
+        'completed_sessions': completed_sessions,
+        'upcoming_sessions': upcoming_sessions,
+        'progress_pct': progress_pct,
+        'att_total': att_total,
+        'att_present': att_present,
+        'att_permitted': att_permitted,
+        'att_absent': att_absent,
+        'attendance_rate': attendance_rate,
+        'avg_score': avg_score,
+        'grade_count': grade_count,
+        'recent_grades': my_grades[:5],
+        'latest_journal': latest_journal,
+        'can_rate': can_rate,
+        'has_rated': has_rated,
+    })
+
+
+# ── Waitlist ────────────────────────────────────────────────────────────────
+
+@role_required('STUDENT')
+@require_POST
+def join_waitlist(request, kelas_id):
+    """Student joins the waitlist for a FULL kelas."""
+    from django.db.models import Max
+    student_profile = request.user.student_profile
+
+    try:
+        with transaction.atomic():
+            kelas = Kelas.objects.select_for_update().get(pk=kelas_id, is_deleted=False)
+
+            if kelas.status != KelasStatus.FULL:
+                messages.info(request, 'Kelas masih tersedia — silakan daftar langsung.')
+                return redirect('academics:class_detail', pk=kelas_id)
+
+            # Already enrolled?
+            if Enrollment.objects.filter(
+                student_profile=student_profile, kelas=kelas,
+                status=EnrollmentStatus.ACTIVE, is_deleted=False,
+            ).exists():
+                messages.info(request, 'Anda sudah terdaftar di kelas ini.')
+                return redirect('academics:class_browse')
+
+            # Already in waitlist?
+            existing = EnrollmentWaitlist.objects.filter(
+                student_profile=student_profile, kelas=kelas,
+            ).first()
+            if existing:
+                messages.info(request, f'Anda sudah di waitlist posisi #{existing.position}.')
+                return redirect('academics:class_browse')
+
+            # Get next position under lock
+            last_position = (
+                EnrollmentWaitlist.objects
+                .filter(kelas=kelas)
+                .select_for_update()
+                .aggregate(m=Max('position'))['m']
+                or 0
+            )
+            new_position = last_position + 1
+            EnrollmentWaitlist.objects.create(
+                student_profile=student_profile,
+                kelas=kelas,
+                position=new_position,
+            )
+
+        log_activity(request.user, 'created', 'waitlist', kelas.pk)
+        messages.success(
+            request,
+            f'Berhasil masuk waitlist posisi #{new_position}. Akan dinotif jika ada slot kosong.',
+        )
+        return redirect('academics:class_browse')
+
+    except Kelas.DoesNotExist:
+        messages.error(request, 'Kelas tidak ditemukan.')
+        return redirect('academics:class_browse')
 
 
 # ── Teacher views ──────────────────────────────────────────────────────────────

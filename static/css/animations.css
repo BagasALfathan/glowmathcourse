@@ -129,6 +129,14 @@
   animation: glowPulseGlow 1.5s ease-in-out infinite;
 }
 
+/* ── Pulse-slow (2s, subtle scale) — used by "Beri Rating" card badge ── */
+
+@keyframes pulseSlow {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%      { transform: scale(1.05); opacity: 0.9; }
+}
+.animate-pulse-slow { animation: pulseSlow 2s ease-in-out infinite; }
+
 /* ── Honour reduced-motion users ─────────────────────────────────────── */
 
 @media (prefers-reduced-motion: reduce) {
@@ -138,6 +146,7 @@
   .animate-slide-left,
   .animate-shake,
   .animate-pulse-glow,
+  .animate-pulse-slow,
   .animate-success-pop,
   .step-circle-active,
   .spinner {
