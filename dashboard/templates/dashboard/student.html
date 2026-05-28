@@ -149,7 +149,7 @@
       {{ t.profile.specialization|default:"Guru" }}{% if t.profile.experience_years %} · {{ t.profile.experience_years }} thn{% endif %}
     </p>
     <div class="flex gap-3 text-xs text-gray-800 items-center mb-2">
-      <span class="inline-flex items-center gap-1"><i class="ti ti-star-filled text-amber-500"></i> {{ t.avg_score }}</span>
+      <span class="inline-flex items-center gap-1">{% star_rating t.avg_score size=12 show_number=True %}</span>
       <span class="inline-flex items-center gap-1"><i class="ti ti-users text-emerald-700"></i> {{ t.student_count }} siswa</span>
     </div>
     <a href="{% url 'academics:teacher_profile' t.profile.user.id %}"
@@ -173,7 +173,7 @@
     </p>
     <p class="text-xs text-gray-500 mt-0.5 mb-2 m-0 truncate">{{ t.profile.specialization|default:"Guru" }}</p>
     <div class="flex gap-3 text-xs text-gray-700 items-center mb-2">
-      <span class="inline-flex items-center gap-1"><i class="ti ti-star-filled text-amber-500"></i> {{ t.avg_score }}</span>
+      <span class="inline-flex items-center gap-1">{% star_rating t.avg_score size=11 show_number=True %}</span>
       <span class="inline-flex items-center gap-1 text-gray-500"><i class="ti ti-users"></i> {{ t.student_count }}</span>
     </div>
     <a href="{% url 'academics:teacher_profile' t.profile.user.id %}"

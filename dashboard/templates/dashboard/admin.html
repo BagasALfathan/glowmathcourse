@@ -197,7 +197,7 @@
         <p class="text-xs font-semibold text-gray-900 m-0 truncate">{{ t.profile.user.get_full_name|default:t.profile.user.username }}</p>
         <p class="text-[10px] text-gray-500 m-0 mt-0.5 truncate">{{ t.profile.specialization|default:"—" }} · {{ t.student_count }} siswa · {{ t.rating_count }} ulasan</p>
       </div>
-      <span class="text-xs font-bold text-emerald-700 inline-flex items-center gap-0.5"><i class="ti ti-star-filled text-amber-500 text-[10px]"></i> {{ t.avg_rating }}</span>
+      <span class="text-xs font-bold text-emerald-700 inline-flex items-center gap-0.5">{% star_rating t.avg_rating size=11 show_number=True %}</span>
     </div>
     {% empty %}
     <p class="text-xs text-gray-500 text-center py-4 m-0">Belum ada data (butuh ≥ 3 ulasan per guru)</p>
@@ -220,7 +220,7 @@
         </p>
       </div>
       <span class="text-xs font-bold text-red-700 whitespace-nowrap">
-        {% if t.avg_rating %}<i class="ti ti-star-filled text-amber-500 text-[10px]"></i> {{ t.avg_rating }}{% else %}Tdk ada{% endif %}
+        {% if t.avg_rating %}{% star_rating t.avg_rating size=11 show_number=True %}{% else %}Tdk ada{% endif %}
       </span>
     </div>
     {% empty %}
