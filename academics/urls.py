@@ -16,7 +16,6 @@ urlpatterns = [
     path('teacher/schedule/print/', views.teacher_schedule_print, name='teacher_schedule_print'),
     # Student-facing
     path('classes/', views.class_browse, name='class_browse'),
-    path('classes/partial/', views.class_browse_partial, name='class_browse_partial'),
     path('classes/<int:pk>/', views.class_detail, name='class_detail'),
     # Teacher-facing
     path('teacher/students/', views.teacher_all_students, name='teacher_all_students'),

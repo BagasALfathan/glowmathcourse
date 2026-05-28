@@ -1,191 +1,250 @@
-﻿{% extends "base.html" %}
+{% extends 'base.html' %}
+{% load static humanize dashboard_filters %}
 
-{% block title %}{{ teacher.get_full_name }} — Profil Guru{% endblock %}
-{% block page_title %}Profil Guru{% endblock %}
+{% block title %}{{ teacher.get_full_name|default:teacher.username }} — Profil Guru{% endblock %}
+
+{% block extra_css %}
+<style>
+.tp-page { background: linear-gradient(180deg, #f0fdfa 0%, #ffffff 320px); min-height: calc(100vh - 4rem); padding: 18px; margin: -1.5rem; padding-bottom: 32px; }
+
+.tp-crumb { font-size: 12px; color: #6b7280; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.tp-crumb a { color: #0d9488; text-decoration: none; }
+.tp-crumb a:hover { text-decoration: underline; }
+.tp-crumb .sep { color: #d1d5db; }
+.tp-crumb .current { color: #111827; font-weight: 500; }
+
+/* Hero */
+.tp-hero { background: linear-gradient(135deg, #2dd4bf 0%, #14b8a6 50%, #0d9488 100%); border-radius: 24px; padding: 26px; color: #ffffff; position: relative; overflow: hidden; margin-bottom: 20px; box-shadow: 0 12px 32px rgba(13,148,136,0.25); }
+.tp-hero .deco { position: absolute; opacity: 0.18; pointer-events: none; }
+.tp-hero .d1 { top: 16px; right: 22px; font-size: 32px; transform: rotate(14deg); }
+.tp-hero .d2 { bottom: 18px; right: 28%; font-size: 26px; transform: rotate(-12deg); }
+.tp-hero-inner { display: flex; flex-direction: column; align-items: center; gap: 18px; text-align: center; position: relative; z-index: 1; }
+@media (min-width: 768px) { .tp-hero-inner { flex-direction: row; align-items: flex-start; text-align: left; gap: 26px; } }
+.tp-avatar { width: 112px; height: 112px; border-radius: 28px; background: #ffffff; color: #0d9488; display: inline-flex; align-items: center; justify-content: center; font-size: 44px; font-weight: 700; flex-shrink: 0; box-shadow: 0 6px 16px rgba(0,0,0,0.12); transform: rotate(-3deg); }
+@media (min-width: 768px) { .tp-avatar { width: 128px; height: 128px; font-size: 48px; } }
+.tp-info { flex: 1; min-width: 0; }
+.tp-info h1 { font-size: 22px; font-weight: 700; margin: 0 0 4px; line-height: 1.2; color: #ffffff; }
+@media (min-width: 768px) { .tp-info h1 { font-size: 28px; } }
+.tp-info-sub { font-size: 13px; opacity: 0.95; margin: 0 0 14px; }
+.tp-stats { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+@media (min-width: 768px) { .tp-stats { justify-content: flex-start; } }
+.tp-stat-pill { background: rgba(255,255,255,0.22); backdrop-filter: blur(6px); padding: 7px 12px; border-radius: 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; }
+.tp-stat-pill b { font-weight: 700; }
+.tp-stat-pill .lbl { opacity: 0.85; font-size: 11px; }
+
+/* 2-col bio + rating */
+.tp-cols { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 16px; }
+@media (min-width: 768px) { .tp-cols { grid-template-columns: 2fr 1fr; } }
+
+.tp-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 18px; }
+.tp-card-h { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; }
+.tp-card-h .ic { width: 30px; height: 30px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.tp-card-h h2 { font-size: 14px; font-weight: 600; color: #111827; margin: 0; }
+.tp-card.bio .ic { background: #ccfbf1; color: #0d9488; }
+.tp-card.rating { border-color: #fde68a; }
+.tp-card.rating .ic { background: #fef3c7; color: #b45309; }
+.tp-bio-body { font-size: 13px; color: #374151; line-height: 1.65; margin: 0; }
+.tp-jenjang-row { margin-top: 14px; padding-top: 14px; border-top: 1px solid #f3f4f6; }
+.tp-jenjang-row .lbl { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; margin-bottom: 7px; }
+.tp-jenjang-row .pills { display: flex; gap: 5px; flex-wrap: wrap; }
+.tp-jenjang-row .pill { font-size: 11px; padding: 3px 10px; border-radius: 999px; background: #ccfbf1; color: #115e59; font-weight: 600; }
+
+/* Rating block */
+.tp-rating-big { text-align: center; margin-bottom: 12px; }
+.tp-rating-big .v { font-size: 36px; font-weight: 800; color: #b45309; line-height: 1; }
+.tp-rating-big .st { color: #f59e0b; letter-spacing: 1.5px; margin-top: 4px; font-size: 13px; }
+.tp-rating-bars { display: flex; flex-direction: column; gap: 4px; }
+.tp-rating-bar { display: grid; grid-template-columns: 24px 1fr 26px; gap: 6px; align-items: center; font-size: 11px; }
+.tp-rating-bar .lbl { color: #6b7280; }
+.tp-rating-bar .lbl .st { color: #f59e0b; }
+.tp-rating-bar .track { height: 6px; background: #fef3c7; border-radius: 999px; overflow: hidden; }
+.tp-rating-bar .fill { height: 100%; background: linear-gradient(90deg, #fbbf24, #f59e0b); border-radius: 999px; }
+.tp-rating-bar .ct { font-size: 10px; color: #6b7280; text-align: right; }
+.tp-rating-empty { font-size: 12px; color: #6b7280; text-align: center; padding: 10px; }
+
+/* Classes grid */
+.tp-classes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.tp-class-card { display: block; padding: 12px; background: #f9fafb; border-radius: 12px; border: 1px solid transparent; text-decoration: none; color: inherit; transition: all 0.18s; }
+.tp-class-card:hover { background: #ecfdf5; border-color: #a7f3d0; transform: translateY(-1px); }
+.tp-class-top { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 8px; }
+.tp-class-emoji { width: 38px; height: 38px; border-radius: 10px; background: #ecfdf5; color: #047857; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.tp-class-name { font-size: 12px; font-weight: 700; color: #111827; margin: 0; line-height: 1.3; }
+.tp-class-level { font-size: 10px; color: #6b7280; margin: 2px 0 0; }
+.tp-class-meta { display: flex; justify-content: space-between; align-items: center; font-size: 10px; margin-top: 4px; }
+.tp-class-meta .rating { color: #b45309; font-weight: 600; }
+.tp-class-meta .price { color: #047857; font-weight: 700; }
+.tp-class-cap { display: flex; align-items: center; gap: 7px; margin-top: 7px; }
+.tp-class-cap .track { flex: 1; height: 4px; background: #e5e7eb; border-radius: 999px; overflow: hidden; }
+.tp-class-cap .fill { height: 100%; border-radius: 999px; }
+.tp-class-cap .fill.green { background: #10b981; }
+.tp-class-cap .fill.amber { background: #f59e0b; }
+.tp-class-cap .fill.red { background: #ef4444; }
+.tp-class-cap .ct { font-size: 9px; color: #6b7280; white-space: nowrap; }
+
+/* Reviews */
+.tp-reviews-grid { display: grid; grid-template-columns: 1fr; gap: 9px; }
+@media (min-width: 768px) { .tp-reviews-grid { grid-template-columns: 1fr 1fr; } }
+.tp-review { background: linear-gradient(135deg, #fff7ed 0%, #fefce8 100%); border: 1px solid #fed7aa; border-radius: 12px; padding: 13px; }
+.tp-review-head { display: flex; align-items: center; gap: 9px; margin-bottom: 8px; }
+.tp-review-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #fb923c, #ea580c); color: #ffffff; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.tp-review-id { flex: 1; min-width: 0; }
+.tp-review-id .nm { font-size: 12px; font-weight: 600; color: #111827; line-height: 1.2; }
+.tp-review-id .kls { font-size: 10px; color: #6b7280; margin-top: 1px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tp-review-stars { color: #f59e0b; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.tp-review-text { font-size: 12px; color: #374151; line-height: 1.55; margin: 0; }
+
+.tp-section-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+.tp-section-h .left { display: flex; align-items: center; gap: 9px; }
+.tp-section-h .ic { width: 30px; height: 30px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.tp-section-h .ic.emerald { background: #d1fae5; color: #047857; }
+.tp-section-h .ic.orange { background: #fed7aa; color: #c2410c; }
+.tp-section-h h2 { font-size: 14px; font-weight: 600; color: #111827; margin: 0; }
+.tp-section-h a { font-size: 11px; color: #047857; font-weight: 600; text-decoration: none; }
+.tp-section-h a:hover { text-decoration: underline; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tp-class-card { transition: none; }
+  .tp-class-card:hover { transform: none; }
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto space-y-5">
+<div class="tp-page">
 
-  <!-- Back link -->
-  <a href="{% url 'academics:teacher_list' %}"
-     class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-         stroke-width="2" stroke="currentColor" class="w-4 h-4">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-    </svg>
-    Daftar Guru
-  </a>
+  <nav class="tp-crumb">
+    <a href="{% url 'dashboard:router' %}">🏠 Beranda</a>
+    <span class="sep">›</span>
+    <a href="{% url 'academics:teacher_list' %}">👩‍🏫 Daftar Guru</a>
+    <span class="sep">›</span>
+    <span class="current">{{ teacher.get_full_name|default:teacher.username }}</span>
+  </nav>
 
-  <!-- Teacher info card -->
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-    <div class="px-6 py-5 border-b border-gray-100">
-      <div class="flex items-center gap-4">
-        <!-- Avatar -->
-        {% if profile and profile.photo %}
-        <img src="{{ profile.photo.url }}" alt="{{ teacher.get_full_name }}"
-             class="w-16 h-16 rounded-full object-cover shrink-0 border-2 border-primary-100">
-        {% else %}
-        <div class="w-16 h-16 rounded-full bg-primary-100 flex items-center justify-center
-                    shrink-0 font-bold text-2xl text-primary-700">
-          {{ teacher.first_name|first|upper }}{{ teacher.last_name|first|upper }}
-        </div>
-        {% endif %}
-        <div>
-          <h2 class="text-xl font-bold text-gray-900">{{ teacher.get_full_name }}</h2>
-          <div class="flex items-center gap-2 mt-1 flex-wrap">
-            {% if profile and profile.education %}
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
-                         bg-gray-100 text-gray-700">
-              {{ profile.get_education_display }}
-            </span>
-            {% endif %}
-            {% if profile and profile.experience_years %}
-            <span class="text-sm text-gray-500">
-              {{ profile.experience_years }} tahun pengalaman
-            </span>
-            {% endif %}
-            {% if profile %}
-              {% if profile.teaches_sd %}<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-50 text-teal-700">SD</span>{% endif %}
-              {% if profile.teaches_smp %}<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">SMP</span>{% endif %}
-              {% if profile.teaches_sma %}<span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-50 text-primary-700">SMA</span>{% endif %}
-            {% endif %}
-          </div>
+  {# ── Hero ─────────────────────────────────────────────────────────── #}
+  <div class="tp-hero">
+    <span class="deco d1">⭐</span>
+    <span class="deco d2">📚</span>
+    <div class="tp-hero-inner">
+      <div class="tp-avatar">{{ teacher.first_name|first|default:teacher.username|first|upper }}{{ teacher.last_name|first|default:""|upper }}</div>
+      <div class="tp-info">
+        <h1>{{ teacher.get_full_name|default:teacher.username }}</h1>
+        <p class="tp-info-sub">{{ profile.specialization|default:"Pengajar profesional" }}{% if profile.education %} · {{ profile.get_education_display|default:profile.education }}{% endif %}</p>
+        <div class="tp-stats">
+          <div class="tp-stat-pill">{% star_rating stats.avg_rating size=13 show_number=True show_count=True count=stats.rating_count %}</div>
+          <div class="tp-stat-pill"><span>🎓</span> <b>{{ stats.total_active_classes }}</b> <span class="lbl">kelas</span></div>
+          <div class="tp-stat-pill"><span>👥</span> <b>{{ stats.total_students }}</b> <span class="lbl">siswa</span></div>
         </div>
       </div>
-    </div>
-
-    <div class="px-6 py-5 space-y-4">
-
-      <!-- Specialization -->
-      {% if profile and profile.specialization %}
-      <div>
-        <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Spesialisasi</p>
-        <p class="text-sm text-gray-800">{{ profile.specialization }}</p>
-      </div>
-      {% endif %}
-
-      <!-- Bio -->
-      {% if profile and profile.bio %}
-      <div>
-        <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Bio</p>
-        <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{{ profile.bio }}</p>
-      </div>
-      {% endif %}
-
-      <!-- Rating -->
-      <div>
-        <p class="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Penilaian Siswa</p>
-        {% if rating_count > 0 %}
-        <div class="flex items-center gap-3">
-          {% with score=rating_avg|floatformat:"0" %}
-          {% include "components/_rating_stars.html" with score=score %}
-          {% endwith %}
-          <span class="text-lg font-bold text-gray-800">{{ rating_avg }}</span>
-          <span class="text-sm text-gray-400">dari {{ rating_count }} penilaian</span>
-        </div>
-        {% else %}
-        <p class="text-sm text-gray-400">Belum ada penilaian.</p>
-        {% endif %}
-      </div>
-
     </div>
   </div>
 
-  <!-- Open classes -->
-  <div>
-    <h3 class="text-sm font-semibold text-gray-700 mb-3">
-      Kelas yang Sedang Diajar
-      {% if open_classes %}
-      <span class="ml-1.5 text-xs font-normal text-gray-400">({{ open_classes|length }} kelas aktif)</span>
-      {% endif %}
-    </h3>
-
-    {% if open_classes %}
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      {% for kelas in open_classes %}
-      <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col">
-
-        <!-- Class header -->
-        <div class="px-5 pt-5 pb-3">
-          <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-              <h4 class="text-sm font-semibold text-gray-900 truncate">{{ kelas.name }}</h4>
-              <p class="text-xs text-gray-500 mt-0.5">{{ kelas.subject.name }}</p>
-            </div>
-            <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full
-                         text-xs font-semibold bg-green-100 text-green-700">Buka</span>
-          </div>
-        </div>
-
-        <div class="border-t border-gray-50 mx-5"></div>
-
-        <!-- Meta: level + capacity -->
-        <div class="px-5 py-3 flex items-center gap-3 flex-wrap">
-          {% if kelas.level == 'SD' %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-50 text-teal-700">SD</span>
-          {% elif kelas.level == 'SMP' %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">SMP</span>
-          {% else %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-50 text-primary-700">SMA</span>
-          {% endif %}
-          <span class="flex items-center gap-1 text-xs text-gray-500">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                 stroke-width="1.75" stroke="currentColor" class="w-3.5 h-3.5">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-            </svg>
-            {{ kelas.get_enrolled_count }}/{{ kelas.capacity }} siswa
-          </span>
-        </div>
-
-        <!-- Schedule -->
-        {% if kelas.schedules.all %}
-        <div class="px-5 pb-3 space-y-1">
-          {% for sched in kelas.schedules.all %}
-          <div class="flex items-center gap-1.5 text-xs text-gray-600">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                 stroke-width="1.75" stroke="currentColor" class="w-3.5 h-3.5 shrink-0 text-gray-400">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{{ sched.get_day_display }} • {{ sched.start_time|time:"H:i" }}–{{ sched.end_time|time:"H:i" }}{% if sched.room %} • {{ sched.room }}{% endif %}</span>
-          </div>
+  {# ── Bio + Rating distribution ──────────────────────────────────── #}
+  <div class="tp-cols">
+    <div class="tp-card bio">
+      <div class="tp-card-h">
+        <div class="ic">💬</div>
+        <h2>Tentang Saya</h2>
+      </div>
+      <p class="tp-bio-body">{{ profile.bio|default:"Pengajar profesional yang berdedikasi membantu siswa meraih potensi terbaiknya." }}</p>
+      {% if profile.jenjang_set.all %}
+      <div class="tp-jenjang-row">
+        <p class="lbl">Mengajar untuk Jenjang</p>
+        <div class="pills">
+          {% for tj in profile.jenjang_set.all %}
+          <span class="pill">{{ tj.get_level_display|default:tj.level }}</span>
           {% endfor %}
         </div>
-        {% endif %}
+      </div>
+      {% endif %}
+    </div>
 
-        <!-- Period -->
-        <div class="px-5 pb-3 text-xs text-gray-400">{{ kelas.academic_period.name }}</div>
-
-        <!-- Action buttons -->
-        <div class="mt-auto border-t border-gray-100 px-5 py-3 flex gap-2">
-          <a href="{% url 'academics:class_detail' kelas.pk %}"
-             class="flex-1 text-center text-xs font-medium text-gray-600 hover:text-gray-900
-                    py-1.5 rounded-lg hover:bg-gray-50 transition-colors border border-gray-200">
-            Detail
-          </a>
-          {% if viewer_is_student %}
-          <form method="post" action="{% url 'enrollments:enroll' kelas.pk %}" class="flex-1">
-            {% csrf_token %}
-            <button type="submit"
-                    class="w-full text-center text-xs font-medium text-white bg-primary-600
-                           py-1.5 rounded-lg hover:bg-primary-700 transition-colors">
-              Daftar
-            </button>
-          </form>
-          {% endif %}
+    <div class="tp-card rating">
+      <div class="tp-card-h">
+        <div class="ic">⭐</div>
+        <h2>Rating ({{ reviews_data.total }})</h2>
+      </div>
+      {% if reviews_data.total %}
+      <div class="tp-rating-big">
+        <div class="v">{{ stats.avg_rating }}</div>
+        <div class="st">{% star_rating stats.avg_rating size=14 %}</div>
+      </div>
+      <div class="tp-rating-bars">
+        {% for bar in reviews_data.bars %}
+        <div class="tp-rating-bar">
+          <span class="lbl">{{ bar.star }}<span class="st">★</span></span>
+          <div class="track"><div class="fill" style="width:{{ bar.pct }}%"></div></div>
+          <span class="ct">{{ bar.count }}</span>
         </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="tp-rating-empty">Belum ada rating untuk guru ini.</p>
+      {% endif %}
+    </div>
+  </div>
 
+  {# ── Active classes ─────────────────────────────────────────────── #}
+  <div class="tp-card" style="margin-bottom:16px">
+    <div class="tp-section-h">
+      <div class="left">
+        <div class="ic emerald">🎓</div>
+        <h2>Kelas yang Diampu</h2>
+      </div>
+      <a href="{% url 'academics:class_browse' %}">Lihat semua →</a>
+    </div>
+    <div class="tp-classes-grid">
+      {% for k in stats.active_classes %}
+      <a href="{% url 'academics:class_detail' k.pk %}" class="tp-class-card">
+        <div class="tp-class-top">
+          <div class="tp-class-emoji">{{ k.subject.icon|default:"📚" }}</div>
+          <div style="flex:1;min-width:0">
+            <p class="tp-class-name">{{ k.name }}</p>
+            <p class="tp-class-level">{{ k.level }}</p>
+          </div>
+        </div>
+        <div class="tp-class-meta">
+          {% if k.class_avg_rating %}<span class="rating">{% star_rating k.class_avg_rating size=10 show_number=True %}</span>{% else %}<span></span>{% endif %}
+          <span class="price">{% if k.price %}Rp {{ k.price|floatformat:0|intcomma }}{% else %}Gratis{% endif %}</span>
+        </div>
+        <div class="tp-class-cap">
+          <div class="track">
+            <div class="fill {% if k.capacity_pct >= 95 %}red{% elif k.capacity_pct >= 80 %}amber{% else %}green{% endif %}" style="width:{{ k.capacity_pct }}%"></div>
+          </div>
+          <span class="ct">{{ k.active_count }}/{{ k.capacity }}</span>
+        </div>
+      </a>
+      {% empty %}
+      <p style="grid-column:1/-1;text-align:center;font-size:13px;color:#6b7280;padding:14px">Belum ada kelas aktif.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── Top reviews ────────────────────────────────────────────────── #}
+  {% if reviews_data.top_reviews %}
+  <div class="tp-card">
+    <div class="tp-section-h">
+      <div class="left">
+        <div class="ic orange">💬</div>
+        <h2>Apa Kata Siswa</h2>
+      </div>
+    </div>
+    <div class="tp-reviews-grid">
+      {% for r in reviews_data.top_reviews %}
+      <div class="tp-review">
+        <div class="tp-review-head">
+          <span class="tp-review-avatar">{{ r.enrollment.student_profile.user.first_name|first|default:r.enrollment.student_profile.user.username|first|upper }}</span>
+          <div class="tp-review-id">
+            <div class="nm">{% if r.is_anonymous %}Anonim{% else %}{{ r.enrollment.student_profile.user.get_full_name|default:r.enrollment.student_profile.user.username }}{% endif %}</div>
+            <div class="kls">{{ r.enrollment.kelas.name|truncatechars:30 }}</div>
+          </div>
+          <span class="tp-review-stars">{% star_rating r.score size=11 show_number=True %}</span>
+        </div>
+        <p class="tp-review-text">{{ r.comment|default:"(tanpa komentar)"|truncatewords:30 }}</p>
       </div>
       {% endfor %}
     </div>
-
-    {% else %}
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-6 py-10 text-center">
-      <p class="text-sm text-gray-500">Guru ini tidak memiliki kelas aktif saat ini.</p>
-    </div>
-    {% endif %}
   </div>
+  {% endif %}
 
 </div>
 {% endblock %}

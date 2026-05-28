@@ -1,64 +1,640 @@
-﻿{% extends "base.html" %}
+{% extends 'base.html' %}
+{% load static humanize url_filters dashboard_filters %}
 
-{% block title %}Cari Kelas{% endblock %}
-{% block page_title %}Cari Kelas{% endblock %}
+{% block title %}Jelajahi Kelas{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ════════════════════════════════════════════════════════════════════════════
+   Browse Classes V2.9 — Khan playful theme. ALL COLORS HARDCODED HEX.
+   ════════════════════════════════════════════════════════════════════════════ */
+.bc-page { background: linear-gradient(180deg, #ecfdf5 0%, #f9fafb 240px); min-height: calc(100vh - 4rem); padding: 18px; margin: -1.5rem; }
+
+.bc-page-h h1 { font-size: 22px; font-weight: 500; color: #064e3b; margin: 0 0 4px; }
+.bc-page-h p { font-size: 13px; color: #047857; margin: 0 0 14px; }
+
+/* ── Search hero ─────────────────────────────────────────────────────────── */
+.bc-search { background: #ffffff; border-radius: 14px; padding: 6px; box-shadow: 0 4px 16px rgba(16,185,129,0.08); margin-bottom: 12px; display: flex; align-items: center; gap: 2px; }
+.bc-search-input { flex: 1; position: relative; padding: 0 12px; }
+.bc-search-input i.ti-search { position: absolute; left: 22px; top: 50%; transform: translateY(-50%); color: #10b981; font-size: 16px; }
+.bc-search-input input { width: 100%; padding: 10px 10px 10px 32px; border: none; font-size: 13px; outline: none; background: transparent; color: #111827; font-family: inherit; }
+.bc-search-input input::placeholder { color: #9ca3af; }
+.bc-search-btn { background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; border: none; padding: 10px 18px; border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 500; }
+.bc-search-btn:hover { filter: brightness(1.04); }
+
+/* ── Filter buttons (collapsed) ──────────────────────────────────────────── */
+.bc-filters { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+.fc-btn { padding: 8px 14px; background: #ffffff; border: 1px solid #d1d5db; border-radius: 999px; font-size: 12px; color: #1f2937; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500; transition: all 0.15s; position: relative; font-family: inherit; }
+.fc-btn:hover { border-color: #10b981; background: #ecfdf5; color: #065f46; }
+.fc-btn.active { background: #ecfdf5; border-color: #10b981; color: #065f46; font-weight: 600; }
+.fc-btn i.lead { color: #10b981; font-size: 14px; }
+.fc-btn.active i.lead { color: #047857; }
+.fc-btn i.chev { color: #6b7280; font-size: 13px; }
+.fc-btn.active i.chev { color: #047857; }
+.fc-btn .selected-pill { background: #10b981; color: #ffffff; padding: 1px 8px; border-radius: 999px; font-size: 10px; margin-left: 2px; font-weight: 600; }
+
+/* ── Popup container ─────────────────────────────────────────────────────── */
+.dd-wrap { position: relative; }
+.dd-popup { position: absolute; top: calc(100% + 8px); left: 0; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; box-shadow: 0 12px 32px rgba(0,0,0,0.12); z-index: 100; min-width: 280px; }
+.dd-popup.wide { min-width: 320px; }
+.dd-popup.right-align { left: auto; right: 0; }
+.dd-popup::before { content: ''; position: absolute; top: -6px; left: 24px; width: 12px; height: 12px; background: #ffffff; border-top: 1px solid #e5e7eb; border-left: 1px solid #e5e7eb; transform: rotate(45deg); }
+.dd-popup.right-align::before { left: auto; right: 24px; }
+.dd-h { font-size: 11px; color: #6b7280; font-weight: 500; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Hide raw checkboxes (we style the wrapping <label>) */
+.dd-popup input[type="checkbox"], .dd-popup input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
+
+/* ── Jenjang pills (3-col grid) ──────────────────────────────────────────── */
+.dd-level-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.dd-lv { padding: 8px 4px; border: 1px solid #e5e7eb; border-radius: 7px; text-align: center; font-size: 11px; cursor: pointer; background: #ffffff; color: #111827; font-weight: 500; transition: all 0.12s; }
+.dd-lv:hover { border-color: #10b981; background: #ecfdf5; }
+.dd-lv:has(input:checked) { background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; border-color: #059669; }
+.dd-lv .ct { display: block; font-size: 9px; opacity: 0.75; margin-top: 2px; font-weight: 400; }
+
+/* ── Subject tiles ───────────────────────────────────────────────────────── */
+.dd-subj-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.dd-subj { padding: 8px 4px; border: 1px solid #e5e7eb; border-radius: 7px; text-align: center; cursor: pointer; background: #ffffff; color: #111827; transition: all 0.12s; }
+.dd-subj:hover { border-color: #10b981; background: #ecfdf5; }
+.dd-subj:has(input:checked) { background: #ecfdf5; border-color: #10b981; }
+.dd-subj .em { font-size: 18px; display: block; margin-bottom: 2px; }
+.dd-subj .nm { font-size: 10px; font-weight: 500; color: #111827; line-height: 1.2; }
+.dd-subj .ct { font-size: 9px; color: #6b7280; margin-top: 1px; display: block; }
+
+/* ── Day pills ───────────────────────────────────────────────────────────── */
+.dd-day-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+.dd-day { padding: 7px 0; border: 1px solid #e5e7eb; border-radius: 6px; text-align: center; font-size: 10px; cursor: pointer; font-weight: 500; background: #ffffff; color: #1f2937; transition: all 0.12s; }
+.dd-day:hover { border-color: #10b981; background: #ecfdf5; }
+.dd-day:has(input:checked) { background: #10b981; color: #ffffff; border-color: #10b981; }
+
+/* ── Time cards (2-col) ──────────────────────────────────────────────────── */
+.dd-time-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.dd-time { padding: 9px 4px; border: 1px solid #e5e7eb; border-radius: 7px; text-align: center; cursor: pointer; background: #ffffff; color: #111827; transition: all 0.12s; }
+.dd-time:hover { border-color: #10b981; background: #ecfdf5; }
+.dd-time:has(input:checked) { background: linear-gradient(135deg, #fef3c7, #fde68a); border-color: #f59e0b; }
+.dd-time i { display: block; margin: 0 auto 2px; font-size: 14px; color: #f59e0b; }
+.dd-time .lbl { font-size: 11px; font-weight: 500; color: #111827; display: block; }
+.dd-time .hrs { font-size: 9px; color: #6b7280; margin-top: 1px; display: block; }
+.dd-time:has(input:checked) .lbl { color: #92400e; }
+.dd-time:has(input:checked) .hrs { color: #92400e; opacity: 0.75; }
+
+/* ── Rating rows ─────────────────────────────────────────────────────────── */
+.dd-rating { display: flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid #e5e7eb; border-radius: 7px; cursor: pointer; background: #ffffff; margin-bottom: 4px; transition: all 0.12s; }
+.dd-rating:hover { border-color: #10b981; background: #ecfdf5; }
+.dd-rating:has(input:checked) { background: linear-gradient(135deg, #fef3c7, #fde68a); border-color: #f59e0b; }
+.dd-rating .stars { color: #f59e0b; font-size: 11px; letter-spacing: 1px; }
+.dd-rating .lbl { flex: 1; font-size: 11px; color: #111827; font-weight: 500; }
+.dd-rating .ct { font-size: 10px; color: #6b7280; }
+
+/* ── Price ───────────────────────────────────────────────────────────────── */
+.dd-price-inputs { display: flex; gap: 6px; align-items: center; }
+.dd-price-inputs input { flex: 1; padding: 7px 10px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 11px; font-family: inherit; color: #111827; outline: none; background: #ffffff; }
+.dd-price-inputs input:focus { border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.12); }
+.dd-price-inputs span { color: #6b7280; font-size: 10px; }
+
+/* ── Status rows ─────────────────────────────────────────────────────────── */
+.dd-stat { display: flex; align-items: center; gap: 7px; padding: 7px 10px; border: 1px solid #e5e7eb; border-radius: 7px; cursor: pointer; background: #ffffff; font-size: 11px; color: #111827; margin-bottom: 4px; transition: all 0.12s; }
+.dd-stat:hover { border-color: #10b981; background: #ecfdf5; }
+.dd-stat:has(input:checked) { background: #ecfdf5; border-color: #10b981; color: #047857; font-weight: 500; }
+.dd-stat .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.dd-stat .dot.g { background: #10b981; }
+.dd-stat .dot.a { background: #f59e0b; }
+.dd-stat .dot.r { background: #ef4444; }
+.dd-stat .num { margin-left: auto; font-size: 10px; color: #6b7280; }
+
+/* ── Popup actions ───────────────────────────────────────────────────────── */
+.dd-actions { display: flex; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid #f3f4f6; }
+.dd-clear { flex: 1; padding: 8px; background: #f3f4f6; color: #4b5563; border: none; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 500; font-family: inherit; text-decoration: none; text-align: center; display: inline-flex; align-items: center; justify-content: center; }
+.dd-clear:hover { background: #e5e7eb; }
+.dd-apply { flex: 1; padding: 8px; background: #10b981; color: #ffffff; border: none; border-radius: 6px; font-size: 11px; cursor: pointer; font-weight: 500; font-family: inherit; }
+.dd-apply:hover { background: #059669; }
+
+.reset-link { color: #dc2626; font-size: 11px; cursor: pointer; padding: 5px 12px; font-weight: 500; background: transparent; border: none; margin-left: auto; display: inline-flex; align-items: center; gap: 4px; text-decoration: none; }
+.reset-link:hover { background: #fef2f2; border-radius: 6px; }
+
+/* ── Results header + sort pills ─────────────────────────────────────────── */
+.bc-results-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 4px; flex-wrap: wrap; gap: 8px; }
+.bc-results-hdr p { font-size: 12px; color: #6b7280; margin: 0; }
+.bc-results-hdr p b { color: #111827; }
+.sort-pills { display: flex; gap: 4px; }
+.sort-pill { padding: 4px 10px; background: #ffffff; border: 1px solid #d1d5db; border-radius: 999px; font-size: 10px; color: #374151; cursor: pointer; font-weight: 500; text-decoration: none; transition: all 0.12s; }
+.sort-pill:hover { border-color: #10b981; color: #047857; }
+.sort-pill.active { background: #10b981; color: #ffffff; border-color: #10b981; }
+
+/* ── Card grid ───────────────────────────────────────────────────────────── */
+.bc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+@media (max-width: 1024px) { .bc-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px)  { .bc-grid { grid-template-columns: 1fr; } }
+
+.class-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px; cursor: pointer; transition: all 0.2s; position: relative; text-decoration: none; color: inherit; display: block; }
+.class-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.06); border-color: #10b981; }
+.card-badge { position: absolute; top: 12px; right: 12px; font-size: 9px; padding: 2px 7px; border-radius: 4px; font-weight: 600; z-index: 1; }
+.card-badge.hot { background: linear-gradient(90deg, #ef4444, #dc2626); color: #ffffff; }
+.card-badge.popular { background: #fef3c7; color: #92400e; }
+.card-badge.new { background: #d1fae5; color: #065f46; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   9 UNIQUE CARD STATES — all hardcoded hex. Border / bg / badge per state.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* STATE 1: ENROLLED */
+.class-card.enrolled { border: 2px solid #10b981; background: linear-gradient(180deg, #ecfdf5 0%, #ffffff 60px); }
+.enrolled-badge { position: absolute; top: -8px; right: 14px; background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; padding: 3px 10px; border-radius: 999px; font-size: 9px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(16,185,129,0.3); z-index: 2; }
+
+/* STATE 2: IN WAITLIST */
+.class-card.in-waitlist { border: 1px dashed #6366f1; background: linear-gradient(180deg, #eef2ff 0%, #ffffff 60px); }
+.waitlist-position { position: absolute; top: -8px; right: 14px; background: linear-gradient(135deg, #6366f1, #4f46e5); color: #ffffff; padding: 3px 10px; border-radius: 999px; font-size: 9px; font-weight: 700; z-index: 2; }
+
+/* STATE 3: LOCKED */
+.class-card.locked { opacity: 0.85; cursor: not-allowed; filter: grayscale(0.2); }
+.class-card.locked:hover { transform: none; }
+.lock-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.7); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; border-radius: 12px; z-index: 5; }
+.lock-badge { background: #ef4444; color: #ffffff; padding: 8px 16px; border-radius: 10px; font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(239,68,68,0.3); }
+
+/* STATE 4: TOP TEACHER (gradient border via padding-box trick) */
+.class-card.top-teacher { border: 2px solid transparent; background:
+  linear-gradient(#ffffff, #ffffff) padding-box,
+  linear-gradient(135deg, #f59e0b, #fbbf24, #fde68a, #fbbf24, #f59e0b) border-box;
+  box-shadow: 0 4px 16px rgba(245,158,11,0.15); }
+.top-teacher-crown { position: absolute; top: -8px; left: 14px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #ffffff; padding: 3px 10px; border-radius: 999px; font-size: 9px; font-weight: 700; letter-spacing: 0.04em; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(245,158,11,0.3); z-index: 2; }
+.verified-tick { color: #f59e0b; font-size: 11px; margin-left: 2px; }
+.rt-pill.gold { background: linear-gradient(90deg, #f59e0b, #fbbf24); color: #ffffff; font-weight: 600; }
+
+/* STATE 5: URGENT */
+.class-card.urgent { border-color: #fbbf24; background: linear-gradient(180deg, #fffbeb 0%, #ffffff 60px); }
+.urgent-badge { position: absolute; top: 12px; right: 12px; background: linear-gradient(90deg, #f59e0b, #d97706); color: #ffffff; padding: 3px 9px; border-radius: 4px; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; gap: 3px; animation: glow-pulse 1.5s infinite; z-index: 1; }
+@keyframes glow-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+.class-card.urgent .cap-fill.amber { animation: pulse-bar 2s infinite; }
+@keyframes pulse-bar { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+/* STATE 6: STARTING SOON */
+.class-card.starting-soon { border-color: #8b5cf6; background: linear-gradient(180deg, #faf5ff 0%, #ffffff 60px); }
+.starting-badge { position: absolute; top: 12px; right: 12px; background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: #ffffff; padding: 3px 9px; border-radius: 4px; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; z-index: 1; }
+.starting-badge .dot { width: 5px; height: 5px; border-radius: 50%; background: #ffffff; animation: blink 1s infinite; }
+@keyframes blink { 50% { opacity: 0.3; } }
+.countdown { display: inline-flex; align-items: center; gap: 3px; background: #ede9fe; color: #6d28d9; padding: 3px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+
+/* STATE 7: TRENDING */
+.class-card.trending { background: linear-gradient(180deg, #fef2f2 0%, #ffffff 60px); border-color: #fecaca; }
+.trending-badge { position: absolute; top: 12px; right: 12px; background: linear-gradient(90deg, #ef4444, #f97316); color: #ffffff; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; z-index: 1; }
+.trending-growth { display: inline-flex; align-items: center; gap: 3px; background: #fee2e2; color: #b91c1c; padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+
+/* STATE 8: RECOMMENDED */
+.class-card.recommended { border: 2px solid #10b981; }
+.recommended-badge { position: absolute; top: -8px; right: 14px; background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; padding: 3px 10px; border-radius: 999px; font-size: 9px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(16,185,129,0.3); z-index: 2; }
+
+/* STATE 9: NEW (ribbon) */
+.class-card.new-ribbon { border-color: #10b981; }
+.ribbon { position: absolute; top: 10px; left: -6px; background: linear-gradient(90deg, #10b981, #059669); color: #ffffff; padding: 3px 10px 3px 12px; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; box-shadow: 0 2px 6px rgba(16,185,129,0.2); z-index: 2; }
+.ribbon::after { content: ''; position: absolute; right: -6px; top: 0; bottom: 0; width: 6px; background: linear-gradient(90deg, #059669, #047857); clip-path: polygon(0 0, 100% 50%, 0 100%); }
+
+/* WAITLIST AVAILABLE (FULL but waitlist open) */
+.class-card.waitlist-available { opacity: 0.95; border-color: #d1d5db; background: #f9fafb; }
+.waitlist-cta { background: linear-gradient(135deg, #6366f1, #4f46e5); color: #ffffff; padding: 5px 11px; border-radius: 6px; font-size: 10px; font-weight: 600; border: none; cursor: pointer; font-family: inherit; }
+.waitlist-cta:hover { filter: brightness(1.05); }
+.waitlist-form { margin: 0; display: inline-block; }
+
+.cta-link.disabled { color: #9ca3af; cursor: default; }
+
+@media (prefers-reduced-motion: reduce) {
+  .urgent-badge, .class-card.urgent .cap-fill.amber, .starting-badge .dot { animation: none; }
+}
+.card-top { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
+.subj-emoji { width: 42px; height: 42px; border-radius: 10px; background: #d1fae5; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+.card-title { min-width: 0; flex: 1; }
+.card-title h3 { font-size: 13px; font-weight: 500; color: #111827; margin: 0 0 2px; line-height: 1.3; }
+.card-title p { font-size: 10px; color: #6b7280; margin: 0; }
+.card-meta { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+.lv-pill { font-size: 10px; padding: 2px 7px; border-radius: 4px; background: #ecfdf5; color: #047857; font-weight: 500; }
+.rt-pill { font-size: 10px; padding: 2px 7px; border-radius: 4px; background: #fef3c7; color: #92400e; display: inline-flex; align-items: center; gap: 3px; font-weight: 500; }
+.card-info { padding-top: 8px; border-top: 1px solid #f3f4f6; font-size: 11px; color: #6b7280; }
+.card-info .row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.card-info .row i { font-size: 12px; color: #9ca3af; }
+.card-info .row b { color: #111827; font-weight: 500; }
+.cap-bar { height: 4px; background: #f3f4f6; border-radius: 999px; overflow: hidden; margin: 6px 0; }
+.cap-fill { height: 100%; border-radius: 999px; }
+.cap-fill.green { background: #10b981; }
+.cap-fill.amber { background: #f59e0b; }
+.cap-fill.red { background: #ef4444; }
+.cap-text { font-size: 10px; font-weight: 500; }
+.cap-text.green { color: #047857; }
+.cap-text.amber { color: #92400e; }
+.cap-text.red { color: #b91c1c; }
+.price-row { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; padding-top: 6px; border-top: 1px solid #f3f4f6; }
+.price { font-size: 12px; font-weight: 600; color: #047857; }
+.price-x { font-size: 9px; color: #9ca3af; font-weight: 400; margin-left: 2px; }
+.cta-link { font-size: 11px; color: #059669; font-weight: 500; }
+.full-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.85); display: flex; align-items: center; justify-content: center; border-radius: 12px; backdrop-filter: blur(2px); }
+.full-overlay span { background: #ef4444; color: #ffffff; padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 4px; }
+
+/* ── Pagination ──────────────────────────────────────────────────────────── */
+.pagination { display: flex; justify-content: center; gap: 4px; margin-top: 16px; padding: 4px 0; }
+.pg-btn { width: 30px; height: 30px; border-radius: 6px; border: 1px solid #e5e7eb; background: #ffffff; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #6b7280; text-decoration: none; transition: all 0.12s; }
+.pg-btn:hover { border-color: #10b981; color: #047857; }
+.pg-btn.active { background: #10b981; color: #ffffff; border-color: #10b981; font-weight: 500; }
+.pg-btn.disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.empty-state { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 40px; text-align: center; color: #6b7280; }
+.empty-state i { font-size: 40px; color: #d1d5db; margin-bottom: 12px; display: block; }
+.empty-state h3 { font-size: 14px; font-weight: 500; color: #374151; margin: 0 0 4px; }
+.empty-state p { font-size: 12px; margin: 0 0 14px; }
+.empty-state .bc-search-btn { display: inline-block; text-decoration: none; padding: 8px 16px; }
+
+[x-cloak] { display: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .class-card, .fc-btn, .dd-lv, .dd-subj, .dd-day, .dd-time, .dd-rating, .dd-stat, .sort-pill, .pg-btn { transition: none; }
+  .class-card:hover { transform: none; }
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="space-y-5">
+<div class="bc-page" x-data="{ open: null }" @keydown.escape.window="open = null">
 
-  <!-- Info banner -->
-  <div class="bg-primary-50 border border-primary-100 rounded-xl px-5 py-3 flex items-center gap-3">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-         stroke-width="1.75" stroke="currentColor" class="w-4 h-4 text-primary-500 shrink-0">
-      <path stroke-linecap="round" stroke-linejoin="round"
-            d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-    </svg>
-    <p class="text-sm text-primary-700">
-      Menampilkan kelas terbuka untuk jenjang
-      <span class="font-semibold">{{ student_level }}</span>.
-    </p>
+  <div class="bc-page-h">
+    <h1>📚 Jelajahi Kelas</h1>
+    <p>Klik tombol filter di bawah, atau cari langsung</p>
   </div>
 
-  <!-- Filters -->
-  <div id="browse-filters" class="flex flex-col sm:flex-row gap-3">
-    <select name="subject"
-            hx-get="{% url 'academics:class_browse_partial' %}"
-            hx-target="#class-grid"
-            hx-swap="innerHTML"
-            hx-trigger="change"
-            hx-include="#browse-filters"
-            class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white
-                   focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
-      <option value="">Semua Mata Pelajaran</option>
-      {% for subj in subjects %}
-      <option value="{{ subj.pk }}">{{ subj.name }}</option>
-      {% endfor %}
-    </select>
+  {# ── Search hero ─────────────────────────────────────────────────────── #}
+  <form method="get" class="bc-search">
+    {% for key, values in request.GET.lists %}{% if key != 'q' and key != 'page' %}{% for v in values %}<input type="hidden" name="{{ key }}" value="{{ v }}">{% endfor %}{% endif %}{% endfor %}
+    <div class="bc-search-input">
+      <i class="ti ti-search"></i>
+      <input type="text" name="q" placeholder="Cari kelas, mata pelajaran, atau nama guru..." value="{{ search }}">
+    </div>
+    <button type="submit" class="bc-search-btn">Cari</button>
+  </form>
 
-    <select name="day"
-            hx-get="{% url 'academics:class_browse_partial' %}"
-            hx-target="#class-grid"
-            hx-swap="innerHTML"
-            hx-trigger="change"
-            hx-include="#browse-filters"
-            class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white
-                   focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
-      <option value="">Semua Hari</option>
-      {% for val, label in days %}
-      <option value="{{ val }}">{{ label }}</option>
-      {% endfor %}
-    </select>
+  {# ── Filter buttons + popups ─────────────────────────────────────────── #}
+  <div class="bc-filters">
+
+    {# ─── 1) JENJANG ─── #}
+    <div class="dd-wrap" @click.outside="if (open === 'level') open = null">
+      <button type="button" class="fc-btn {% if selected_levels %}active{% endif %}" @click="open = open === 'level' ? null : 'level'">
+        <i class="ti ti-school lead"></i> Jenjang
+        {% if selected_levels %}<span class="selected-pill">{{ selected_levels|length }}</span>{% endif %}
+        <i class="ti ti-chevron-down chev"></i>
+      </button>
+      <div class="dd-popup" x-show="open === 'level'" x-cloak>
+        <form method="get">
+          {% for key, values in request.GET.lists %}{% if key != 'level' and key != 'page' %}{% for v in values %}<input type="hidden" name="{{ key }}" value="{{ v }}">{% endfor %}{% endif %}{% endfor %}
+          <div class="dd-h">Pilih jenjang</div>
+          <div class="dd-level-grid">
+            {% for lvl in level_counts %}
+            <label class="dd-lv">
+              <input type="checkbox" name="level" value="{{ lvl.level }}" {% if lvl.level in selected_levels %}checked{% endif %}>
+              {{ lvl.level }}<span class="ct">{{ lvl.c }}</span>
+            </label>
+            {% endfor %}
+          </div>
+          <div class="dd-actions">
+            <a href="?{% querystring_replace request.GET level=None page=None %}" class="dd-clear">Reset</a>
+            <button type="submit" class="dd-apply">Terapkan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {# ─── 2) PELAJARAN ─── #}
+    <div class="dd-wrap" @click.outside="if (open === 'subject') open = null">
+      <button type="button" class="fc-btn {% if selected_subjects %}active{% endif %}" @click="open = open === 'subject' ? null : 'subject'">
+        <i class="ti ti-book lead"></i> Pelajaran
+        {% if selected_subjects %}<span class="selected-pill">{{ selected_subjects|length }}</span>{% endif %}
+        <i class="ti ti-chevron-down chev"></i>
+      </button>
+      <div class="dd-popup wide" x-show="open === 'subject'" x-cloak>
+        <form method="get">
+          {% for key, values in request.GET.lists %}{% if key != 'subject' and key != 'page' %}{% for v in values %}<input type="hidden" name="{{ key }}" value="{{ v }}">{% endfor %}{% endif %}{% endfor %}
+          <div class="dd-h">Pilih mata pelajaran</div>
+          <div class="dd-subj-grid">
+            {% for sj in subject_options %}
+            <label class="dd-subj">
+              <input type="checkbox" name="subject" value="{{ sj.id }}" {% if sj.id in selected_subjects %}checked{% endif %}>
+              <span class="em">{{ sj.icon|default:"📚" }}</span>
+              <span class="nm">{{ sj.name }}</span>
+              <span class="ct">{{ sj.kelas_count }} kelas</span>
+            </label>
+            {% empty %}
+            <p style="grid-column:1/-1;font-size:11px;color:#6b7280;text-align:center;padding:8px;margin:0">Tidak ada mata pelajaran dengan kelas terbuka.</p>
+            {% endfor %}
+          </div>
+          <div class="dd-actions">
+            <a href="?{% querystring_replace request.GET subject=None page=None %}" class="dd-clear">Reset</a>
+            <button type="submit" class="dd-apply">Terapkan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {# ─── 3) HARI ─── #}
+    <div class="dd-wrap" @click.outside="if (open === 'day') open = null">
+      <button type="button" class="fc-btn {% if selected_days %}active{% endif %}" @click="open = open === 'day' ? null : 'day'">
+        <i class="ti ti-calendar lead"></i> Hari
+        {% if selected_days %}<span class="selected-pill">{{ selected_days|length }}</span>{% endif %}
+        <i class="ti ti-chevron-down chev"></i>
+      </button>
+      <div class="dd-popup" x-show="open === 'day'" x-cloak>
+        <form method="get">
+          {% for key, values in request.GET.lists %}{% if key != 'day' and key != 'page' %}{% for v in values %}<input type="hidden" name="{{ key }}" value="{{ v }}">{% endfor %}{% endif %}{% endfor %}
+          <div class="dd-h">Pilih hari</div>
+          <div class="dd-day-grid">
+            {% for code, lbl in days_list %}
+            <label class="dd-day">
+              <input type="checkbox" name="day" value="{{ code }}" {% if code in selected_days %}checked{% endif %}>
+              {{ lbl }}
+            </label>
+            {% endfor %}
+          </div>
+          <div class="dd-actions">
+            <a href="?{% querystring_replace request.GET day=None page=None %}" class="dd-clear">Reset</a>
+            <button type="submit" class="dd-apply">Terapkan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {# ─── 4) WAKTU ─── #}
+    <div class="dd-wrap" @click.outside="if (open === 'time') open = null">
+      <button type="button" class="fc-btn {% if selected_time %}active{% endif %}" @click="open = open === 'time' ? null : 'time'">
+        <i class="ti ti-clock lead"></i> Waktu
+        {% if selected_time %}<span class="selected-pill">{{ selected_time|title }}</span>{% endif %}
+        <i class="ti ti-chevron-down chev"></i>
+      </button>
+      <div class="dd-popup" x-show="open === 'time'" x-cloak>
+        <form method="get">
+          {% for key, values in request.GET.lists %}{% if key != 'time' and key != 'page' %}{% for v in values %}<input type="hidden" name="{{ key }}" value="{{ v }}">{% endfor %}{% endif %}{% endfor %}
+          <div class="dd-h">Pilih waktu</div>
+          <div class="dd-time-grid">
+            {% for code, lbl, hrs, icon in time_options %}
+            <label class="dd-time">
+              <input type="radio" name="time" value="{{ code }}" {% if selected_time == code %}checked{% endif %}>
+              <i class="ti ti-{{ icon }}"></i>
+              <span class="lbl">{{ lbl }}</span>
+              <span class="hrs">{{ hrs }}</span>
+            </label>
+            {% endfor %}
+          </div>
+          <div class="dd-actions">
+            <a href="?{% querystring_replace request.GET time=None page=None %}" class="dd-clear">Reset</a>
+            <button type="submit" class="dd-apply">Terapkan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {# ─── 5) RATING ─── #}
+    <div class="dd-wrap" @click.outside="if (open === 'rating') open = null">
+      <button type="button" class="fc-btn {% if selected_rating %}active{% endif %}" @click="open = open === 'rating' ? null : 'rating'">
+        <i class="ti ti-star lead"></i> Rating
+        {% if selected_rating %}<span class="selected-pill">{{ selected_rating }}+</span>{% endif %}
+        <i class="ti ti-chevron-down chev"></i>
+      </button>
+      <div class="dd-popup" x-show="open === 'rating'" x-cloak>
+        <form method="get">
+          {% for key, values in request.GET.lists %}{% if key != 'rating' and key != 'page' %}{% for v in values %}<input type="hidden" name="{{ key }}" value="{{ v }}">{% endfor %}{% endif %}{% endfor %}
+          <div class="dd-h">Rating minimum</div>
+          {% for code, lbl, stars in rating_options %}
+          <label class="dd-rating">
+            <input type="radio" name="rating" value="{{ code }}" {% if selected_rating == code %}checked{% endif %}>
+            <span class="stars">{% star_rating stars size=12 %}</span>
+            <span class="lbl">{{ lbl }}</span>
+          </label>
+          {% endfor %}
+          <div class="dd-actions">
+            <a href="?{% querystring_replace request.GET rating=None page=None %}" class="dd-clear">Reset</a>
+            <button type="submit" class="dd-apply">Terapkan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {# ─── 6) HARGA ─── #}
+    <div class="dd-wrap" @click.outside="if (open === 'price') open = null">
+      <button type="button" class="fc-btn {% if price_min or price_max %}active{% endif %}" @click="open = open === 'price' ? null : 'price'">
+        <i class="ti ti-currency-dollar lead"></i> Harga
+        {% if price_min or price_max %}<span class="selected-pill">1</span>{% endif %}
+        <i class="ti ti-chevron-down chev"></i>
+      </button>
+      <div class="dd-popup" x-show="open === 'price'" x-cloak>
+        <form method="get">
+          {% for key, values in request.GET.lists %}{% if key != 'price_min' and key != 'price_max' and key != 'page' %}{% for v in values %}<input type="hidden" name="{{ key }}" value="{{ v }}">{% endfor %}{% endif %}{% endfor %}
+          <div class="dd-h">Rentang harga (Rp)</div>
+          <div class="dd-price-inputs">
+            <input type="number" name="price_min" placeholder="Min" min="0" step="50000" value="{{ price_min }}">
+            <span>–</span>
+            <input type="number" name="price_max" placeholder="Max" min="0" step="50000" value="{{ price_max }}">
+          </div>
+          <div class="dd-actions">
+            <a href="?{% querystring_replace request.GET price_min=None price_max=None page=None %}" class="dd-clear">Reset</a>
+            <button type="submit" class="dd-apply">Terapkan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {# ─── 7) STATUS ─── #}
+    <div class="dd-wrap" @click.outside="if (open === 'status') open = null">
+      <button type="button" class="fc-btn {% if selected_status %}active{% endif %}" @click="open = open === 'status' ? null : 'status'">
+        <i class="ti ti-circle-check lead"></i> Status
+        {% if selected_status %}<span class="selected-pill">{{ selected_status|length }}</span>{% endif %}
+        <i class="ti ti-chevron-down chev"></i>
+      </button>
+      <div class="dd-popup right-align" x-show="open === 'status'" x-cloak>
+        <form method="get">
+          {% for key, values in request.GET.lists %}{% if key != 'status' and key != 'page' %}{% for v in values %}<input type="hidden" name="{{ key }}" value="{{ v }}">{% endfor %}{% endif %}{% endfor %}
+          <div class="dd-h">Status kelas</div>
+          {% for s in status_options %}
+          <label class="dd-stat">
+            <input type="checkbox" name="status" value="{{ s.code }}" {% if s.code in selected_status %}checked{% endif %}>
+            <span class="dot {{ s.dot }}"></span>
+            {{ s.label }}
+            <span class="num">{{ s.count }}</span>
+          </label>
+          {% endfor %}
+          <div class="dd-actions">
+            <a href="?{% querystring_replace request.GET status=None page=None %}" class="dd-clear">Reset</a>
+            <button type="submit" class="dd-apply">Terapkan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% if active_filter_count %}
+    <a href="{% url 'academics:class_browse' %}" class="reset-link">
+      <i class="ti ti-x" style="font-size:10px"></i> Hapus semua
+    </a>
+    {% endif %}
   </div>
 
-  <!-- Class grid (HTMX target) -->
-  <div id="class-grid"
-       hx-get="{% url 'academics:class_browse_partial' %}"
-       hx-trigger="load"
-       hx-swap="innerHTML">
-    <div class="flex items-center justify-center py-12 text-gray-400 text-sm">
-      Memuat kelas…
+  {# ── Results header + sort pills ─────────────────────────────────────── #}
+  <div class="bc-results-hdr">
+    {% if total_count %}
+    <p>Menampilkan <b>{{ page_obj.start_index }}–{{ page_obj.end_index }} dari {{ total_count }} kelas</b></p>
+    {% else %}
+    <p>0 kelas</p>
+    {% endif %}
+    <div class="sort-pills">
+      <a href="?{% querystring_replace request.GET sort='match' page=None %}"    class="sort-pill {% if sort_by == 'match' %}active{% endif %}">Cocok</a>
+      <a href="?{% querystring_replace request.GET sort='popular' page=None %}"  class="sort-pill {% if sort_by == 'popular' %}active{% endif %}">Populer</a>
+      <a href="?{% querystring_replace request.GET sort='newest' page=None %}"   class="sort-pill {% if sort_by == 'newest' %}active{% endif %}">Baru</a>
+      <a href="?{% querystring_replace request.GET sort='cheapest' page=None %}" class="sort-pill {% if sort_by == 'cheapest' %}active{% endif %}">Murah</a>
     </div>
   </div>
+
+  {# ── Cards grid ──────────────────────────────────────────────────────── #}
+  {% if page_obj %}
+  <div class="bc-grid">
+    {% for kelas in page_obj %}
+    {% with state=kelas.primary_state states=kelas.states %}
+    <a href="{% if state == 'locked' or state == 'waitlist_available' %}#{% else %}{% url 'academics:class_detail' kelas.id %}{% endif %}"
+       class="class-card{% if state == 'enrolled' %} enrolled{% endif %}{% if state == 'in_waitlist' %} in-waitlist{% endif %}{% if state == 'locked' %} locked{% endif %}{% if state == 'waitlist_available' %} waitlist-available{% endif %}{% if 'top_teacher' in states %} top-teacher{% endif %}{% if state == 'urgent' %} urgent{% endif %}{% if state == 'starting_soon' %} starting-soon{% endif %}{% if state == 'trending' %} trending{% endif %}{% if state == 'recommended' %} recommended{% endif %}{% if state == 'new' %} new-ribbon{% endif %}"
+       {% if state == 'locked' %}onclick="event.preventDefault()"{% endif %}>
+
+      {# ─── Top-corner badges (one of these, priority order) ─── #}
+      {% if state == 'enrolled' %}
+        <span class="enrolled-badge"><i class="ti ti-check" style="font-size:9px"></i> TERDAFTAR</span>
+      {% elif state == 'in_waitlist' %}
+        <span class="waitlist-position">💜 ANTRIAN #{{ kelas.waitlist_position }}</span>
+      {% elif 'top_teacher' in states %}
+        <span class="top-teacher-crown">👑 TOP TEACHER</span>
+      {% elif state == 'recommended' %}
+        <span class="recommended-badge">🎯 UNTUKMU</span>
+      {% elif state == 'new' %}
+        <div class="ribbon">✨ BARU</div>
+      {% endif %}
+
+      {# ─── Top-right action badge (urgent / starting / trending) ─── #}
+      {% if state == 'urgent' %}
+        <span class="urgent-badge">⚡ SISA {{ kelas.slots_remaining }} SLOT!</span>
+      {% elif state == 'starting_soon' %}
+        <span class="starting-badge"><span class="dot"></span>SEGERA MULAI</span>
+      {% elif state == 'trending' %}
+        <span class="trending-badge">🔥 TRENDING</span>
+      {% endif %}
+
+      <div class="card-top">
+        <div class="subj-emoji">{{ kelas.subject.icon|default:"📚" }}</div>
+        <div class="card-title">
+          <h3>{{ kelas.name }}</h3>
+          <p>
+            {{ kelas.teacher_profile.user.get_full_name|default:kelas.teacher_profile.user.username }}
+            {% if 'top_teacher' in states %}<span class="verified-tick"><i class="ti ti-rosette-discount-check-filled" style="font-size:11px"></i></span>{% endif %}
+          </p>
+        </div>
+      </div>
+
+      <div class="card-meta">
+        <span class="lv-pill">{{ kelas.level }}</span>
+        {% if kelas.teacher_rating.count > 0 %}
+        <span class="rt-pill{% if 'top_teacher' in states %} gold{% endif %}">{% star_rating kelas.teacher_rating.avg size=10 show_number=True show_count=True count=kelas.teacher_rating.count %}</span>
+        {% else %}
+        <span class="rt-pill">{% star_rating 0 size=10 show_number=True %}</span>
+        {% endif %}
+      </div>
+
+      <div class="card-info">
+        {% if kelas.schedule_list %}
+        <div class="row">
+          <i class="ti ti-calendar"></i>
+          <span><b>{% for s in kelas.schedule_list %}{{ s.get_day_display|slice:":3" }}{% if not forloop.last %}, {% endif %}{% endfor %}</b> · {{ kelas.schedule_list.0.start_time|time:"H:i" }}–{{ kelas.schedule_list.0.end_time|time:"H:i" }}</span>
+        </div>
+        {% endif %}
+
+        {# ─── State-specific info row (one of these) ─── #}
+        {% if state == 'starting_soon' %}
+        <div class="row">
+          <i class="ti ti-clock"></i>
+          <span class="countdown">⏱ Mulai dalam {{ kelas.days_until_start }} hari</span>
+        </div>
+        {% elif state == 'trending' %}
+        <div class="row">
+          <i class="ti ti-trending-up"></i>
+          <span class="trending-growth">↑ +{{ kelas.trending_growth }} daftar minggu ini</span>
+        </div>
+        {% elif state == 'recommended' %}
+        <div class="row">
+          <i class="ti ti-target"></i>
+          <span>Cocok untuk <b>level kamu</b></span>
+        </div>
+        {% elif state == 'new' %}
+        <div class="row">
+          <i class="ti ti-sparkles"></i>
+          <span>Dibuka <b>{{ kelas.created_at|timesince }} lalu</b></span>
+        </div>
+        {% else %}
+        <div class="row">
+          <i class="ti ti-clock"></i>
+          <span><b>{{ kelas.total_sessions|default:"—" }} pertemuan</b></span>
+        </div>
+        {% endif %}
+
+        <div class="cap-bar"><div class="cap-fill {% if kelas.capacity_pct < 60 %}green{% elif kelas.capacity_pct < 90 %}amber{% else %}red{% endif %}" style="width:{{ kelas.capacity_pct }}%"></div></div>
+        <span class="cap-text {% if kelas.capacity_pct < 60 %}green{% elif kelas.capacity_pct < 90 %}amber{% else %}red{% endif %}">{{ kelas.active_enrolled }}/{{ kelas.capacity }} terisi</span>
+      </div>
+
+      <div class="price-row">
+        <div>
+          {% if kelas.price %}
+          <span class="price">Rp {{ kelas.price|floatformat:0|intcomma }}</span><span class="price-x">/bln</span>
+          {% else %}
+          <span class="price">Gratis</span>
+          {% endif %}
+        </div>
+        {% if state == 'waitlist_available' %}
+          <form method="post" action="{% url 'enrollments:join_waitlist' kelas.id %}" class="waitlist-form" onclick="event.stopPropagation()" onsubmit="event.stopPropagation()">
+            {% csrf_token %}
+            <button type="submit" class="waitlist-cta">+ Antri</button>
+          </form>
+        {% else %}
+          <span class="cta-link{% if kelas.cta_disabled %} disabled{% endif %}">{{ kelas.cta_text }}</span>
+        {% endif %}
+      </div>
+
+      {# Locked overlay #}
+      {% if state == 'locked' %}
+      <div class="lock-overlay">
+        <div class="lock-badge"><i class="ti ti-lock" style="font-size:14px"></i> KELAS PENUH</div>
+      </div>
+      {% endif %}
+    </a>
+    {% endwith %}
+    {% endfor %}
+  </div>
+
+  {# ── Pagination ──────────────────────────────────────────────────────── #}
+  {% if page_obj.has_other_pages %}
+  <div class="pagination">
+    {% if page_obj.has_previous %}
+    <a href="?{% querystring_replace request.GET page=page_obj.previous_page_number %}" class="pg-btn"><i class="ti ti-chevron-left"></i></a>
+    {% else %}
+    <span class="pg-btn disabled"><i class="ti ti-chevron-left"></i></span>
+    {% endif %}
+    {% for num in page_obj.paginator.page_range %}
+      {% if num == page_obj.number %}
+        <span class="pg-btn active">{{ num }}</span>
+      {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+        <a href="?{% querystring_replace request.GET page=num %}" class="pg-btn">{{ num }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if page_obj.has_next %}
+    <a href="?{% querystring_replace request.GET page=page_obj.next_page_number %}" class="pg-btn"><i class="ti ti-chevron-right"></i></a>
+    {% else %}
+    <span class="pg-btn disabled"><i class="ti ti-chevron-right"></i></span>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state">
+    <i class="ti ti-mood-empty"></i>
+    <h3>Tidak ada kelas ditemukan</h3>
+    <p>Coba ubah filter atau kata kunci pencarian</p>
+    <a href="{% url 'academics:class_browse' %}" class="bc-search-btn">Reset Pencarian</a>
+  </div>
+  {% endif %}
 
 </div>
 {% endblock %}

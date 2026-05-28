@@ -1,76 +1,250 @@
-﻿{% extends "base.html" %}
+{% extends 'base.html' %}
+{% load static dashboard_filters %}
 
-{% block title %}Jadwal Mingguan Saya{% endblock %}
-{% block page_title %}Jadwal Mingguan{% endblock %}
+{% block title %}Jadwal Mingguan — Kelas Saya{% endblock %}
+
+{% block extra_css %}
+<style>
+.ms-page { background: linear-gradient(180deg, #faf5ff 0%, #ffffff 280px); min-height: calc(100vh - 4rem); padding: 18px; margin: -1.5rem; padding-bottom: 32px; }
+
+.ms-crumb { font-size: 12px; color: #6b7280; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ms-crumb a { color: #7c3aed; text-decoration: none; }
+.ms-crumb a:hover { text-decoration: underline; }
+.ms-crumb .sep { color: #d1d5db; }
+.ms-crumb .current { color: #111827; font-weight: 500; }
+
+/* Hero (purple) */
+.ms-hero { background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 50%, #7c3aed 100%); border-radius: 22px; padding: 22px; color: #ffffff; position: relative; overflow: hidden; margin-bottom: 14px; box-shadow: 0 10px 28px rgba(124,58,237,0.22); }
+.ms-hero .deco { position: absolute; opacity: 0.18; pointer-events: none; }
+.ms-hero .d1 { top: 14px; right: 22px; font-size: 30px; transform: rotate(12deg); }
+.ms-hero .d2 { bottom: 12px; left: 38%; font-size: 22px; transform: rotate(-10deg); }
+.ms-hero h1 { font-size: 19px; font-weight: 700; margin: 0 0 4px; color: #ffffff; }
+@media (min-width: 768px) { .ms-hero h1 { font-size: 22px; } }
+.ms-hero p { font-size: 12px; opacity: 0.95; margin: 0 0 14px; }
+.ms-nav { background: rgba(255,255,255,0.22); backdrop-filter: blur(6px); border-radius: 999px; padding: 6px; display: flex; justify-content: space-between; align-items: center; gap: 8px; position: relative; z-index: 1; }
+.ms-nav .arrow { width: 32px; height: 32px; border-radius: 50%; background: #ffffff; color: #6d28d9; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; text-decoration: none; flex-shrink: 0; box-shadow: 0 2px 6px rgba(0,0,0,0.12); transition: transform 0.15s; }
+.ms-nav .arrow:hover { transform: scale(1.05); }
+.ms-nav .mid { flex: 1; text-align: center; min-width: 0; padding: 0 6px; }
+.ms-nav .mid .label { font-size: 12px; font-weight: 600; line-height: 1.2; }
+@media (min-width: 768px) { .ms-nav .mid .label { font-size: 13px; } }
+.ms-nav .mid .sub { font-size: 10px; opacity: 0.85; margin-top: 2px; }
+
+/* KPI grid (4 cards) */
+.ms-kpi { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
+@media (min-width: 768px) { .ms-kpi { grid-template-columns: repeat(4, 1fr); } }
+.ms-kpi-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; text-align: center; }
+.ms-kpi-card .em { font-size: 18px; margin-bottom: 6px; }
+.ms-kpi-card .v { font-size: 18px; font-weight: 700; color: #111827; line-height: 1; }
+.ms-kpi-card .l { font-size: 9px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 4px; font-weight: 600; }
+
+/* Today section (amber) */
+.ms-today { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border: 2px solid #fbbf24; border-radius: 16px; padding: 16px; margin-bottom: 16px; position: relative; overflow: hidden; }
+.ms-today .deco { position: absolute; top: 8px; right: 12px; font-size: 20px; opacity: 0.5; }
+.ms-today-pill { display: inline-block; background: #ffffff; color: #92400e; font-size: 10px; padding: 4px 11px; border-radius: 999px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.ms-today h2 { font-size: 14px; font-weight: 700; color: #92400e; margin: 8px 0 4px; }
+@media (min-width: 768px) { .ms-today h2 { font-size: 15px; } }
+.ms-today .blurb { font-size: 11px; color: #92400e; margin: 0 0 12px; opacity: 0.95; }
+.ms-today-list { display: flex; flex-direction: column; gap: 8px; position: relative; z-index: 1; }
+.ms-today-row { background: #ffffff; border-radius: 12px; padding: 10px; display: grid; grid-template-columns: 50px 1fr auto; gap: 10px; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); text-decoration: none; color: inherit; transition: box-shadow 0.15s; }
+.ms-today-row:hover { box-shadow: 0 4px 10px rgba(0,0,0,0.08); }
+.ms-today-time { width: 50px; height: 50px; border-radius: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); color: #ffffff; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 700; line-height: 1; }
+.ms-today-time .h { font-size: 13px; }
+.ms-today-time .d { font-size: 9px; opacity: 0.9; margin-top: 3px; }
+.ms-today-info { min-width: 0; }
+.ms-today-info .name { font-size: 13px; font-weight: 600; color: #111827; margin: 0; line-height: 1.25; }
+.ms-today-info .meta { font-size: 10px; color: #6b7280; margin: 3px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ms-today-link { font-size: 9px; background: #fef3c7; color: #92400e; padding: 5px 9px; border-radius: 5px; font-weight: 700; white-space: nowrap; }
+
+/* Week section heading */
+.ms-section-h { display: flex; align-items: center; gap: 9px; margin: 4px 4px 12px; }
+.ms-section-h .ic { width: 30px; height: 30px; border-radius: 8px; background: #ede9fe; color: #6d28d9; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.ms-section-h h3 { font-size: 14px; font-weight: 600; color: #111827; margin: 0; }
+
+/* Day cards */
+.ms-days { display: flex; flex-direction: column; gap: 10px; }
+.ms-day { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; transition: border-color 0.18s; }
+.ms-day.today { border-color: #fbbf24; box-shadow: 0 6px 16px rgba(251,191,36,0.18); }
+.ms-day.empty { opacity: 0.62; }
+
+.ms-day-h { padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f3f4f6; background: #f9fafb; }
+.ms-day.today .ms-day-h { background: linear-gradient(90deg, #fffbeb 0%, #fef3c7 100%); border-bottom-color: #fef3c7; }
+.ms-day-h-left { display: flex; align-items: center; gap: 11px; }
+.ms-day-date { width: 38px; height: 38px; border-radius: 10px; background: #ffffff; border: 1px solid #e5e7eb; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; font-weight: 700; color: #6b7280; }
+.ms-day.today .ms-day-date { background: linear-gradient(135deg, #f59e0b, #d97706); color: #ffffff; border-color: transparent; box-shadow: 0 4px 10px rgba(245,158,11,0.3); }
+.ms-day-date .n { font-size: 15px; }
+.ms-day-date .m { font-size: 8px; opacity: 0.9; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.04em; }
+.ms-day-h-info .dn { font-size: 13px; font-weight: 600; color: #111827; }
+.ms-day-h-info .sum { font-size: 10px; color: #9ca3af; margin: 1px 0 0; }
+.ms-day-status { font-size: 11px; color: #6b7280; display: inline-flex; align-items: center; gap: 4px; }
+.ms-day.today .ms-day-status { color: #b45309; font-weight: 700; }
+
+.ms-day-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; }
+.ms-day-empty { padding: 14px 16px; text-align: center; font-size: 11px; color: #9ca3af; font-style: italic; }
+.ms-sess { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; padding: 8px 10px; background: #f9fafb; border-radius: 9px; align-items: center; text-decoration: none; color: inherit; transition: background 0.15s; }
+.ms-sess:hover { background: #faf5ff; }
+.ms-sess-time { text-align: center; }
+.ms-sess-time .h { font-size: 12px; font-weight: 700; color: #111827; line-height: 1; }
+.ms-sess-time .d { font-size: 9px; color: #9ca3af; margin-top: 3px; }
+.ms-sess-subject { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.ms-sess-emoji { width: 32px; height: 32px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; background: #ede9fe; }
+.ms-sess-emoji.bg-emerald { background: #d1fae5; }
+.ms-sess-emoji.bg-violet { background: #ede9fe; }
+.ms-sess-emoji.bg-blue { background: #dbeafe; }
+.ms-sess-emoji.bg-orange { background: #ffedd5; }
+.ms-sess-emoji.bg-pink { background: #fce7f3; }
+.ms-sess-info { min-width: 0; }
+.ms-sess-name { font-size: 12px; font-weight: 600; color: #111827; margin: 0; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ms-sess-teacher { font-size: 10px; color: #9ca3af; margin: 1px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ms-sess-mode { font-size: 9px; padding: 3px 7px; border-radius: 4px; font-weight: 600; flex-shrink: 0; white-space: nowrap; }
+.ms-sess-mode.online { background: #dbeafe; color: #1e40af; }
+.ms-sess-mode.offline { background: #d1fae5; color: #047857; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-nav .arrow:hover, .ms-today-row, .ms-sess, .ms-day { transition: none; }
+  .ms-nav .arrow:hover { transform: none; }
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="space-y-5">
+<div class="ms-page">
 
-  <!-- Tab switcher -->
-  <div class="flex border-b border-gray-200 overflow-x-auto">
-    <a href="{% url 'academics:student_schedule_classes' %}"
-       class="flex items-center gap-1.5 px-4 py-2.5 text-sm border-b-2 border-primary-600 text-primary-700 font-semibold -mb-px whitespace-nowrap">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-4 h-4">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-      </svg>
-      Jadwal Kelas
-    </a>
-    <a href="{% url 'academics:student_schedule_sessions' %}"
-       class="flex items-center gap-1.5 px-4 py-2.5 text-sm border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px whitespace-nowrap transition-colors">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-4 h-4">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-      </svg>
-      Jadwal Pertemuan
-    </a>
-  </div>
+  <nav class="ms-crumb">
+    <a href="{% url 'dashboard:student' %}">🏠 Beranda</a>
+    <span class="sep">›</span>
+    <span class="current">Jadwal Mingguan</span>
+  </nav>
 
-  <!-- Header bar -->
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-    <div>
-      <p class="text-sm text-gray-500">
-        {% if total_classes %}
-          {{ total_classes }} kelas aktif terdaftar
-        {% else %}
-          Belum ada kelas aktif
-        {% endif %}
-      </p>
+  {# ── Hero (purple) ─────────────────────────────────────────────────── #}
+  <div class="ms-hero">
+    <span class="deco d1">🗓️</span>
+    <span class="deco d2">📅</span>
+    <h1>🗓️ Jadwal Mingguanku</h1>
+    <p>Pantau jadwal belajar setiap minggu, pastikan ngga ada yang terlewat ✨</p>
+    <div class="ms-nav">
+      <a class="arrow" href="?week={{ prev_week }}" aria-label="Minggu sebelumnya">‹</a>
+      <div class="mid">
+        <div class="label">{% if is_current_week %}Minggu Ini · {% endif %}{{ week_range_str }}</div>
+        <div class="sub">{% if upcoming_count > 0 %}Sisa {{ upcoming_count }} sesi belajar{% elif total_sessions > 0 %}Semua sesi selesai{% else %}Belum ada sesi minggu ini{% endif %}</div>
+      </div>
+      <a class="arrow" href="?week={{ next_week }}" aria-label="Minggu berikutnya">›</a>
     </div>
-    <a href="{% url 'academics:student_schedule_print' %}" target="_blank"
-       class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700
-              bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shrink-0">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-           stroke-width="1.75" stroke="currentColor" class="w-4 h-4">
-        <path stroke-linecap="round" stroke-linejoin="round"
-              d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
-      </svg>
-      Cetak Jadwal
-    </a>
   </div>
 
-  {% if total_classes %}
-  <!-- Schedule grid -->
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-4 overflow-hidden">
-    {% include "components/_schedule_grid.html" with grid_rows=grid_rows days=days days_list=days_list view_role=view_role %}
-  </div>
-  {% else %}
-  <!-- Empty state -->
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm flex flex-col items-center justify-center py-20 text-center px-6">
-    <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-           stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-gray-400">
-        <path stroke-linecap="round" stroke-linejoin="round"
-              d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-      </svg>
+  {# ── 4 KPI cards ──────────────────────────────────────────────────── #}
+  <div class="ms-kpi">
+    <div class="ms-kpi-card">
+      <div class="em">📚</div>
+      <div class="v">{{ total_sessions }}</div>
+      <div class="l">Total Sesi</div>
     </div>
-    <p class="text-gray-600 font-medium mb-1">Belum ada jadwal.</p>
-    <p class="text-sm text-gray-400 mb-4">Daftar ke kelas untuk melihat jadwal mingguan Anda.</p>
-    <a href="{% url 'academics:class_browse' %}"
-       class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white
-              bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors">
-      Cari Kelas
-    </a>
+    <div class="ms-kpi-card">
+      <div class="em">✅</div>
+      <div class="v">{{ completed_count }}</div>
+      <div class="l">Selesai</div>
+    </div>
+    <div class="ms-kpi-card">
+      <div class="em">⏰</div>
+      <div class="v">{{ upcoming_count }}</div>
+      <div class="l">Mendatang</div>
+    </div>
+    <div class="ms-kpi-card">
+      <div class="em">🎯</div>
+      <div class="v">{{ active_classes_count }}</div>
+      <div class="l">Kelas Aktif</div>
+    </div>
+  </div>
+
+  {# ── Today section (only if current week + has sessions today) ─────── #}
+  {% if is_current_week and today_data.sessions %}
+  <div class="ms-today">
+    <span class="deco">✨</span>
+    <span class="ms-today-pill">📍 Hari Ini · {{ today_data.day_name }}</span>
+    <h2>{{ today_data.date|date:"d F Y" }} · {{ today_data.sessions|length }} sesi</h2>
+    {% with first_sess=today_data.sessions.0 %}
+    <p class="blurb">Sesi pertamamu mulai {{ first_sess.start_time|time:"H:i" }}. Jangan lupa siapin laptop & buku catatan!</p>
+    {% endwith %}
+    <div class="ms-today-list">
+      {% for sess in today_data.sessions %}
+      <a href="{% url 'sessions_app:session_detail' sess.pk %}" class="ms-today-row">
+        <div class="ms-today-time">
+          <span class="h">{{ sess.start_time|time:"H:i" }}</span>
+          <span class="d">{{ sess.duration_label }}</span>
+        </div>
+        <div class="ms-today-info">
+          <p class="name">{{ sess.subject_emoji }} {{ sess.kelas.name }}</p>
+          <p class="meta">👩‍🏫 {{ sess.kelas.teacher_profile.user.get_full_name|default:sess.kelas.teacher_profile.user.username }} · {% if sess.is_online %}💻 Online{% else %}🏫 Offline{% endif %}</p>
+        </div>
+        <span class="ms-today-link">Detail →</span>
+      </a>
+      {% endfor %}
+    </div>
   </div>
   {% endif %}
+
+  {# ── 7-day grid ───────────────────────────────────────────────────── #}
+  <div class="ms-section-h">
+    <div class="ic">📅</div>
+    <h3>{% if is_current_week %}Minggu Ini Lengkap{% else %}{{ week_range_str }}{% endif %}</h3>
+  </div>
+
+  <div class="ms-days">
+    {% for day in days_data %}
+    <div class="ms-day{% if day.is_today %} today{% endif %}{% if not day.sessions %} empty{% endif %}">
+      <div class="ms-day-h">
+        <div class="ms-day-h-left">
+          <div class="ms-day-date">
+            <span class="n">{{ day.day_num }}</span>
+            <span class="m">{{ day.month_short }}</span>
+          </div>
+          <div class="ms-day-h-info">
+            <div class="dn">{{ day.day_name }}</div>
+            <p class="sum">{{ day.summary }}</p>
+          </div>
+        </div>
+        <div class="ms-day-status">
+          {% if day.is_today %}📍 Hari Ini
+          {% elif day.is_past %}✅ Selesai
+          {% elif day.day_status == 'libur' %}🎉 Libur
+          {% else %}⏰ Mendatang{% endif %}
+        </div>
+      </div>
+
+      {% if day.sessions %}
+      <div class="ms-day-body">
+        {% for sess in day.sessions %}
+        <a href="{% url 'sessions_app:session_detail' sess.pk %}" class="ms-sess">
+          <div class="ms-sess-time">
+            <div class="h">{{ sess.start_time|time:"H:i" }}</div>
+            <div class="d">{{ sess.duration_label }}</div>
+          </div>
+          <div class="ms-sess-subject">
+            <span class="ms-sess-emoji
+              {% with subj=sess.kelas.subject.name|lower %}
+              {% if 'matematika' in subj %}bg-emerald
+              {% elif 'inggris' in subj %}bg-violet
+              {% elif 'fisika' in subj %}bg-blue
+              {% elif 'kimia' in subj %}bg-orange
+              {% elif 'biologi' in subj %}bg-pink
+              {% else %}bg-violet{% endif %}
+              {% endwith %}">{{ sess.subject_emoji }}</span>
+            <div class="ms-sess-info">
+              <p class="ms-sess-name">{{ sess.kelas.name }}</p>
+              <p class="ms-sess-teacher">{{ sess.kelas.teacher_profile.user.get_full_name|default:sess.kelas.teacher_profile.user.username }}</p>
+            </div>
+          </div>
+          <span class="ms-sess-mode {% if sess.is_online %}online{% else %}offline{% endif %}">
+            {% if sess.is_online %}Online{% else %}Offline{% endif %}
+          </span>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="ms-day-empty">Hari kosong! Pakai untuk review materi atau istirahat.</div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
 
 </div>
 {% endblock %}
