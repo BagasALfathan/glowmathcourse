@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+
+{% block title %}Pengaturan Akun{% endblock %}
+{% block page_title %}Pengaturan Akun{% endblock %}
+
+{% block content %}
+<div class="bg-gradient-to-b from-cyan-50 to-gray-50 -m-6 p-4 md:p-6 min-h-screen">
+
+  <nav class="text-xs text-cyan-700 mb-4 flex gap-1.5">
+    <a href="{% url 'dashboard:student' %}" class="hover:underline">🏠 Beranda</a>
+    <span class="text-gray-400">›</span>
+    <span class="text-gray-500">Pengaturan Akun</span>
+  </nav>
+
+  {# ── Compact hero ────────────────────────────────────────────────── #}
+  <div class="rounded-3xl p-5 md:p-6 mb-4 relative overflow-hidden text-white flex gap-4 items-center"
+       style="background: linear-gradient(135deg, #67e8f9 0%, #06b6d4 50%, #0891b2 100%);">
+    <span class="absolute top-3 right-4 text-3xl opacity-25 pointer-events-none">🎨</span>
+    <span class="absolute bottom-3 right-12 text-xl opacity-20 pointer-events-none">⚙️</span>
+    <div class="w-16 h-16 rounded-2xl bg-white text-cyan-700 flex items-center justify-center text-2xl font-bold shadow-lg flex-shrink-0"
+         style="transform: rotate(-5deg);">
+      {{ user_obj.first_name|first|default:user_obj.username|first|upper }}{{ user_obj.last_name|first|upper }}
+    </div>
+    <div class="min-w-0 relative z-10">
+      <h1 class="text-lg md:text-xl font-bold m-0 mb-1 truncate">{{ user_obj.get_full_name|default:user_obj.username }}</h1>
+      <p class="text-xs opacity-90 m-0">@{{ user_obj.username }} · Bergabung {{ user_obj.date_joined|date:"d M Y" }}</p>
+      <div class="flex gap-1.5 mt-2 text-[10px] flex-wrap">
+        {% if user_obj.role == 'STUDENT' and user_obj.student_profile %}
+        <span class="bg-white/20 px-2.5 py-0.5 rounded-full">🎓 {{ user_obj.student_profile.get_level_display|default:"Siswa" }}</span>
+        {% endif %}
+        {% if is_verified_email %}<span class="bg-white/20 px-2.5 py-0.5 rounded-full">📧 Verified</span>{% endif %}
+        {% if is_verified_phone %}<span class="bg-white/20 px-2.5 py-0.5 rounded-full">📱 Verified</span>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# ── Quick stats (student) ───────────────────────────────────────── #}
+  {% if user_obj.role == 'STUDENT' %}
+  <div class="grid grid-cols-3 gap-2 bg-white border border-gray-200 rounded-2xl p-3 mb-4 shadow-sm">
+    <div class="text-center">
+      <div class="text-xl font-bold text-cyan-700">{{ quick_stats.active_classes|default:0 }}</div>
+      <div class="text-[9px] text-gray-500 uppercase tracking-wider mt-1">Kelas Aktif</div>
+    </div>
+    <div class="text-center border-x border-gray-100">
+      <div class="text-xl font-bold text-cyan-700">{{ quick_stats.attended_sessions|default:0 }}</div>
+      <div class="text-[9px] text-gray-500 uppercase tracking-wider mt-1">Sesi Hadir</div>
+    </div>
+    <div class="text-center">
+      <div class="text-xl font-bold text-cyan-700">{{ quick_stats.streak_days|default:0 }}d</div>
+      <div class="text-[9px] text-gray-500 uppercase tracking-wider mt-1">Streak</div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Modular cards grid (6 cards) ────────────────────────────────── #}
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+    <a href="#basic-info" class="block bg-white border border-gray-200 rounded-2xl p-4 hover:-translate-y-0.5 hover:shadow-lg hover:border-cyan-300 transition-all no-underline">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-100 to-cyan-200 text-cyan-700 flex items-center justify-center text-base">👤</div>
+        <h3 class="text-sm font-semibold text-gray-900 m-0">Profil Pribadi</h3>
+      </div>
+      <p class="text-[11px] text-gray-500 leading-relaxed m-0 mb-2">Nama, email, WA, bio.</p>
+      <div class="text-right text-cyan-600 text-sm">→</div>
+    </a>
+
+    <a href="{% url 'accounts:change_password' %}" class="block bg-white border border-gray-200 rounded-2xl p-4 hover:-translate-y-0.5 hover:shadow-lg hover:border-cyan-300 transition-all no-underline">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-100 to-amber-200 text-amber-700 flex items-center justify-center text-base">🔐</div>
+        <h3 class="text-sm font-semibold text-gray-900 m-0">Keamanan</h3>
+      </div>
+      <p class="text-[11px] text-gray-500 leading-relaxed m-0 mb-2">Password, 2FA, riwayat login.</p>
+      <div class="text-right text-cyan-600 text-sm">→</div>
+    </a>
+
+    <div class="block bg-white border border-gray-200 rounded-2xl p-4 opacity-70 cursor-not-allowed">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-100 to-violet-200 text-violet-700 flex items-center justify-center text-base">🔔</div>
+        <h3 class="text-sm font-semibold text-gray-900 m-0">Notifikasi</h3>
+      </div>
+      <p class="text-[11px] text-gray-500 leading-relaxed m-0 mb-2">Email, WhatsApp, push.<br><span class="text-gray-400 italic">Tersedia Fase 4</span></p>
+      <div class="text-right text-gray-300 text-sm">→</div>
+    </div>
+
+    <div class="block bg-white border border-gray-200 rounded-2xl p-4 opacity-70 cursor-not-allowed">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-200 text-emerald-700 flex items-center justify-center text-base">🎨</div>
+        <h3 class="text-sm font-semibold text-gray-900 m-0">Tampilan</h3>
+      </div>
+      <p class="text-[11px] text-gray-500 leading-relaxed m-0 mb-2">Tema light/dark, ukuran font.<br><span class="text-gray-400 italic">Tersedia Fase 4</span></p>
+      <div class="text-right text-gray-300 text-sm">→</div>
+    </div>
+
+    <div class="block bg-white border border-gray-200 rounded-2xl p-4 opacity-70 cursor-not-allowed">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-100 to-pink-200 text-pink-700 flex items-center justify-center text-base">🌍</div>
+        <h3 class="text-sm font-semibold text-gray-900 m-0">Bahasa &amp; Region</h3>
+      </div>
+      <p class="text-[11px] text-gray-500 leading-relaxed m-0 mb-2">Indonesia (default), WIB.</p>
+      <div class="text-right text-gray-300 text-sm">→</div>
+    </div>
+
+    <div class="block bg-white border border-gray-200 rounded-2xl p-4 opacity-70 cursor-not-allowed">
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-100 to-orange-200 text-orange-700 flex items-center justify-center text-base">💳</div>
+        <h3 class="text-sm font-semibold text-gray-900 m-0">Pembayaran</h3>
+      </div>
+      <p class="text-[11px] text-gray-500 leading-relaxed m-0 mb-2">Metode + riwayat.<br><span class="text-gray-400 italic">Tersedia Fase 4</span></p>
+      <div class="text-right text-gray-300 text-sm">→</div>
+    </div>
+  </div>
+
+  {# ── Functional Basic Info section ───────────────────────────────── #}
+  <div id="basic-info" class="bg-white border border-gray-200 rounded-2xl p-5 mt-4 shadow-sm">
+    <div class="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100">
+      <div class="w-9 h-9 rounded-xl bg-cyan-100 text-cyan-700 flex items-center justify-center text-base">👤</div>
+      <div>
+        <h2 class="text-base font-bold text-gray-900 m-0">Profil Pribadi</h2>
+        <p class="text-[11px] text-gray-500 m-0">Update info kontak dan biodata.</p>
+      </div>
+    </div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+      <input type="hidden" name="section" value="basic">
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="text-[11px] font-semibold text-gray-700 block mb-1.5" for="pf-first">Nama Depan</label>
+          <input id="pf-first" type="text" name="first_name" value="{{ user_obj.first_name }}"
+                 class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none">
+        </div>
+        <div>
+          <label class="text-[11px] font-semibold text-gray-700 block mb-1.5" for="pf-last">Nama Belakang</label>
+          <input id="pf-last" type="text" name="last_name" value="{{ user_obj.last_name }}"
+                 class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="text-[11px] font-semibold text-gray-700 block mb-1.5" for="pf-username">Username</label>
+          <input id="pf-username" type="text" value="{{ user_obj.username }}" disabled
+                 class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-100 text-gray-500 outline-none cursor-not-allowed">
+          <p class="text-[10px] text-gray-400 mt-1">Username tidak bisa diubah.</p>
+        </div>
+        <div>
+          <label class="text-[11px] font-semibold text-gray-700 block mb-1.5" for="pf-email">Email</label>
+          <input id="pf-email" type="email" name="email" value="{{ user_obj.email }}"
+                 class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none">
+        </div>
+      </div>
+
+      <div class="mb-4">
+        <label class="text-[11px] font-semibold text-gray-700 block mb-1.5" for="pf-phone">No. WhatsApp</label>
+        <input id="pf-phone" type="tel" name="phone" value="{{ user_obj.phone|default:'' }}"
+               placeholder="contoh: 0812xxxxxxxx"
+               class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none">
+      </div>
+
+      <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
+        <a href="{% url 'dashboard:student' %}"
+           class="px-5 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-lg text-sm font-semibold no-underline hover:bg-gray-50">
+          Batal
+        </a>
+        <button type="submit"
+                class="px-5 py-2.5 bg-gradient-to-br from-cyan-500 to-cyan-700 text-white rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all">
+          💾 Simpan
+        </button>
+      </div>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

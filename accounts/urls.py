@@ -25,6 +25,7 @@ urlpatterns = [
     path('register/waiting/', views.waiting_view, name='waiting_legacy'),  # legacy alias
     path('register/student/', views.register_student_view, name='register_student'),  # legacy alias
     path('profile/', views.profile_view, name='profile'),
+    path('profile/settings/', views.profile_settings_view, name='profile_settings'),
     path('profile/edit/', views.profile_edit_view, name='profile_edit'),
     path('profile/change-password/', views.change_password_view, name='change_password'),
 ]

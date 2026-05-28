@@ -1,167 +1,119 @@
-﻿{% extends "base.html" %}
-{% load crispy_forms_tags %}
+{% extends "base.html" %}
 
-{% block title %}Profil{% endblock %}
+{% block title %}Profil Saya{% endblock %}
 {% block page_title %}Profil Saya{% endblock %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto space-y-6">
+<div class="bg-gradient-to-b from-cyan-50 to-gray-50 -m-6 p-4 md:p-6 min-h-screen">
 
-  <!-- User info card -->
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-    <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-      <h2 class="text-sm font-semibold text-gray-900">Informasi Akun</h2>
-      <div class="flex items-center gap-3">
-        <a href="{% url 'accounts:change_password' %}"
-           class="inline-flex items-center gap-1.5 text-sm font-medium text-gray-500 hover:text-gray-700 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-               stroke-width="1.75" stroke="currentColor" class="w-4 h-4">
-            <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z" />
-          </svg>
-          Ubah Password
-        </a>
-        <a href="{% url 'accounts:profile_edit' %}"
-           class="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600 hover:text-primary-700 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-               stroke-width="1.75" stroke="currentColor" class="w-4 h-4">
-            <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-          </svg>
-          Edit Profil
-        </a>
-      </div>
+  <nav class="text-xs text-cyan-700 mb-4 flex gap-1.5">
+    <a href="{% url 'dashboard:student' %}" class="hover:underline">🏠 Beranda</a>
+    <span class="text-gray-400">›</span>
+    <span class="text-gray-500">Profil Saya</span>
+  </nav>
+
+  {# ── Compact hero ────────────────────────────────────────────────── #}
+  <div class="rounded-3xl p-5 md:p-6 mb-4 relative overflow-hidden text-white flex gap-4 items-center"
+       style="background: linear-gradient(135deg, #67e8f9 0%, #06b6d4 50%, #0891b2 100%);">
+    <span class="absolute top-3 right-4 text-3xl opacity-25 pointer-events-none">🎨</span>
+    <span class="absolute bottom-3 right-12 text-xl opacity-20 pointer-events-none">✏️</span>
+    <div class="w-16 h-16 rounded-2xl bg-white text-cyan-700 flex items-center justify-center text-2xl font-bold shadow-lg flex-shrink-0"
+         style="transform: rotate(-5deg);">
+      {{ user_obj.first_name|first|default:user_obj.username|first|upper }}{{ user_obj.last_name|first|upper }}
     </div>
-
-    <div class="px-6 py-5">
-      <!-- Avatar + name -->
-      <div class="flex items-center gap-4 mb-6">
-        {% if user.role == 'TEACHER' and profile.photo %}
-        <img src="{{ profile.photo.url }}" alt="{{ user.get_full_name }}"
-             class="w-14 h-14 rounded-full object-cover shrink-0 border-2 border-primary-100">
-        {% else %}
-        <div class="w-14 h-14 rounded-full flex items-center justify-center shrink-0 font-bold text-lg
-          bg-primary-100 text-primary-700">
-          {{ user.first_name|first|upper }}{{ user.last_name|first|upper }}
-        </div>
+    <div class="min-w-0 relative z-10">
+      <h1 class="text-lg md:text-xl font-bold m-0 mb-1 truncate">{{ user_obj.get_full_name|default:user_obj.username }}</h1>
+      <p class="text-xs opacity-90 m-0">@{{ user_obj.username }} · Bergabung {{ user_obj.date_joined|date:"d M Y" }}</p>
+      <div class="flex gap-1.5 mt-2 text-[10px] flex-wrap">
+        {% if user_obj.role == 'STUDENT' and user_obj.student_profile %}
+        <span class="bg-white/20 px-2.5 py-0.5 rounded-full">🎓 {{ user_obj.student_profile.get_level_display|default:"Siswa" }}</span>
+        {% elif user_obj.role == 'TEACHER' %}
+        <span class="bg-white/20 px-2.5 py-0.5 rounded-full">👩‍🏫 Guru</span>
+        {% elif user_obj.role == 'ADMIN' %}
+        <span class="bg-white/20 px-2.5 py-0.5 rounded-full">🛡️ Admin</span>
         {% endif %}
+        {% if user_obj.email %}<span class="bg-white/20 px-2.5 py-0.5 rounded-full">📧 {{ user_obj.email|truncatechars:24 }}</span>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# ── Flash messages ──────────────────────────────────────────────── #}
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="mb-3 p-3 rounded-xl text-xs
+                {% if msg.tags == 'error' %}bg-red-50 border border-red-200 text-red-800
+                {% elif msg.tags == 'success' %}bg-emerald-50 border border-emerald-200 text-emerald-800
+                {% else %}bg-blue-50 border border-blue-200 text-blue-800{% endif %}">
+      {{ msg }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  {# ── Simple edit form ────────────────────────────────────────────── #}
+  <div class="bg-white border border-gray-200 rounded-2xl p-5 md:p-6 shadow-sm">
+    <div class="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100">
+      <div class="w-10 h-10 rounded-xl bg-cyan-100 text-cyan-700 flex items-center justify-center text-lg">✏️</div>
+      <div>
+        <h2 class="text-base font-bold text-gray-900 m-0">Edit Profil</h2>
+        <p class="text-[11px] text-gray-500 m-0">Update info personal dan kontak kamu.</p>
+      </div>
+    </div>
+
+    <form method="post" novalidate>
+      {% csrf_token %}
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
         <div>
-          <p class="text-base font-semibold text-gray-900">{{ user.get_full_name }}</p>
-          <span class="inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full mt-1
-            bg-primary-100 text-primary-700">
-            {{ user.get_role_display }}
-          </span>
+          <label class="text-[11px] font-semibold text-gray-700 block mb-1.5" for="pf-first">Nama Depan</label>
+          <input id="pf-first" type="text" name="first_name" value="{{ user_obj.first_name }}"
+                 class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none">
+        </div>
+        <div>
+          <label class="text-[11px] font-semibold text-gray-700 block mb-1.5" for="pf-last">Nama Belakang</label>
+          <input id="pf-last" type="text" name="last_name" value="{{ user_obj.last_name }}"
+                 class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none">
         </div>
       </div>
 
-      <!-- Fields -->
-      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
         <div>
-          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Username</dt>
-          <dd class="text-gray-900">{{ user.username }}</dd>
+          <label class="text-[11px] font-semibold text-gray-700 block mb-1.5" for="pf-username">Username</label>
+          <input id="pf-username" type="text" value="{{ user_obj.username }}" disabled
+                 class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-100 text-gray-500 outline-none cursor-not-allowed">
+          <p class="text-[10px] text-gray-400 mt-1">Username tidak bisa diubah.</p>
         </div>
         <div>
-          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Email</dt>
-          <dd class="text-gray-900">{{ user.email }}</dd>
+          <label class="text-[11px] font-semibold text-gray-700 block mb-1.5" for="pf-email">Email</label>
+          <input id="pf-email" type="email" name="email" value="{{ user_obj.email }}"
+                 class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none">
         </div>
-        <div>
-          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Bergabung</dt>
-          <dd class="text-gray-900">{{ user.date_joined|date:"d M Y" }}</dd>
+      </div>
+
+      <div class="mb-3">
+        <label class="text-[11px] font-semibold text-gray-700 block mb-1.5" for="pf-phone">No. WhatsApp</label>
+        <input id="pf-phone" type="tel" name="phone" value="{{ user_obj.phone|default:'' }}"
+               placeholder="+62 813-xxxx-xxxx"
+               class="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100 outline-none">
+      </div>
+
+      <div class="flex flex-wrap items-center justify-between gap-2 pt-3 mt-2 border-t border-gray-100">
+        <a href="{% url 'accounts:change_password' %}"
+           class="text-xs font-semibold text-cyan-700 hover:text-cyan-900 no-underline inline-flex items-center gap-1">
+          🔐 Ubah password →
+        </a>
+        <div class="flex gap-2 ml-auto">
+          <a href="{% url 'dashboard:router' %}"
+             class="px-5 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-lg text-sm font-semibold no-underline hover:bg-gray-50">
+            Batal
+          </a>
+          <button type="submit"
+                  class="px-5 py-2.5 bg-gradient-to-br from-cyan-500 to-cyan-700 text-white rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all">
+            💾 Simpan
+          </button>
         </div>
-      </dl>
-    </div>
+      </div>
+    </form>
   </div>
-
-  <!-- Role-specific profile -->
-  {% if profile %}
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-
-    {% if user.role == 'STUDENT' %}
-    <div class="px-6 py-4 border-b border-gray-100">
-      <h2 class="text-sm font-semibold text-gray-900">Informasi Siswa</h2>
-    </div>
-    <div class="px-6 py-5">
-      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
-        <div>
-          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Jenjang</dt>
-          <dd class="text-gray-900">{{ profile.get_level_display }}</dd>
-        </div>
-        <div>
-          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Kelas</dt>
-          <dd class="text-gray-900">{% if profile.school_grade %}{{ profile.school_grade }}{% else %}-{% endif %}</dd>
-        </div>
-        <div class="sm:col-span-2">
-          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Nama Sekolah</dt>
-          <dd class="text-gray-900">{{ profile.school_name|default:"-" }}</dd>
-        </div>
-        <div>
-          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">No. HP Siswa</dt>
-          <dd class="text-gray-900">{{ profile.phone|default:"-" }}</dd>
-        </div>
-        <div>
-          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Nama Orang Tua</dt>
-          <dd class="text-gray-900">{{ profile.parent_name|default:"-" }}</dd>
-        </div>
-        <div>
-          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">No. HP Orang Tua</dt>
-          <dd class="text-gray-900">{{ profile.parent_phone|default:"-" }}</dd>
-        </div>
-        <div class="sm:col-span-2">
-          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Alamat</dt>
-          <dd class="text-gray-900 whitespace-pre-line">{{ profile.address|default:"-" }}</dd>
-        </div>
-      </dl>
-    </div>
-
-    {% elif user.role == 'TEACHER' %}
-    <div class="px-6 py-4 border-b border-gray-100">
-      <h2 class="text-sm font-semibold text-gray-900">Informasi Guru</h2>
-    </div>
-    <div class="px-6 py-5">
-      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 text-sm">
-        <div>
-          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Pendidikan Terakhir</dt>
-          <dd class="text-gray-900">{{ profile.get_education_display|default:"-" }}</dd>
-        </div>
-        <div>
-          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Pengalaman Mengajar</dt>
-          <dd class="text-gray-900">{{ profile.experience_years }} tahun</dd>
-        </div>
-        <div class="sm:col-span-2">
-          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Spesialisasi</dt>
-          <dd class="text-gray-900">{{ profile.specialization|default:"-" }}</dd>
-        </div>
-        <div class="sm:col-span-2">
-          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Bio</dt>
-          <dd class="text-gray-900 whitespace-pre-line">{{ profile.bio|default:"-" }}</dd>
-        </div>
-        <div>
-          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">No. HP</dt>
-          <dd class="text-gray-900">{{ profile.phone|default:"-" }}</dd>
-        </div>
-        <div class="sm:col-span-2">
-          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">Alamat</dt>
-          <dd class="text-gray-900 whitespace-pre-line">{{ profile.address|default:"-" }}</dd>
-        </div>
-      </dl>
-    </div>
-
-    {% elif user.role == 'ADMIN' %}
-    <div class="px-6 py-4 border-b border-gray-100">
-      <h2 class="text-sm font-semibold text-gray-900">Informasi Admin</h2>
-    </div>
-    <div class="px-6 py-5">
-      <dl class="text-sm">
-        <div>
-          <dt class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-0.5">No. HP</dt>
-          <dd class="text-gray-900">{{ profile.phone|default:"-" }}</dd>
-        </div>
-      </dl>
-    </div>
-    {% endif %}
-
-  </div>
-  {% endif %}
 
 </div>
 {% endblock %}

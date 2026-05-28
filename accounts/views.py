@@ -493,15 +493,36 @@ def waiting_view(request):
 
 @login_required
 def profile_view(request):
+    """Simple profile edit page — Khan Playful cyan form (replaces V3 modular
+    cards, which lived too few features behind to justify the surface area)."""
     user = request.user
-    profile = None
+
+    if request.method == 'POST':
+        user.first_name = (request.POST.get('first_name') or '').strip()
+        user.last_name = (request.POST.get('last_name') or '').strip()
+        user.email = (request.POST.get('email') or '').strip()
+        if 'phone' in request.POST:
+            user.phone = (request.POST.get('phone') or '').strip()
+        user.save()
+        messages.success(request, '✓ Profil berhasil diupdate!')
+        return redirect('accounts:profile')
+
+    # Make sure the role-specific profile row exists (some legacy users
+    # were created before signals; harmless no-op otherwise).
     if user.role == Role.STUDENT:
-        profile, _ = StudentProfile.objects.get_or_create(user=user)
+        StudentProfile.objects.get_or_create(user=user)
     elif user.role == Role.TEACHER:
-        profile, _ = TeacherProfile.objects.get_or_create(user=user)
+        TeacherProfile.objects.get_or_create(user=user)
     elif user.role == Role.ADMIN:
-        profile, _ = AdminProfile.objects.get_or_create(user=user)
-    return render(request, 'accounts/profile.html', {'profile': profile})
+        AdminProfile.objects.get_or_create(user=user)
+
+    return render(request, 'accounts/profile.html', {'user_obj': user})
+
+
+@login_required
+def profile_settings_view(request):
+    """Legacy redirect — profile settings consolidated into /profile/."""
+    return redirect('accounts:profile')
 
 
 @login_required
