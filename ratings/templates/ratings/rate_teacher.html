@@ -1,76 +1,260 @@
-﻿{% extends "base.html" %}
+{% extends 'base.html' %}
+{% load static humanize %}
 
-{% block title %}Beri Rating — {{ enrollment.kelas.name }}{% endblock %}
-{% block page_title %}Beri Rating{% endblock %}
+{% block title %}Beri Rating — {{ kelas.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.rt-page { background: linear-gradient(180deg, #fffbeb 0%, #f9fafb 280px); min-height: calc(100vh - 4rem); padding: 18px; margin: -1.5rem; padding-bottom: 40px; }
+
+.rt-crumb { font-size: 12px; color: #6b7280; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.rt-crumb a { color: #b45309; text-decoration: none; }
+.rt-crumb a:hover { text-decoration: underline; }
+.rt-crumb .sep { color: #d1d5db; }
+.rt-crumb .current { color: #111827; font-weight: 500; }
+
+/* Hero (amber celebration) */
+.rt-hero { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%); border-radius: 22px; padding: 22px; color: #ffffff; position: relative; overflow: hidden; margin-bottom: 14px; box-shadow: 0 10px 28px rgba(217,119,6,0.22); }
+.rt-hero .deco { position: absolute; pointer-events: none; opacity: 0.25; }
+.rt-hero .d1 { top: 14px; right: 22px; font-size: 32px; transform: rotate(12deg); }
+.rt-hero .d2 { bottom: 14px; left: 25%; font-size: 24px; transform: rotate(-8deg); }
+.rt-hero .d3 { top: 38%; left: 8%; font-size: 18px; }
+.rt-hero .d4 { top: 25%; right: 22%; font-size: 20px; }
+.rt-hero-inner { display: flex; gap: 14px; align-items: center; position: relative; z-index: 1; }
+.rt-hero-emoji { width: 60px; height: 60px; border-radius: 16px; background: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 30px; transform: rotate(-5deg); flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+@media (min-width: 768px) { .rt-hero-emoji { width: 72px; height: 72px; font-size: 34px; } }
+.rt-hero-body h1 { font-size: 18px; font-weight: 700; margin: 0 0 4px; color: #ffffff; }
+@media (min-width: 768px) { .rt-hero-body h1 { font-size: 22px; } }
+.rt-hero-body p { font-size: 12px; opacity: 0.96; margin: 0; }
+.rt-ctx { position: relative; z-index: 1; background: rgba(255,255,255,0.2); backdrop-filter: blur(6px); border-radius: 12px; padding: 10px 12px; margin-top: 14px; display: flex; gap: 10px; align-items: center; }
+.rt-ctx-avatar { width: 32px; height: 32px; border-radius: 50%; background: #ffffff; color: #b45309; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.rt-ctx-text .name { font-size: 12px; font-weight: 600; margin: 0; }
+.rt-ctx-text .meta { font-size: 10px; opacity: 0.92; margin: 2px 0 0; }
+
+/* Info note */
+.rt-note { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; border-radius: 12px; padding: 11px 13px; margin-bottom: 14px; display: flex; gap: 8px; align-items: flex-start; font-size: 12px; line-height: 1.5; }
+.rt-note .ic { font-size: 14px; flex-shrink: 0; line-height: 1; padding-top: 1px; }
+
+/* Section card */
+.rt-sect { border-radius: 18px; padding: 18px; margin-bottom: 14px; border: 1px solid; }
+.rt-sect.teacher { background: linear-gradient(135deg, #ccfbf1 0%, #d1fae5 100%); border-color: #99f6e4; }
+.rt-sect.kelas { background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); border-color: #e9d5ff; }
+.rt-sect-h { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.rt-sect-h .ic { width: 38px; height: 38px; border-radius: 11px; background: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
+.rt-sect-h h3 { font-size: 15px; font-weight: 700; color: #111827; margin: 0; line-height: 1.2; }
+.rt-sect-h p { font-size: 11px; color: #4b5563; margin: 2px 0 0; }
+
+/* Star picker block (white card) */
+.rt-star-block { background: #ffffff; border-radius: 16px; padding: 16px; text-align: center; margin-bottom: 12px; }
+.rt-star-row { display: flex; justify-content: center; gap: 8px; margin-bottom: 12px; }
+.rt-star { width: 44px; height: 44px; border-radius: 50%; border: 1px solid #e5e7eb; background: #f9fafb; color: #d1d5db; font-size: 22px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-family: inherit; transition: transform 0.15s, background 0.15s, color 0.15s, border-color 0.15s, box-shadow 0.15s; padding: 0; line-height: 1; }
+.rt-star:hover { background: #fef3c7; }
+.rt-star.active { background: linear-gradient(135deg, #f59e0b, #d97706); color: #ffffff; border-color: transparent; box-shadow: 0 4px 10px rgba(245,158,11,0.32); transform: scale(1.1); }
+.rt-star-label { font-size: 13px; font-weight: 700; color: #92400e; min-height: 16px; }
+.rt-star-desc { font-size: 11px; color: #6b7280; margin-top: 3px; min-height: 14px; }
+
+/* Comment block */
+.rt-comment { background: #ffffff; border-radius: 12px; padding: 13px; }
+.rt-comment-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 11px; color: #6b7280; }
+.rt-comment-h .ct { font-size: 10px; color: #9ca3af; }
+.rt-comment textarea { width: 100%; min-height: 80px; padding: 10px 11px; border: 1px solid #e5e7eb; border-radius: 9px; font-size: 13px; outline: none; resize: vertical; background: #f9fafb; color: #111827; font-family: inherit; transition: background 0.15s, border-color 0.15s, box-shadow 0.15s; }
+.rt-comment textarea:focus { background: #ffffff; border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.12); }
+.rt-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.rt-chip { font-size: 10px; padding: 4px 10px; border-radius: 999px; background: #f3f4f6; color: #4b5563; border: none; cursor: pointer; font-family: inherit; transition: background 0.12s, color 0.12s; }
+.rt-sect.teacher .rt-chip:hover { background: #d1fae5; color: #047857; }
+.rt-sect.kelas .rt-chip:hover { background: #ede9fe; color: #6d28d9; }
+
+/* Submit row */
+.rt-submit { display: flex; gap: 10px; margin-top: 18px; }
+.rt-btn-cancel { padding: 13px 18px; background: #ffffff; color: #4b5563; border: 1px solid #e5e7eb; border-radius: 14px; font-size: 13px; font-weight: 600; text-decoration: none; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; transition: background 0.15s; }
+.rt-btn-cancel:hover { background: #f9fafb; }
+.rt-btn-submit { flex: 1; padding: 13px; background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; border: none; border-radius: 14px; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 14px rgba(16,185,129,0.28); display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit; transition: filter 0.15s, box-shadow 0.15s, transform 0.15s; }
+.rt-btn-submit:hover:not(:disabled) { filter: brightness(1.05); box-shadow: 0 10px 20px rgba(16,185,129,0.4); transform: translateY(-1px); }
+.rt-btn-submit:disabled { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; box-shadow: none; }
+
+/* Messages */
+.rt-msg { padding: 11px 13px; border-radius: 12px; font-size: 12px; margin-bottom: 12px; border: 1px solid; }
+.rt-msg.error { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
+.rt-msg.success { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+.rt-msg.info { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rt-star, .rt-btn-submit, .rt-chip { transition: none; }
+  .rt-star.active { transform: none; }
+  .rt-btn-submit:hover:not(:disabled) { transform: none; }
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="max-w-lg mx-auto space-y-5">
+<div class="rt-page" x-data="rateForm()">
 
-  <!-- Back link -->
-  <a href="{% url 'enrollments:my_classes' %}"
-     class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-         stroke-width="2" stroke="currentColor" class="w-4 h-4">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-    </svg>
-    Kelas Saya
-  </a>
+  <nav class="rt-crumb">
+    <a href="{% url 'dashboard:student' %}">🏠 Beranda</a>
+    <span class="sep">›</span>
+    <a href="{% url 'enrollments:my_classes' %}">📚 Kelas Saya</a>
+    <span class="sep">›</span>
+    <span class="current">Beri Rating</span>
+  </nav>
 
-  <!-- Class info banner -->
-  <div class="bg-primary-50 border border-primary-100 rounded-xl px-5 py-4">
-    <h2 class="text-sm font-semibold text-primary-800">{{ enrollment.kelas.name }}</h2>
-    <p class="text-xs text-primary-600 mt-0.5">
-      {{ enrollment.kelas.subject.name }}
-      &nbsp;·&nbsp;
-      {% if enrollment.kelas.teacher %}{{ enrollment.kelas.teacher.get_full_name }}{% endif %}
-    </p>
+  {# ── Hero (amber celebration) ───────────────────────────────────────── #}
+  <div class="rt-hero">
+    <span class="deco d1">🎉</span>
+    <span class="deco d2">⭐</span>
+    <span class="deco d3">🎊</span>
+    <span class="deco d4">🌟</span>
+    <div class="rt-hero-inner">
+      <div class="rt-hero-emoji">🏆</div>
+      <div class="rt-hero-body">
+        <h1>Selamat! Kelas Selesai 🎉</h1>
+        <p>Bagikan pengalamanmu untuk bantu siswa lain memilih kelas terbaik</p>
+      </div>
+    </div>
+    <div class="rt-ctx">
+      <span class="rt-ctx-avatar">{{ teacher_initials }}</span>
+      <div class="rt-ctx-text">
+        <p class="name">{{ subject_emoji }} {{ kelas.name }}</p>
+        <p class="meta">Diajar oleh {{ teacher_full_name }} · Selesai {{ enrollment.updated_at|date:"d M Y" }}</p>
+      </div>
+    </div>
   </div>
 
-  <!-- Rating form -->
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-    <div class="px-6 py-5 border-b border-gray-100">
-      <h3 class="text-sm font-semibold text-gray-900">
-        {% if existing_rating %}Perbarui Rating{% else %}Berikan Rating{% endif %}
-      </h3>
-      <p class="text-xs text-gray-400 mt-0.5">Bagaimana pengalaman belajar Anda di kelas ini?</p>
+  <div class="rt-note">
+    <span class="ic">ℹ️</span>
+    <span>Rating kamu akan ditampilkan publik (tanpa nama) di halaman kelas. Komentar opsional tapi sangat membantu siswa lain memilih.</span>
+  </div>
+
+  {# ── Flash messages ─────────────────────────────────────────────────── #}
+  {% if messages %}
+    {% for m in messages %}
+    <div class="rt-msg {% if m.tags == 'error' %}error{% elif m.tags == 'success' %}success{% else %}info{% endif %}">{{ m }}</div>
+    {% endfor %}
+  {% endif %}
+
+  {# ── Form ───────────────────────────────────────────────────────────── #}
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="teacher_score" :value="teacherScore">
+    <input type="hidden" name="class_score" :value="classScore">
+
+    {# Teacher rating #}
+    <div class="rt-sect teacher">
+      <div class="rt-sect-h">
+        <div class="ic">👩‍🏫</div>
+        <div>
+          <h3>Beri Rating untuk Guru</h3>
+          <p>Bagaimana pengalamanmu belajar dengan {{ teacher_full_name }}?</p>
+        </div>
+      </div>
+
+      <div class="rt-star-block">
+        <div class="rt-star-row">
+          <template x-for="n in 5" :key="n">
+            <button type="button"
+                    class="rt-star"
+                    :class="(hoverTeacher > 0 ? n <= hoverTeacher : n <= teacherScore) ? 'active' : ''"
+                    @click="teacherScore = n"
+                    @mouseenter="hoverTeacher = n"
+                    @mouseleave="hoverTeacher = 0">★</button>
+          </template>
+        </div>
+        <div class="rt-star-label" x-text="teacherScore > 0 ? labels[teacherScore].title : 'Pilih bintang…'"></div>
+        <div class="rt-star-desc" x-text="teacherScore > 0 ? labels[teacherScore].desc : ''"></div>
+      </div>
+
+      <div class="rt-comment">
+        <div class="rt-comment-h">
+          <span>💬 Cerita pengalamanmu (opsional)</span>
+          <span class="ct" x-text="teacherComment.length > 0 ? teacherComment.length + ' karakter' : 'Min. 20 karakter'"></span>
+        </div>
+        <textarea name="teacher_comment" x-model="teacherComment" placeholder="Apa yang kamu sukai dari cara mengajarnya?"></textarea>
+        <div class="rt-chips">
+          <template x-for="chip in teacherChips" :key="chip">
+            <button type="button" class="rt-chip" @click="appendChip('teacher', chip)">
+              <span x-text="'+ ' + chip"></span>
+            </button>
+          </template>
+        </div>
+      </div>
     </div>
 
-    <form method="post" class="px-6 py-5 space-y-6">
-      {% csrf_token %}
-
-      <!-- Star selector -->
-      <div>
-        <label class="block text-sm font-medium text-gray-700 mb-3">Rating Bintang</label>
-        {% include "components/_rating_stars.html" with input_mode=True initial_score=existing_rating.score|default:0 %}
+    {# Class rating #}
+    <div class="rt-sect kelas">
+      <div class="rt-sect-h">
+        <div class="ic">📚</div>
+        <div>
+          <h3>Beri Rating untuk Kelas</h3>
+          <p>Bagaimana kualitas materi & metode pembelajaran kelas?</p>
+        </div>
       </div>
 
-      <!-- Comment -->
-      <div>
-        <label for="comment" class="block text-sm font-medium text-gray-700 mb-1.5">
-          Komentar <span class="text-gray-400 font-normal">(opsional)</span>
-        </label>
-        <textarea id="comment" name="comment" rows="4"
-                  placeholder="Ceritakan pengalaman belajar Anda…"
-                  class="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm
-                         focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400
-                         resize-none placeholder:text-gray-300">{{ existing_rating.comment|default:'' }}</textarea>
+      <div class="rt-star-block">
+        <div class="rt-star-row">
+          <template x-for="n in 5" :key="n">
+            <button type="button"
+                    class="rt-star"
+                    :class="(hoverClass > 0 ? n <= hoverClass : n <= classScore) ? 'active' : ''"
+                    @click="classScore = n"
+                    @mouseenter="hoverClass = n"
+                    @mouseleave="hoverClass = 0">★</button>
+          </template>
+        </div>
+        <div class="rt-star-label" x-text="classScore > 0 ? labels[classScore].title : 'Pilih bintang…'"></div>
+        <div class="rt-star-desc" x-text="classScore > 0 ? labels[classScore].desc : ''"></div>
       </div>
 
-      <!-- Actions -->
-      <div class="flex gap-3">
-        <a href="{% url 'enrollments:my_classes' %}"
-           class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300
-                  rounded-lg hover:bg-gray-50 transition-colors">
-          Batal
-        </a>
-        <button type="submit"
-                class="px-5 py-2 text-sm font-semibold text-white bg-primary-600 rounded-lg
-                       hover:bg-primary-700 transition-colors">
-          {% if existing_rating %}Perbarui Rating{% else %}Kirim Rating{% endif %}
-        </button>
+      <div class="rt-comment">
+        <div class="rt-comment-h">
+          <span>💬 Apa yang menonjol dari kelas ini? (opsional)</span>
+          <span class="ct" x-text="classComment.length > 0 ? classComment.length + ' karakter' : 'Min. 20 karakter'"></span>
+        </div>
+        <textarea name="class_comment" x-model="classComment" placeholder="Materi apa yang paling bermanfaat? Apakah jadwal sesuai harapan?"></textarea>
+        <div class="rt-chips">
+          <template x-for="chip in classChips" :key="chip">
+            <button type="button" class="rt-chip" @click="appendChip('class', chip)">
+              <span x-text="'+ ' + chip"></span>
+            </button>
+          </template>
+        </div>
       </div>
-    </form>
-  </div>
+    </div>
+
+    <div class="rt-submit">
+      <a href="{% url 'enrollments:my_class_detail' enrollment.id %}" class="rt-btn-cancel">Nanti aja</a>
+      <button type="submit" class="rt-btn-submit" :disabled="!canSubmit">
+        ⭐ <span x-text="canSubmit ? 'Kirim Rating' : 'Lengkapi rating dulu'"></span>
+      </button>
+    </div>
+  </form>
 
 </div>
+
+<script>
+function rateForm() {
+  return {
+    teacherScore: 0,
+    classScore: 0,
+    hoverTeacher: 0,
+    hoverClass: 0,
+    teacherComment: '',
+    classComment: '',
+    labels: {
+      1: { title: '1 bintang · Kurang Memuaskan', desc: 'Banyak hal yang bisa ditingkatkan' },
+      2: { title: '2 bintang · Cukup',            desc: 'Lumayan, tapi masih perlu perbaikan' },
+      3: { title: '3 bintang · Bagus',            desc: 'Pengalaman belajar yang OK' },
+      4: { title: '4 bintang · Bagus Banget!',    desc: 'Sangat berkualitas dan terstruktur' },
+      5: { title: '5 bintang · Luar Biasa! ⭐',   desc: 'Pengalaman belajar terbaik' },
+    },
+    teacherChips: ['Penjelasannya jelas', 'Sabar mengajar', 'Materi update', 'Responsif', 'Inspiratif', 'Profesional'],
+    classChips:   ['Materi lengkap', 'Latihan banyak', 'Sesuai harga', 'Jadwal pas', 'Worth it', 'Struktur baik'],
+    get canSubmit() { return this.teacherScore > 0 && this.classScore > 0; },
+    appendChip(target, chip) {
+      const field = (target === 'teacher') ? 'teacherComment' : 'classComment';
+      const cur = this[field].trim();
+      const sep = (cur.length > 0 && !cur.endsWith('.')) ? '. ' : (cur.length > 0 ? ' ' : '');
+      this[field] = (cur + sep + chip + '.').trim();
+    },
+  };
+}
+</script>
 {% endblock %}
