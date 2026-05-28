@@ -65,3 +65,40 @@ class Enrollment(models.Model):
         self.is_deleted = True
         self.deleted_at = timezone.now()
         self.save()
+
+
+class EnrollmentWaitlist(models.Model):
+    """Student daftar tunggu untuk kelas yang penuh."""
+    student_profile = models.ForeignKey(
+        'accounts.StudentProfile',
+        on_delete=models.CASCADE,
+        related_name='waitlists',
+    )
+    kelas = models.ForeignKey(
+        'academics.Kelas',
+        on_delete=models.CASCADE,
+        related_name='waitlists',
+    )
+    position = models.PositiveIntegerField(help_text='Posisi antrian (mulai dari 1)')
+    created_at = models.DateTimeField(auto_now_add=True)
+    notified_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text='Kapan student dinotif slot kosong (NULL = belum dinotif).',
+    )
+
+    class Meta:
+        verbose_name = 'Waitlist'
+        verbose_name_plural = 'Waitlist'
+        ordering = ['kelas', 'position']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['student_profile', 'kelas'],
+                name='unique_waitlist_student_kelas',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['kelas', 'position']),
+        ]
+
+    def __str__(self):
+        return f'{self.student_profile} → {self.kelas.name} (#{self.position})'

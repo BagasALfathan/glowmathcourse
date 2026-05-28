@@ -62,6 +62,10 @@ class Subject(models.Model):
         Category, on_delete=models.PROTECT, related_name='subjects'
     )
     name = models.CharField(max_length=200)
+    icon = models.CharField(
+        max_length=10, blank=True, default='',
+        help_text='Optional emoji shown on the class card. Falls back to subject_emoji filter.',
+    )
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
