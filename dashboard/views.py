@@ -13,6 +13,11 @@ from accounts.models import User, Role
 
 
 @login_required
+def help_view(request):
+    return render(request, 'dashboard/help.html')
+
+
+@login_required
 def dashboard_router(request):
     role = request.user.role
     if role == Role.STUDENT:

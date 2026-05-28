@@ -4,6 +4,8 @@ from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import TemplateView
 
+from dashboard.views import help_view
+
 urlpatterns = [
     # Django built-in admin moved here to free /admin/ for the custom admin portal
     path('django-admin/', admin.site.urls),
@@ -14,6 +16,9 @@ urlpatterns = [
 
     path('dashboard/', include('dashboard.urls')),
     path('admin-panel/', include('admin_panel.urls')),
+
+    # Help/Bantuan — mounted at root so the URL is /help/
+    path('help/', help_view, name='help'),
 
     # Student see-all pages — must come BEFORE enrollments/sessions/grades
     # so /my-classes/, /my-attendance/, /my-monthly-score/ resolve here.

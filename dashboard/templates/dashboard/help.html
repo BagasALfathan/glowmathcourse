@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Bantuan{% endblock %}
+{% block page_title %}Bantuan{% endblock %}
+
+{% block extra_css %}
+<style>
+  .help-page  { background: linear-gradient(180deg, #ecfdf5 0%, #ffffff 280px); min-height: calc(100vh - 4rem); padding: 18px; margin: -1.5rem; padding-bottom: 32px; }
+  .help-hero  { background: linear-gradient(135deg, #34d399 0%, #10b981 50%, #059669 100%); border-radius: 20px; padding: 22px; color: #fff; position: relative; overflow: hidden; margin-bottom: 18px; box-shadow: 0 10px 28px rgba(16,185,129,0.22); }
+  .help-hero .deco { position: absolute; opacity: 0.20; pointer-events: none; }
+  .help-hero .d1 { top: 12px; right: 18px; font-size: 32px; transform: rotate(12deg); }
+  .help-hero .d2 { bottom: 16px; right: 32%; font-size: 22px; transform: rotate(-10deg); }
+  .help-hero h1 { font-size: 20px; font-weight: 700; margin: 0; line-height: 1.2; color: #fff; }
+  @media (min-width: 768px) { .help-hero h1 { font-size: 24px; } }
+  .help-hero p  { font-size: 13px; opacity: 0.95; margin: 4px 0 0; }
+  .help-hero-inner { display: flex; gap: 14px; align-items: center; position: relative; z-index: 1; }
+  .help-hero-icon { width: 56px; height: 56px; border-radius: 14px; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 26px; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transform: rotate(-4deg); }
+
+  .faq-grid   { display: grid; grid-template-columns: 1fr; gap: 12px; }
+  @media (min-width: 768px) { .faq-grid { grid-template-columns: 1fr 1fr; } }
+  .faq-card   { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 16px; }
+  .faq-card h3 { font-size: 14px; font-weight: 700; color: #111827; margin: 0 0 10px; display: flex; align-items: center; gap: 9px; }
+  .faq-card h3 .ic { width: 32px; height: 32px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; background: #d1fae5; color: #047857; }
+  .faq-card ol, .faq-card ul { margin: 0; padding-left: 20px; color: #374151; font-size: 13px; line-height: 1.6; }
+  .faq-card p { margin: 0; color: #374151; font-size: 13px; line-height: 1.6; }
+
+  .contact-card { background: linear-gradient(135deg, #ccfbf1 0%, #ecfdf5 100%); border: 1px solid #5eead4; border-radius: 16px; padding: 16px; margin-top: 14px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .contact-card .body { flex: 1; min-width: 220px; }
+  .contact-card h3 { font-size: 14px; font-weight: 700; color: #115e59; margin: 0; }
+  .contact-card p  { font-size: 12px; color: #0f766e; margin: 4px 0 0; }
+  .contact-card a  { background: #25d366; color: #fff; padding: 9px 16px; border-radius: 10px; text-decoration: none; font-size: 13px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 10px rgba(37,211,102,0.3); transition: transform 0.15s, box-shadow 0.15s; }
+  .contact-card a:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(37,211,102,0.4); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="help-page">
+
+  <div class="help-hero">
+    <span class="deco d1">❓</span>
+    <span class="deco d2">💡</span>
+    <div class="help-hero-inner">
+      <div class="help-hero-icon">🎓</div>
+      <div>
+        <h1>Pusat Bantuan</h1>
+        <p>Pertanyaan paling sering ditanyakan siswa GlowMath — semoga membantu!</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="faq-grid">
+
+    <div class="faq-card">
+      <h3><span class="ic">📝</span> Cara Mendaftar Kelas</h3>
+      <ol>
+        <li>Buka <strong>Jelajahi Kelas</strong> di sidebar.</li>
+        <li>Pilih kelas yang sesuai dengan jenjang kamu (TK/SD/SMP/SMA/UMUM).</li>
+        <li>Klik <em>Detail</em> untuk lihat jadwal, guru, dan harga.</li>
+        <li>Klik tombol <strong>Daftar</strong> — kamu akan otomatis ditambahkan ke daftar siswa kelas tersebut.</li>
+      </ol>
+    </div>
+
+    <div class="faq-card">
+      <h3><span class="ic">💳</span> Cara Bayar</h3>
+      <p>Untuk saat ini pembayaran dilakukan <strong>di luar sistem</strong> — transfer manual ke rekening bimbel.
+        Hubungi admin via WhatsApp untuk konfirmasi pembayaran. Sistem pembayaran online akan diaktifkan
+        pada fase berikutnya.</p>
+    </div>
+
+    <div class="faq-card">
+      <h3><span class="ic">📚</span> Akses Materi Kelas</h3>
+      <p>Setelah kelas dimulai, materi pelajaran (PDF, link Zoom, latihan soal) bisa diakses dari halaman
+        <strong>Kelas Saya</strong> → klik kelas → lihat tab <em>Daftar Pertemuan</em>. Setiap pertemuan
+        bisa memiliki link Zoom dan file lampiran dari guru.</p>
+    </div>
+
+    <div class="faq-card">
+      <h3><span class="ic">⭐</span> Beri Rating Guru &amp; Kelas</h3>
+      <p>Setelah kelas <strong>selesai</strong> (status <em>COMPLETED</em>), kamu bisa memberi rating
+        bintang 1–5 untuk guru dan kelas. Banner amber otomatis muncul di halaman <strong>Kelas Saya</strong>
+        ketika ada kelas selesai yang belum kamu rating.</p>
+    </div>
+
+    <div class="faq-card">
+      <h3><span class="ic">📅</span> Cek Kehadiran &amp; Nilai</h3>
+      <p>Kehadiran kamu otomatis tercatat ketika guru menandai presensi tiap pertemuan. Lihat ringkasan di
+        <strong>Kehadiran</strong> di sidebar. Untuk nilai quiz, tugas, UTS, UAS — buka <strong>Nilai
+        Bulanan</strong>.</p>
+    </div>
+
+    <div class="faq-card">
+      <h3><span class="ic">🔑</span> Lupa Password / Ubah Akun</h3>
+      <p>Buka <strong>Pengaturan</strong> di sidebar untuk mengganti password, memperbarui nomor HP, atau
+        update foto profil. Kalau lupa password dan tidak bisa login, hubungi admin via WhatsApp.</p>
+    </div>
+
+  </div>
+
+  <div class="contact-card">
+    <div class="body">
+      <h3>💬 Masih butuh bantuan?</h3>
+      <p>Tim admin siap menjawab via WhatsApp dalam jam kerja (Senin–Sabtu, 08.00–20.00 WIB).</p>
+    </div>
+    <a href="https://wa.me/6281234567890?text=Halo%20GlowMath%2C%20saya%20butuh%20bantuan." target="_blank" rel="noopener">
+      <i class="ti ti-brand-whatsapp"></i> Chat Admin
+    </a>
+  </div>
+
+</div>
+{% endblock %}
