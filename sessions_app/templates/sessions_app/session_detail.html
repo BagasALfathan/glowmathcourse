@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+{% load static dashboard_filters %}
+
+{% block title %}Sesi {{ session_number }} — {{ kelas.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.sd-page { background: linear-gradient(180deg, #fdf2f8 0%, #ffffff 280px); min-height: calc(100vh - 4rem); padding: 18px; margin: -1.5rem; padding-bottom: 32px; }
+
+.sd-crumb { font-size: 12px; color: #6b7280; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.sd-crumb a { color: #be185d; text-decoration: none; }
+.sd-crumb a:hover { text-decoration: underline; }
+.sd-crumb .sep { color: #d1d5db; }
+.sd-crumb .current { color: #111827; font-weight: 500; }
+
+/* Hero */
+.sd-hero { background: linear-gradient(135deg, #f472b6 0%, #ec4899 50%, #be185d 100%); border-radius: 22px; padding: 22px; color: #ffffff; position: relative; overflow: hidden; margin-bottom: 18px; box-shadow: 0 10px 28px rgba(190,24,93,0.22); }
+.sd-hero .deco { position: absolute; opacity: 0.18; pointer-events: none; }
+.sd-hero .d1 { top: 12px; right: 22px; font-size: 30px; transform: rotate(12deg); }
+.sd-hero .d2 { bottom: 14px; left: 38%; font-size: 22px; transform: rotate(-10deg); }
+.sd-hero-inner { display: flex; gap: 14px; align-items: center; position: relative; z-index: 1; }
+.sd-hero-num { width: 60px; height: 60px; border-radius: 16px; background: #ffffff; color: #be185d; display: inline-flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; flex-shrink: 0; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+@media (min-width: 768px) { .sd-hero-num { width: 72px; height: 72px; font-size: 30px; } }
+.sd-hero-body { flex: 1; min-width: 0; }
+.sd-hero-badges { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 6px; }
+.sd-hero-badges .hb { font-size: 9px; padding: 2px 9px; border-radius: 999px; font-weight: 700; letter-spacing: 0.04em; }
+.sd-hero-badges .hb.lv { background: #ffffff; color: #be185d; }
+.sd-hero-badges .hb.st { background: rgba(255,255,255,0.22); color: #ffffff; backdrop-filter: blur(4px); }
+.sd-hero h1 { font-size: 18px; font-weight: 700; margin: 0; line-height: 1.2; color: #ffffff; }
+@media (min-width: 768px) { .sd-hero h1 { font-size: 22px; } }
+.sd-hero-meta { font-size: 12px; opacity: 0.92; margin: 5px 0 0; }
+
+/* 2-col layout */
+.sd-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 1024px) { .sd-grid { grid-template-columns: 2fr 1fr; } }
+
+.sd-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+.sd-card-h { display: flex; align-items: center; gap: 9px; margin-bottom: 12px; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.sd-card-h-left { display: flex; align-items: center; gap: 9px; }
+.sd-card-h-left .ic { width: 30px; height: 30px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.sd-card-h-left .ic.purple { background: #ede9fe; color: #7c3aed; }
+.sd-card-h-left .ic.emerald { background: #d1fae5; color: #047857; }
+.sd-card-h-left .ic.pink { background: #fce7f3; color: #be185d; }
+.sd-card-h-left .ic.blue { background: #dbeafe; color: #1d4ed8; }
+.sd-card-h-left h2 { font-size: 14px; font-weight: 600; color: #111827; margin: 0; }
+.sd-card-h-counts { display: flex; gap: 5px; flex-wrap: wrap; }
+.sd-tally { font-size: 10px; padding: 3px 8px; border-radius: 5px; font-weight: 600; }
+.sd-tally.present { background: #d1fae5; color: #047857; }
+.sd-tally.permitted { background: #fef3c7; color: #b45309; }
+.sd-tally.absent { background: #fee2e2; color: #b91c1c; }
+
+.sd-body-text { font-size: 13px; color: #374151; line-height: 1.6; margin: 0; }
+.sd-body-empty { font-size: 12px; color: #6b7280; font-style: italic; margin: 0; }
+
+/* Attendance status (student) */
+.sd-att-card { display: flex; align-items: center; gap: 12px; padding: 13px; border-radius: 12px; border: 1px solid; }
+.sd-att-card.PRESENT { background: #ecfdf5; border-color: #a7f3d0; }
+.sd-att-card.PERMITTED { background: #fffbeb; border-color: #fde68a; }
+.sd-att-card.ABSENT { background: #fef2f2; border-color: #fecaca; }
+.sd-att-card.UPCOMING { background: #eff6ff; border-color: #bfdbfe; }
+.sd-att-card .em { font-size: 26px; flex-shrink: 0; }
+.sd-att-card .body { flex: 1; min-width: 0; }
+.sd-att-card .ttl { font-size: 13px; font-weight: 700; margin: 0; }
+.sd-att-card.PRESENT .ttl { color: #047857; }
+.sd-att-card.PERMITTED .ttl { color: #b45309; }
+.sd-att-card.ABSENT .ttl { color: #b91c1c; }
+.sd-att-card.UPCOMING .ttl { color: #1d4ed8; }
+.sd-att-card .sub { font-size: 11px; color: #6b7280; margin: 2px 0 0; }
+
+/* Attendance list (teacher/admin) */
+.att-list { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow-y: auto; padding-right: 2px; }
+.att-list::-webkit-scrollbar { width: 5px; }
+.att-list::-webkit-scrollbar-thumb { background: #fce7f3; border-radius: 3px; }
+.att-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: #f9fafb; border-radius: 9px; }
+.att-row .avt { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #d1d5db, #9ca3af); color: #ffffff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.att-row .name { flex: 1; font-size: 12px; color: #111827; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.att-row .badge { font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 5px; white-space: nowrap; }
+.att-row .badge.PRESENT { background: #d1fae5; color: #047857; }
+.att-row .badge.PERMITTED { background: #fef3c7; color: #b45309; }
+.att-row .badge.ABSENT { background: #fee2e2; color: #b91c1c; }
+.att-edit-btn { display: block; margin-top: 12px; text-align: center; padding: 11px; background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; border-radius: 12px; font-size: 13px; font-weight: 700; text-decoration: none; transition: filter 0.15s; }
+.att-edit-btn:hover { filter: brightness(1.05); }
+
+/* Sidebar context + nav */
+.ctx-card { display: block; padding: 12px; background: #f9fafb; border-radius: 12px; text-decoration: none; color: inherit; transition: background 0.15s; }
+.ctx-card:hover { background: #ecfdf5; }
+.ctx-card .name { font-size: 12px; font-weight: 700; color: #111827; margin: 0; line-height: 1.3; }
+.ctx-card .meta { font-size: 10px; color: #6b7280; margin: 2px 0 0; }
+.ctx-card .link { font-size: 10px; color: #047857; font-weight: 600; margin-top: 6px; }
+
+.nav-row { display: block; padding: 10px 11px; background: #f9fafb; border-radius: 11px; text-decoration: none; color: inherit; transition: background 0.15s; margin-bottom: 6px; }
+.nav-row:hover { background: #eff6ff; }
+.nav-row.next { text-align: right; }
+.nav-row .lbl { font-size: 10px; color: #6b7280; margin: 0; }
+.nav-row .ttl { font-size: 12px; font-weight: 600; color: #111827; margin: 2px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-row .date { font-size: 10px; color: #9ca3af; margin: 1px 0 0; }
+.nav-empty { font-size: 12px; color: #6b7280; font-style: italic; text-align: center; padding: 6px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ctx-card, .nav-row, .att-edit-btn { transition: none; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sd-page">
+
+  <nav class="sd-crumb">
+    <a href="{% url 'dashboard:router' %}">🏠</a>
+    <span class="sep">›</span>
+    {% if is_student and enrollment %}
+    <a href="{% url 'enrollments:my_class_detail' enrollment.pk %}">Kelas Saya</a>
+    <span class="sep">›</span>
+    {% endif %}
+    <a href="{% url 'academics:class_detail' kelas.pk %}">{{ kelas.name|truncatechars:24 }}</a>
+    <span class="sep">›</span>
+    <span class="current">Sesi {{ session_number }}</span>
+  </nav>
+
+  {# ── Hero ───────────────────────────────────────────────────────────── #}
+  <div class="sd-hero">
+    <span class="deco d1">📚</span>
+    <span class="deco d2">⭐</span>
+    <div class="sd-hero-inner">
+      <div class="sd-hero-num">{{ session_number }}</div>
+      <div class="sd-hero-body">
+        <div class="sd-hero-badges">
+          <span class="hb lv">Sesi {{ session_number }}/{{ total_sessions }}</span>
+          <span class="hb st">
+            {% if session.status == 'COMPLETED' %}✓ Selesai
+            {% elif session.status == 'SCHEDULED' %}📅 Terjadwal
+            {% elif session.status == 'CANCELLED' %}✕ Dibatalkan
+            {% else %}{{ session.status }}{% endif %}
+          </span>
+        </div>
+        <h1>{{ session.topic|default:"Pertemuan" }}</h1>
+        <p class="sd-hero-meta">📅 {{ session.date|date:"l, d F Y" }} · ⏰ {{ session.start_time|time:"H:i" }}–{{ session.end_time|time:"H:i" }}</p>
+      </div>
+    </div>
+  </div>
+
+  {# ── 2-col layout ──────────────────────────────────────────────────── #}
+  <div class="sd-grid">
+
+    {# LEFT — content #}
+    <div>
+
+      {# Topic / Description #}
+      <div class="sd-card">
+        <div class="sd-card-h">
+          <div class="sd-card-h-left">
+            <div class="ic purple">📖</div>
+            <h2>Tentang Pertemuan Ini</h2>
+          </div>
+        </div>
+        {% if session.topic %}
+          <p class="sd-body-text"><b>Topik:</b> {{ session.topic }}</p>
+        {% else %}
+          <p class="sd-body-empty">Belum ada topik untuk pertemuan ini.</p>
+        {% endif %}
+        {% if session.meeting_url %}
+          <p class="sd-body-text" style="margin-top:10px"><b>Tautan:</b> <a href="{{ session.meeting_url }}" target="_blank" rel="noopener" style="color:#7c3aed">Buka link meeting →</a></p>
+        {% endif %}
+      </div>
+
+      {# Student: my attendance #}
+      {% if is_student %}
+      <div class="sd-card">
+        <div class="sd-card-h">
+          <div class="sd-card-h-left">
+            <div class="ic emerald">✓</div>
+            <h2>Kehadiranmu</h2>
+          </div>
+        </div>
+        {% if my_attendance %}
+          <div class="sd-att-card {{ my_attendance.status }}">
+            <span class="em">
+              {% if my_attendance.status == 'PRESENT' %}✅
+              {% elif my_attendance.status == 'PERMITTED' %}📝
+              {% else %}✕{% endif %}
+            </span>
+            <div class="body">
+              <p class="ttl">
+                {% if my_attendance.status == 'PRESENT' %}Hadir
+                {% elif my_attendance.status == 'PERMITTED' %}Izin
+                {% else %}Alpha{% endif %}
+              </p>
+              <p class="sub">Tercatat {{ my_attendance.marked_at|date:"d M Y" }}{% if my_attendance.marked_at %} · {{ my_attendance.marked_at|time:"H:i" }}{% endif %}</p>
+            </div>
+          </div>
+        {% elif session.date >= today %}
+          <div class="sd-att-card UPCOMING">
+            <span class="em">⏳</span>
+            <div class="body">
+              <p class="ttl">Pertemuan Mendatang</p>
+              <p class="sub">Pastikan kamu hadir tepat waktu!</p>
+            </div>
+          </div>
+        {% else %}
+          <p class="sd-body-empty">Belum ada catatan kehadiran untuk sesi ini.</p>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      {# Teacher / Admin: full attendance list #}
+      {% if is_teacher or is_admin %}
+      <div class="sd-card">
+        <div class="sd-card-h">
+          <div class="sd-card-h-left">
+            <div class="ic emerald">👥</div>
+            <h2>Daftar Kehadiran</h2>
+          </div>
+          <div class="sd-card-h-counts">
+            <span class="sd-tally present">{{ present_count }} hadir</span>
+            <span class="sd-tally permitted">{{ permitted_count }} izin</span>
+            <span class="sd-tally absent">{{ absent_count }} alpha</span>
+          </div>
+        </div>
+        <div class="att-list">
+          {% for att in all_attendances %}
+          <div class="att-row">
+            <span class="avt">{{ att.enrollment.student_profile.user.first_name|first|default:att.enrollment.student_profile.user.username|first|upper }}</span>
+            <span class="name">{{ att.enrollment.student_profile.user.get_full_name|default:att.enrollment.student_profile.user.username }}</span>
+            <span class="badge {{ att.status }}">
+              {% if att.status == 'PRESENT' %}✓ Hadir
+              {% elif att.status == 'PERMITTED' %}📝 Izin
+              {% else %}✕ Alpha{% endif %}
+            </span>
+          </div>
+          {% empty %}
+          <p class="sd-body-empty" style="text-align:center;padding:14px">Belum ada absensi tercatat.</p>
+          {% endfor %}
+        </div>
+        {% if is_teacher %}
+        <a href="{% url 'sessions_app:teacher_attendance' session.pk %}" class="att-edit-btn">✏️ Edit Absensi</a>
+        {% endif %}
+      </div>
+      {% endif %}
+
+    </div>
+
+    {# RIGHT — sidebar #}
+    <div>
+      <div class="sd-card">
+        <div class="sd-card-h">
+          <div class="sd-card-h-left">
+            <div class="ic emerald">📚</div>
+            <h2>Konteks Kelas</h2>
+          </div>
+        </div>
+        <a href="{% url 'academics:class_detail' kelas.pk %}" class="ctx-card">
+          <p class="name">{{ kelas.name }}</p>
+          <p class="meta">👩‍🏫 {{ kelas.teacher_profile.user.get_full_name|default:kelas.teacher_profile.user.username }}</p>
+          <p class="meta">{{ kelas.level }} · {{ kelas.subject.name }}</p>
+          <p class="link">Lihat detail kelas →</p>
+        </a>
+      </div>
+
+      <div class="sd-card">
+        <div class="sd-card-h">
+          <div class="sd-card-h-left">
+            <div class="ic blue">🧭</div>
+            <h2>Navigasi Sesi</h2>
+          </div>
+        </div>
+        {% if prev_session %}
+        <a href="{% url 'sessions_app:session_detail' prev_session.pk %}" class="nav-row">
+          <p class="lbl">← Sebelumnya</p>
+          <p class="ttl">{{ prev_session.topic|default:"Sesi sebelumnya" }}</p>
+          <p class="date">{{ prev_session.date|date:"d M Y" }}</p>
+        </a>
+        {% endif %}
+        {% if next_session %}
+        <a href="{% url 'sessions_app:session_detail' next_session.pk %}" class="nav-row next">
+          <p class="lbl">Berikutnya →</p>
+          <p class="ttl">{{ next_session.topic|default:"Sesi berikutnya" }}</p>
+          <p class="date">{{ next_session.date|date:"d M Y" }}</p>
+        </a>
+        {% endif %}
+        {% if not prev_session and not next_session %}
+        <p class="nav-empty">Sesi tunggal</p>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}

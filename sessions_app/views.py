@@ -3,6 +3,7 @@ import io
 import json
 
 from django.contrib import messages
+from django.contrib.auth.decorators import login_required
 from django.db import models
 from django.db.models import Count
 from django.http import HttpResponse
@@ -363,28 +364,121 @@ def teacher_attendance(request, pk):
     })
 
 
-# ─── Student booking views ────────────────────────────────────────────────────
+# ─── Role-aware Session Detail (named student_session_redirect for backward URL compat) ───
 
+@login_required
 def student_session_redirect(request, pk):
-    """Resolve a bare session id to the enrollment-scoped session list (which is
-    where students actually interact with it). Falls back to dashboard if the
-    student isn't enrolled in that class."""
+    """Role-aware Session Detail page.
+
+    - Student enrolled in this kelas: shows their attendance status for this session.
+    - Teacher of this kelas: shows all attendances + link to edit absensi.
+    - Admin: read-only view of all attendances.
+    - Student NOT enrolled: redirect to class_detail with an error message.
+    """
+    from django.contrib import messages
     from django.shortcuts import get_object_or_404, redirect
+    from django.utils import timezone
+    from django.db.models import Q
+    from academics.models import KelasStatus
+    from accounts.models import Role
     from enrollments.models import Enrollment, EnrollmentStatus
-    session = get_object_or_404(Session, pk=pk)
-    enrollment = (
-        Enrollment.objects
-        .filter(
-            student_profile__user=request.user,
-            kelas=session.kelas,
-            status=EnrollmentStatus.ACTIVE,
-            is_deleted=False,
-        )
-        .first()
+
+    session = get_object_or_404(
+        Session.objects.select_related('kelas__subject', 'kelas__teacher_profile__user'),
+        pk=pk,
     )
-    if enrollment:
-        return redirect('sessions_app:student_session_list', enrollment_id=enrollment.pk)
-    return redirect('dashboard:student')
+    kelas = session.kelas
+    user = request.user
+    today = timezone.localdate()
+
+    is_teacher = (
+        user.role == Role.TEACHER
+        and kelas.teacher_profile.user_id == user.pk
+    )
+    is_admin = (user.role == Role.ADMIN)
+    is_student = (user.role == Role.STUDENT)
+
+    enrollment = None
+    my_attendance = None
+    all_attendances = []
+    present_count = permitted_count = absent_count = 0
+
+    if is_student:
+        enrollment = (
+            Enrollment.objects
+            .filter(
+                student_profile__user=user,
+                kelas=kelas,
+                status=EnrollmentStatus.ACTIVE,
+                is_deleted=False,
+            )
+            .first()
+        )
+        if enrollment is None:
+            messages.error(request, 'Kamu tidak terdaftar di kelas ini.')
+            return redirect('academics:class_detail', pk=kelas.pk)
+        my_attendance = (
+            Attendance.objects
+            .filter(session=session, enrollment=enrollment)
+            .first()
+        )
+    elif is_teacher or is_admin:
+        all_attendances = list(
+            Attendance.objects
+            .filter(session=session)
+            .select_related('enrollment__student_profile__user')
+            .order_by('enrollment__student_profile__user__first_name')
+        )
+        for a in all_attendances:
+            if a.status == AttendanceStatus.PRESENT:
+                present_count += 1
+            elif a.status == AttendanceStatus.PERMITTED:
+                permitted_count += 1
+            elif a.status == AttendanceStatus.ABSENT:
+                absent_count += 1
+    else:
+        return redirect('dashboard:router')
+
+    # Session ordering: this session's position + prev/next
+    all_session_ids = list(
+        Session.objects
+        .filter(kelas=kelas)
+        .order_by('date', 'start_time')
+        .values_list('pk', flat=True)
+    )
+    try:
+        idx = all_session_ids.index(session.pk)
+    except ValueError:
+        idx = 0
+    session_number = idx + 1
+    total_sessions = len(all_session_ids)
+    prev_session = (
+        Session.objects.select_related('kelas').get(pk=all_session_ids[idx - 1])
+        if idx > 0 else None
+    )
+    next_session = (
+        Session.objects.select_related('kelas').get(pk=all_session_ids[idx + 1])
+        if idx < total_sessions - 1 else None
+    )
+
+    return render(request, 'sessions_app/session_detail.html', {
+        'session': session,
+        'kelas': kelas,
+        'today': today,
+        'session_number': session_number,
+        'total_sessions': total_sessions,
+        'is_teacher': is_teacher,
+        'is_admin': is_admin,
+        'is_student': is_student,
+        'enrollment': enrollment,
+        'my_attendance': my_attendance,
+        'all_attendances': all_attendances,
+        'present_count': present_count,
+        'permitted_count': permitted_count,
+        'absent_count': absent_count,
+        'prev_session': prev_session,
+        'next_session': next_session,
+    })
 
 
 @role_required('STUDENT')
