@@ -36,9 +36,23 @@ def _announcements_for_user(user):
 
 @login_required
 def announcements_list(request):
-    announcements = _announcements_for_user(request.user)
+    qs = list(_announcements_for_user(request.user))
+
+    # Filter chip — 'pinned' is the only one wired to data (model has no
+    # category field today; other chips are presentational placeholders).
+    active_filter = (request.GET.get('filter') or '').strip()
+    if active_filter == 'pinned':
+        qs = [a for a in qs if a.is_pinned]
+
+    pinned = [a for a in qs if a.is_pinned]
+    regular = [a for a in qs if not a.is_pinned]
     return render(request, 'announcements/list.html', {
-        'announcements': announcements,
+        'announcements': qs,
+        'pinned': pinned,
+        'regular': regular,
+        'total': len(qs),
+        'pinned_count': len(pinned),
+        'active_filter': active_filter,
     })
 
 

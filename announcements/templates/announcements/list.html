@@ -1,81 +1,106 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Pengumuman{% endblock %}
 {% block page_title %}Pengumuman{% endblock %}
 
 {% block content %}
-<div class="space-y-4">
+<div class="bg-gradient-to-b from-orange-50 to-gray-50 -m-6 p-4 md:p-6 min-h-screen">
 
-  <!-- Header + action -->
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-    <p class="text-sm text-gray-500">Semua pengumuman yang relevan untuk Anda.</p>
+  <nav class="text-xs text-orange-700 mb-4 flex gap-1.5">
+    <a href="{% url 'dashboard:student' %}" class="hover:underline">🏠 Beranda</a>
+    <span class="text-gray-400">›</span>
+    <span class="text-gray-500">Pengumuman</span>
+  </nav>
+
+  {# ── Hero ────────────────────────────────────────────────────────── #}
+  <div class="rounded-3xl p-5 md:p-6 mb-4 relative overflow-hidden text-white"
+       style="background: linear-gradient(135deg, #fb923c 0%, #f97316 50%, #ea580c 100%); box-shadow: 0 10px 28px rgba(234, 88, 12, 0.22);">
+    <span class="absolute top-3 right-4 text-3xl opacity-25 pointer-events-none">📢</span>
+    <span class="absolute bottom-3 right-16 text-xl opacity-20 pointer-events-none">🔔</span>
+    <span class="absolute top-10 right-20 text-base opacity-25 pointer-events-none">✨</span>
+    <div class="relative z-10 flex flex-col md:flex-row md:items-center gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-14 h-14 rounded-2xl bg-white text-orange-600 flex items-center justify-center text-2xl shadow-lg flex-shrink-0"
+             style="transform: rotate(-4deg);">📢</div>
+        <div>
+          <h1 class="text-lg md:text-xl font-bold m-0 leading-tight">Pengumuman</h1>
+          <p class="text-xs opacity-95 m-0 mt-1">Info terbaru dari admin &amp; guru GlowMath</p>
+        </div>
+      </div>
+      <div class="flex gap-2 md:ml-auto flex-wrap">
+        <span class="bg-white/20 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap">
+          <span class="opacity-80">Total</span> · <span class="font-bold">{{ total }}</span>
+        </span>
+        <span class="bg-white/20 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap">
+          <span class="opacity-80">📌 Penting</span> · <span class="font-bold">{{ pinned_count }}</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  {# ── Filter chips ────────────────────────────────────────────────── #}
+  <div class="flex gap-2 overflow-x-auto pb-2 mb-4 -mx-1 px-1">
+    <a href="{% url 'announcements:list' %}"
+       class="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all no-underline
+              {% if not active_filter %}bg-orange-500 text-white shadow-md{% else %}bg-white text-gray-600 border border-gray-200 hover:border-orange-300{% endif %}">
+      Semua
+    </a>
+    <a href="?filter=pinned"
+       class="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all no-underline
+              {% if active_filter == 'pinned' %}bg-orange-500 text-white shadow-md{% else %}bg-white text-gray-600 border border-gray-200 hover:border-orange-300{% endif %}">
+      📌 Penting
+    </a>
+    <span class="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap bg-white text-gray-400 border border-gray-200 cursor-not-allowed" title="Tersedia Fase 4">
+      📅 Event
+    </span>
+    <span class="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap bg-white text-gray-400 border border-gray-200 cursor-not-allowed" title="Tersedia Fase 4">
+      ⚠️ Sistem
+    </span>
+    <span class="shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap bg-white text-gray-400 border border-gray-200 cursor-not-allowed" title="Tersedia Fase 4">
+      🎉 Promo
+    </span>
     {% if user.role == 'ADMIN' or user.role == 'TEACHER' %}
     <a href="{% url 'announcements:create' %}"
-       class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white
-              bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-           stroke-width="2" stroke="currentColor" class="w-4 h-4">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-      </svg>
-      Buat Pengumuman
+       class="shrink-0 ml-auto px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap bg-gradient-to-br from-orange-500 to-orange-700 text-white shadow-md hover:shadow-lg transition-all no-underline">
+      + Buat
     </a>
     {% endif %}
   </div>
 
-  {% if announcements %}
-    {% for ann in announcements %}
-    <div class="bg-white rounded-xl border {% if ann.is_pinned %}border-primary-200{% else %}border-gray-100{% endif %} shadow-sm p-5">
-      <div class="flex items-start gap-3">
-        {% if ann.is_pinned %}
-        <div class="mt-0.5 shrink-0 w-7 h-7 rounded-lg bg-primary-100 flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4 text-primary-600">
-            <path fill-rule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-2.625 6c-.54 0-.828.419-.936.634a1.96 1.96 0 00-.189.866c0 .298.059.605.189.866.108.215.395.634.936.634.54 0 .828-.419.936-.634.13-.26.189-.568.189-.866 0-.298-.059-.605-.189-.866-.108-.215-.395-.634-.936-.634zm4.314.634c.108-.215.395-.634.936-.634.54 0 .828.419.936.634.13.26.189.568.189.866 0 .298-.059.605-.189.866-.108.215-.395.634-.936.634-.54 0-.828-.419-.936-.634a1.96 1.96 0 01-.189-.866c0-.298.059-.605.189-.866zm2.023 6.828a.75.75 0 10-1.06-1.06 3.75 3.75 0 01-5.304 0 .75.75 0 00-1.06 1.06 5.25 5.25 0 007.424 0z" clip-rule="evenodd" />
-          </svg>
-        </div>
-        {% endif %}
-        <div class="flex-1 min-w-0">
-          <div class="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
-            <a href="{% url 'announcements:detail' ann.pk %}"
-               class="text-base font-semibold text-gray-900 hover:text-primary-600 transition-colors">
-              {{ ann.title }}
-            </a>
-            {% if ann.is_pinned %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-700 shrink-0">
-              Disematkan
-            </span>
-            {% endif %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium shrink-0
-              {% if ann.target_role == 'ALL' %}bg-gray-100 text-gray-600
-              {% else %}bg-primary-100 text-primary-700{% endif %}">
-              {{ ann.get_target_role_display }}{% if ann.level != 'ALL' %} · {{ ann.level }}{% endif %}
-            </span>
-          </div>
-          <p class="text-sm text-gray-600 line-clamp-2">{{ ann.content|truncatechars:150 }}</p>
-          <div class="mt-2 flex items-center gap-2 text-xs text-gray-400">
-            <span>{{ ann.author.get_full_name }}</span>
-            <span>·</span>
-            <span>{{ ann.created_at|date:"d M Y, H:i" }}</span>
-          </div>
-        </div>
-        <a href="{% url 'announcements:detail' ann.pk %}"
-           class="shrink-0 text-xs font-medium text-primary-600 hover:text-primary-800 px-2.5 py-1.5
-                  rounded-lg hover:bg-primary-50 border border-primary-100 transition-colors whitespace-nowrap">
-          Baca →
-        </a>
+  {# ── Pinned section ──────────────────────────────────────────────── #}
+  {% if pinned and not active_filter %}
+  <section class="rounded-2xl p-4 mb-4"
+           style="background: linear-gradient(135deg, #fefce8 0%, #fff7ed 100%); border: 1px solid #fde68a;">
+    <div class="flex items-center gap-2 mb-3">
+      <span class="text-amber-700 text-base">📌</span>
+      <h2 class="text-xs font-bold text-amber-900 uppercase tracking-wider m-0">Dipinkan</h2>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {% for ann in pinned %}
+        {% include 'announcements/_card.html' with ann=ann is_pinned=True %}
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {# ── Regular grid ────────────────────────────────────────────────── #}
+  {% if regular or active_filter == 'pinned' %}
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+    {% for ann in regular %}
+      {% include 'announcements/_card.html' with ann=ann is_pinned=False %}
+    {% empty %}
+      {% if active_filter == 'pinned' %}
+      <div class="col-span-full text-center py-12 text-sm text-gray-500 bg-white rounded-2xl border border-gray-200">
+        Tidak ada pengumuman yang dipinkan saat ini.
       </div>
-    </div>
+      {% endif %}
     {% endfor %}
-  {% else %}
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm p-12 flex flex-col items-center justify-center text-center">
-    <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-           stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-gray-400">
-        <path stroke-linecap="round" stroke-linejoin="round"
-              d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 01-1.44-4.282m3.102.069a18.03 18.03 0 01-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 018.835 2.535M10.34 6.66a23.847 23.847 0 008.835-2.535m0 0A23.74 23.74 0 0018.795 3m.38 1.125a23.91 23.91 0 011.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 001.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 010 3.46" />
-      </svg>
-    </div>
-    <p class="text-gray-600 font-medium">Belum ada pengumuman.</p>
-    <p class="text-sm text-gray-400 mt-1">Pengumuman yang relevan akan muncul di sini.</p>
+  </div>
+  {% elif not pinned %}
+  <div class="bg-white rounded-2xl border border-gray-200 flex flex-col items-center justify-center py-12 text-center px-6">
+    <div class="w-14 h-14 rounded-2xl bg-orange-50 flex items-center justify-center text-3xl mb-3">📭</div>
+    <p class="text-gray-700 font-semibold m-0">Belum ada pengumuman.</p>
+    <p class="text-xs text-gray-500 mt-1">Info baru dari admin akan muncul di sini.</p>
   </div>
   {% endif %}
 
