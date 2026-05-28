@@ -1,87 +1,234 @@
+{% comment %}
+  Khan Playful student sidebar.
+  Scoped via :has(.student-nav-marker) so teacher/admin renders are unaffected
+  even though the <aside> shell is shared from base.html.
+{% endcomment %}
+<style>
+  aside.sidebar:has(.student-nav-marker) {
+    background: linear-gradient(180deg, #f0fdfa 0%, #ffffff 80%);
+    border-right: 0.5px solid #ccfbf1;
+    overflow-x: hidden;
+  }
+  /* Student sidebar replaces the shared bottom profile/logout block with its
+     own user-block + Logout nav item — hide the shared one to avoid dupes. */
+  aside.sidebar:has(.student-nav-marker) .sidebar-profile {
+    display: none !important;
+  }
+
+  .student-nav-marker { display: contents; }
+
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    color: #475569;
+    text-decoration: none;
+    margin-bottom: 3px;
+    font-weight: 500;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+    min-width: 0;
+  }
+  .sidebar-item .ico {
+    font-size: 16px;
+    width: 22px;
+    text-align: center;
+    transition: transform 0.2s ease, filter 0.2s ease;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .sidebar-item .label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1;
+  }
+  .sidebar-item:hover {
+    background: #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    color: #0f766e;
+  }
+  .sidebar-item.active {
+    background: #ffffff;
+    color: #0f766e;
+    font-weight: 600;
+    border: 1px solid #99f6e4 !important;
+    box-shadow: 0 4px 12px rgba(20, 184, 166, 0.18), 0 1px 3px rgba(20, 184, 166, 0.08) !important;
+    transform: translateX(2px);
+  }
+  .sidebar-item.active .ico {
+    transform: scale(1.18);
+    filter: drop-shadow(0 2px 3px rgba(20, 184, 166, 0.25));
+  }
+  .sidebar-item.utility { color: #64748b; }
+  .sidebar-item.utility:hover { color: #0f766e; }
+  .sidebar-item.logout { color: #dc2626; }
+  .sidebar-item.logout:hover { background: #fef2f2; color: #b91c1c; }
+
+  .student-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #99f6e4, transparent);
+    margin: 12px 8px;
+  }
+
+  .student-user-block {
+    margin: 12px 4px 4px;
+    padding: 10px;
+    background: #ffffff;
+    border: 1px solid #99f6e4;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .student-user-block:hover {
+    border-color: #2dd4bf;
+    box-shadow: 0 4px 14px rgba(20, 184, 166, 0.15);
+  }
+  .student-user-block.active {
+    border-color: #14b8a6;
+    box-shadow: 0 3px 10px rgba(20, 184, 166, 0.18);
+  }
+  .student-user-block .avatar {
+    width: 32px; height: 32px; border-radius: 999px;
+    background: linear-gradient(135deg, #14b8a6, #0d9488);
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
+  .student-user-block .info { flex: 1; min-width: 0; }
+  .student-user-block .info p { margin: 0; }
+  .student-user-block .info .nm { font-size: 12px; font-weight: 600; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .student-user-block .info .rl { font-size: 10px; color: #6b7280; margin-top: 1px; }
+  .student-user-block .edit-hint {
+    font-size: 13px; color: #14b8a6; flex-shrink: 0;
+    transition: transform 0.2s;
+  }
+  .student-user-block:hover .edit-hint { transform: scale(1.15); }
+
+  /* Collapsed-mode rescue: keep emojis + avatar visible */
+  aside.sidebar-collapsed .sidebar-item .ico { font-size: 18px !important; }
+  aside.sidebar-collapsed .sidebar-item.active { border: 1px solid #99f6e4 !important; }
+  aside.sidebar-collapsed .student-divider { margin: 8px 8px; }
+  aside.sidebar-collapsed .student-user-block { padding: 6px; justify-content: center; }
+  aside.sidebar-collapsed .student-user-block .info,
+  aside.sidebar-collapsed .student-user-block .edit-hint { display: none; }
+  aside.sidebar-collapsed .student-user-block .avatar { font-size: 11px !important; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar-item,
+    .sidebar-item .ico { transition: none; }
+  }
+</style>
+
 {% with path=request.path %}
+<div class="student-nav-marker" x-data="{ showLogoutModal: false }">
 
-{% url 'dashboard:student' as dashboard_url %}
-<a href="{{ dashboard_url }}"
-   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-          {% if path == dashboard_url %}bg-teal-50 text-teal-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-5 h-5 shrink-0">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-  </svg>
-  Beranda
-</a>
+  {# ── Primary nav (7) ──────────────────────────────────────────────── #}
+  <a href="{% url 'dashboard:student' %}" data-label="Dashboard"
+     class="sidebar-item {% if path == '/dashboard/student/' or path == '/dashboard/' %}active{% endif %}">
+    <span class="ico">🏠</span><span class="label">Dashboard</span>
+  </a>
+  <a href="{% url 'academics:class_browse' %}" data-label="Jelajahi Kelas"
+     class="sidebar-item {% if '/classes/' in path and '/my-classes/' not in path and '/my-schedule/' not in path %}active{% endif %}">
+    <span class="ico">📚</span><span class="label">Jelajahi Kelas</span>
+  </a>
+  <a href="{% url 'academics:teacher_list' %}" data-label="Pengajar"
+     class="sidebar-item {% if '/teachers/' in path %}active{% endif %}">
+    <span class="ico">👩‍🏫</span><span class="label">Pengajar</span>
+  </a>
+  <a href="{% url 'student:my_classes' %}" data-label="Kelas Saya"
+     class="sidebar-item {% if '/my-classes/' in path %}active{% endif %}">
+    <span class="ico">🎒</span><span class="label">Kelas Saya</span>
+  </a>
+  <a href="{% url 'academics:student_schedule' %}" data-label="Jadwal Mingguan"
+     class="sidebar-item {% if '/my-schedule/' in path %}active{% endif %}">
+    <span class="ico">🗓️</span><span class="label">Jadwal Mingguan</span>
+  </a>
+  <a href="{% url 'student:my_attendance' %}" data-label="Kehadiran"
+     class="sidebar-item {% if '/my-attendance/' in path %}active{% endif %}">
+    <span class="ico">📅</span><span class="label">Kehadiran</span>
+  </a>
+  <a href="{% url 'student:my_monthly_score' %}" data-label="Nilai Bulanan"
+     class="sidebar-item {% if '/my-monthly-score/' in path %}active{% endif %}">
+    <span class="ico">⭐</span><span class="label">Nilai Bulanan</span>
+  </a>
 
-<a href="/classes/"
-   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-          {% if '/classes/' in path and '/my-classes/' not in path and '/my-schedule/' not in path %}bg-teal-50 text-teal-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-5 h-5 shrink-0">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-  </svg>
-  Cari Kelas
-</a>
+  {# ── Divider ──────────────────────────────────────────────────────── #}
+  <div class="student-divider"></div>
 
-<a href="{% url 'academics:student_schedule_classes' %}"
-   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-          {% if '/my-schedule/' in path %}bg-teal-50 text-teal-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-5 h-5 shrink-0">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-  </svg>
-  Jadwal
-</a>
+  {# ── Utility (4: Pengumuman / Jurnal / Bantuan / Logout) ──────────── #}
+  <a href="{% url 'announcements:list' %}" data-label="Pengumuman"
+     class="sidebar-item utility {% if '/announcements/' in path %}active{% endif %}">
+    <span class="ico">📢</span><span class="label">Pengumuman</span>
+  </a>
+  <a href="{% url 'journals:my_journals' %}" data-label="Jurnal Bulanan"
+     class="sidebar-item utility {% if '/journals/' in path %}active{% endif %}">
+    <span class="ico">📔</span><span class="label">Jurnal Bulanan</span>
+  </a>
+  <a href="{% url 'help' %}" data-label="Bantuan"
+     class="sidebar-item utility {% if path == '/help/' %}active{% endif %}">
+    <span class="ico">❓</span><span class="label">Bantuan</span>
+  </a>
 
-<a href="{% url 'academics:teacher_list' %}"
-   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-          {% if '/teachers/' in path %}bg-teal-50 text-teal-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-5 h-5 shrink-0">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-  </svg>
-  Guru
-</a>
+  <button type="button" @click="showLogoutModal = true" data-label="Logout"
+          class="sidebar-item logout w-full text-left bg-transparent border-0 cursor-pointer">
+    <span class="ico">🚪</span><span class="label">Logout</span>
+  </button>
 
-<a href="/my-classes/"
-   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-          {% if '/my-classes/' in path %}bg-teal-50 text-teal-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-5 h-5 shrink-0">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
-  </svg>
-  Kelas Saya
-</a>
+  {# ── Clickable user block → /profile/ ─────────────────────────────── #}
+  <a href="{% url 'accounts:profile' %}" data-label="Profil"
+     class="student-user-block group {% if '/profile/' in path %}active{% endif %}">
+    <div class="avatar">{{ user.first_name|first|upper }}{{ user.last_name|first|upper }}</div>
+    <div class="info">
+      <p class="nm">{{ user.first_name }} {{ user.last_name|default:"" }}</p>
+      <p class="rl">Siswa{% if user.student_profile.level %} · {{ user.student_profile.get_level_display }}{% endif %}</p>
+    </div>
+    <span class="edit-hint">✏️</span>
+  </a>
 
-<a href="{% url 'grades:my_grades' %}"
-   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-          {% if '/my-grades/' in path %}bg-teal-50 text-teal-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-5 h-5 shrink-0">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-  </svg>
-  Nilai Saya
-</a>
+  {# ── Logout confirmation modal ────────────────────────────────────── #}
+  <div x-show="showLogoutModal"
+       x-transition.opacity
+       x-cloak
+       @click.self="showLogoutModal = false"
+       @keydown.escape.window="showLogoutModal = false"
+       class="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
+    <div x-show="showLogoutModal"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center">
+      <div class="w-20 h-20 rounded-full bg-gradient-to-br from-red-100 via-red-200 to-red-300 flex items-center justify-center mx-auto mb-4 shadow-md ring-4 ring-red-50">
+        <span class="text-3xl leading-none">🚪</span>
+      </div>
+      <h3 class="text-lg font-bold text-gray-900 m-0 mb-2">Yakin mau keluar?</h3>
+      <p class="text-xs text-gray-500 m-0 mb-6 leading-relaxed px-2">
+        Kamu akan keluar dari akun GlowMath. Sesi belajar kamu tetap aman tersimpan
+        dan bisa dilanjut nanti.
+      </p>
+      <div class="flex gap-2">
+        <button type="button" @click="showLogoutModal = false"
+                class="flex-1 px-4 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors">
+          Batal
+        </button>
+        <form method="post" action="{% url 'accounts:logout' %}" class="flex-1">
+          {% csrf_token %}
+          <button type="submit"
+                  class="w-full px-4 py-2.5 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all">
+            Ya, Logout
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
 
-<a href="{% url 'sessions:my_attendance' %}"
-   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-          {% if '/my-attendance/' in path %}bg-teal-50 text-teal-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-5 h-5 shrink-0">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-  Kehadiran Saya
-</a>
-
-<a href="{% url 'announcements:list' %}"
-   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-          {% if '/announcements/' in path %}bg-teal-50 text-teal-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-5 h-5 shrink-0">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 01-1.44-4.282m3.102.069a18.03 18.03 0 01-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 018.835 2.535M10.34 6.66a23.847 23.847 0 008.835-2.535m0 0A23.74 23.74 0 0018.795 3m.38 1.125a23.91 23.91 0 011.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 001.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.347 24.347 0 010 3.46" />
-  </svg>
-  Pengumuman
-</a>
-
-<div class="my-2 border-t border-gray-100"></div>
-
-<a href="/profile/"
-   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors
-          {% if '/profile/' in path %}bg-teal-50 text-teal-700{% else %}text-gray-600 hover:bg-gray-50 hover:text-gray-900{% endif %}">
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.75" stroke="currentColor" class="w-5 h-5 shrink-0">
-    <path stroke-linecap="round" stroke-linejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
-  </svg>
-  Profil
-</a>
-
+</div>
 {% endwith %}

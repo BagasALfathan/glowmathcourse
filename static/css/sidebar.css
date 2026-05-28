@@ -192,3 +192,48 @@ aside.sidebar-collapsed .nav-item:focus-visible::before {
     transition: none !important;
   }
 }
+
+/* ── Section group labels (BELAJAR / KELASKU / AKSI / LAINNYA) ──────── */
+
+.sidebar-section {
+  padding: 14px 12px 4px;
+}
+
+.sidebar-section-label {
+  font-size: 10px;
+  color: #9ca3af;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* When collapsed: replace the text label with a thin divider so the
+   sections still feel grouped without taking horizontal space. */
+aside.sidebar-collapsed .sidebar-section {
+  padding: 6px 0;
+  margin: 4px 12px;
+  border-top: 1px solid #e5e7eb;
+}
+aside.sidebar-collapsed .sidebar-section-label {
+  display: none;
+}
+
+/* ── Action link (e.g. "Beri Rating" — amber gradient call-to-action) ── */
+
+.sidebar-link-action {
+  background: linear-gradient(90deg, #fef3c7, #fef9c3);
+  color: #92400e !important;
+  border: 1px solid #fde68a;
+}
+
+.sidebar-link-action:hover {
+  background: linear-gradient(90deg, #fde68a, #fbbf24);
+  color: #78350f !important;
+}
+
+/* Red dot for collapsed mode — only visible when sidebar is icon-only and
+   the badge pill itself is hidden. Hidden by default in expanded mode. */
+.sidebar-badge-dot { display: none; }
+aside.sidebar-collapsed .nav-item .sidebar-badge-dot {
+  display: block;
+}
