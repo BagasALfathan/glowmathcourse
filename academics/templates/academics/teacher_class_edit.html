@@ -1,167 +1,222 @@
-﻿{% extends "base.html" %}
-{% load crispy_forms_tags %}
+{% extends "base.html" %}
 
-{% block title %}Edit Kelas{% endblock %}
+{% block title %}Edit Kelas — {{ kelas.name }}{% endblock %}
 {% block page_title %}Edit Kelas{% endblock %}
 
 {% block content %}
-<div class="max-w-3xl mx-auto">
-  <form method="post" novalidate>
+<div class="max-w-3xl mx-auto space-y-4">
+
+  {# Breadcrumb #}
+  <nav class="text-xs flex gap-1.5 items-center">
+    <a href="{% url 'academics:teacher_classes' %}" class="text-emerald-700 hover:underline no-underline">Kelas Saya</a>
+    <span class="text-gray-400">›</span>
+    <span class="text-gray-700 font-medium">Edit Kelas</span>
+  </nav>
+
+  {# Header #}
+  <div>
+    <h1 class="text-xl md:text-2xl font-bold text-gray-900 m-0">✏️ Edit Kelas</h1>
+    <p class="text-xs text-gray-500 mt-1 m-0">
+      Mengubah: <span class="font-medium text-gray-700">{{ kelas.name }}</span>
+    </p>
+  </div>
+
+  {# Flash messages #}
+  {% if messages %}
+    <div class="space-y-1.5">
+    {% for msg in messages %}
+      <div class="rounded-lg border px-3 py-2 text-xs
+        {% if msg.tags == 'error' %}bg-red-50 border-red-200 text-red-700
+        {% elif msg.tags == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-700
+        {% else %}bg-blue-50 border-blue-200 text-blue-700{% endif %}">
+        {{ msg }}
+      </div>
+    {% endfor %}
+    </div>
+  {% endif %}
+
+  <form method="post" novalidate action="{% url 'academics:teacher_class_edit' kelas.pk %}"
+        class="bg-white border border-gray-200 rounded-xl p-5 md:p-6 hover:border-emerald-600 transition-colors space-y-5">
     {% csrf_token %}
 
-    <!-- Read-only period info -->
-    <div class="bg-blue-50 border border-blue-100 rounded-xl px-5 py-3 mb-6 flex items-center gap-3">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-           stroke-width="1.75" stroke="currentColor" class="w-4 h-4 text-blue-500 shrink-0">
-        <path stroke-linecap="round" stroke-linejoin="round"
-              d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
-      </svg>
-      <p class="text-sm text-blue-700">
-        Periode akademik: <span class="font-semibold">{{ kelas.academic_period.name }}</span>
-        — tidak dapat diubah setelah kelas dibuat.
-      </p>
-    </div>
-
-    <!-- Class info -->
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mb-6">
-      <div class="px-6 py-4 border-b border-gray-100">
-        <h2 class="text-sm font-semibold text-gray-900">Informasi Kelas</h2>
-      </div>
-      <div class="px-6 py-5">
-        {{ form|crispy }}
-      </div>
-    </div>
-
-    <!-- Schedule section (Alpine.js, pre-populated with existing schedules) -->
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden mb-6"
-         x-data="{
-           rows: {{ schedules_json }},
-           addRow() { this.rows.push({ day: '', start_time: '', end_time: '', room: '' }) },
-           removeRow(i) { if (this.rows.length > 1) this.rows.splice(i, 1) }
-         }">
-
-      <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-        <div>
-          <h2 class="text-sm font-semibold text-gray-900">Jadwal Kelas</h2>
-          <p class="text-xs text-gray-500 mt-0.5">Perubahan jadwal akan menggantikan semua jadwal lama</p>
-        </div>
-        <button type="button" @click="addRow()"
-                class="inline-flex items-center gap-1.5 text-sm font-medium text-primary-600
-                       hover:text-primary-700 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-               stroke-width="2" stroke="currentColor" class="w-4 h-4">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Tambah Jadwal
-        </button>
+    {# ── GROUP 1: Detail Kelas ─────────────────────────────────────── #}
+    <div class="space-y-4">
+      <div class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
+        📝 Detail Kelas
       </div>
 
-      <!-- Schedule errors -->
-      {% if schedule_errors %}
-      <div class="mx-6 mt-4 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
-        <ul class="space-y-1">
-          {% for err in schedule_errors %}
-          <li class="text-sm text-red-700 flex items-start gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                 stroke-width="2" stroke="currentColor" class="w-4 h-4 shrink-0 mt-0.5">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-            </svg>
-            {{ err }}
-          </li>
+      <div>
+        <label for="cls-name" class="block text-xs font-semibold text-gray-700 mb-1.5">
+          Nama Kelas <span class="text-red-500">*</span>
+        </label>
+        <input id="cls-name" type="text" name="name" required maxlength="200"
+               value="{{ name_value }}"
+               class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none">
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+          Mata Pelajaran <span class="text-red-500">*</span>
+        </label>
+        <div class="flex gap-1.5 flex-wrap">
+          {% for s in subjects %}
+            <label class="cursor-pointer">
+              <input type="radio" name="subject" value="{{ s.id }}" class="peer sr-only"
+                     {% if selected_subject == s.id|stringformat:'s' %}checked{% endif %}>
+              <span class="inline-block px-3 py-1.5 rounded-full border border-gray-300 text-xs text-gray-700 hover:border-emerald-400 peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-600 peer-checked:font-semibold transition-colors">
+                {{ s.icon|default:'📖' }} {{ s.name }}
+              </span>
+            </label>
           {% endfor %}
-        </ul>
+        </div>
       </div>
-      {% endif %}
 
-      <!-- Schedule rows -->
-      <div class="px-6 py-4 space-y-3">
-        <template x-for="(row, idx) in rows" :key="idx">
-          <div class="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end p-3 bg-gray-50 rounded-lg">
+      <div>
+        <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+          Jenjang <span class="text-red-500">*</span>
+        </label>
+        <div class="flex gap-1.5 flex-wrap">
+          {% for lvl_value, lvl_label in all_level_choices %}
+            {% if not teacher_levels or lvl_value in teacher_levels %}
+              <label class="cursor-pointer">
+                <input type="radio" name="level" value="{{ lvl_value }}" class="peer sr-only"
+                       {% if selected_level == lvl_value %}checked{% endif %}>
+                <span class="inline-block px-3 py-1.5 rounded-full border border-gray-300 text-xs text-gray-700 hover:border-emerald-400 peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-600 peer-checked:font-semibold transition-colors">
+                  {{ lvl_label }}
+                </span>
+              </label>
+            {% endif %}
+          {% endfor %}
+        </div>
+        {% if teacher_levels %}
+          <p class="text-[10px] text-gray-400 mt-1.5">
+            Daftar terbatas pada jenjang yang Anda ajarkan ({{ teacher_levels|join:", " }}).
+          </p>
+        {% endif %}
+      </div>
 
-            <!-- Day -->
-            <div class="sm:col-span-3">
-              <label class="block text-xs font-medium text-gray-700 mb-1">Hari</label>
-              <select :name="`schedule_day_${idx}`"
-                      x-model="row.day"
-                      class="w-full rounded-md border-gray-300 text-sm shadow-sm
-                             focus:border-primary-500 focus:ring-primary-500">
-                <option value="">-- Pilih --</option>
-                <option value="MONDAY">Senin</option>
-                <option value="TUESDAY">Selasa</option>
-                <option value="WEDNESDAY">Rabu</option>
-                <option value="THURSDAY">Kamis</option>
-                <option value="FRIDAY">Jumat</option>
-                <option value="SATURDAY">Sabtu</option>
-              </select>
-            </div>
-
-            <!-- Start time -->
-            <div class="sm:col-span-3">
-              <label class="block text-xs font-medium text-gray-700 mb-1">Jam Mulai</label>
-              <input type="time"
-                     :name="`schedule_start_time_${idx}`"
-                     x-model="row.start_time"
-                     class="w-full rounded-md border-gray-300 text-sm shadow-sm
-                            focus:border-primary-500 focus:ring-primary-500" />
-            </div>
-
-            <!-- End time -->
-            <div class="sm:col-span-3">
-              <label class="block text-xs font-medium text-gray-700 mb-1">Jam Selesai</label>
-              <input type="time"
-                     :name="`schedule_end_time_${idx}`"
-                     x-model="row.end_time"
-                     class="w-full rounded-md border-gray-300 text-sm shadow-sm
-                            focus:border-primary-500 focus:ring-primary-500" />
-            </div>
-
-            <!-- Room -->
-            <div class="sm:col-span-2">
-              <label class="block text-xs font-medium text-gray-700 mb-1">Ruangan</label>
-              <input type="text"
-                     :name="`schedule_room_${idx}`"
-                     x-model="row.room"
-                     placeholder="Opsional"
-                     class="w-full rounded-md border-gray-300 text-sm shadow-sm
-                            focus:border-primary-500 focus:ring-primary-500" />
-            </div>
-
-            <!-- Remove -->
-            <div class="sm:col-span-1 flex items-end justify-end">
-              <button type="button"
-                      @click="removeRow(idx)"
-                      x-show="rows.length > 1"
-                      title="Hapus jadwal ini"
-                      class="p-2 text-gray-400 hover:text-red-500 transition-colors rounded-lg hover:bg-red-50">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                     stroke-width="1.75" stroke="currentColor" class="w-4 h-4">
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                </svg>
-              </button>
-            </div>
-
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label for="cls-cap" class="block text-xs font-semibold text-gray-700 mb-1.5">
+            Kapasitas <span class="text-red-500">*</span>
+          </label>
+          <input id="cls-cap" type="number" name="capacity" required min="1" max="100"
+                 value="{{ capacity_value }}"
+                 class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none">
+        </div>
+        <div>
+          <label for="cls-price" class="block text-xs font-semibold text-gray-700 mb-1.5">
+            Harga (Rp) <span class="text-red-500">*</span>
+          </label>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">Rp</span>
+            <input id="cls-price" type="number" name="price" required min="0" step="1000"
+                   value="{{ price_value }}"
+                   class="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none">
           </div>
-        </template>
+        </div>
       </div>
 
+      <div>
+        <label for="cls-desc" class="block text-xs font-semibold text-gray-700 mb-1.5">
+          Deskripsi <span class="text-gray-400 font-normal">(opsional)</span>
+        </label>
+        <textarea id="cls-desc" name="description" rows="3" maxlength="1000"
+                  class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none resize-none">{{ description_value }}</textarea>
+      </div>
     </div>
 
-    <!-- Actions -->
-    <div class="flex items-center gap-3 justify-end">
+    {# ── GROUP 2: Periode & Status ─────────────────────────────────── #}
+    <div class="space-y-4 pt-5 border-t border-gray-100">
+      <div class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
+        📅 Periode &amp; Status
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label for="cls-period" class="block text-xs font-semibold text-gray-700 mb-1.5">
+            Periode Akademik <span class="text-red-500">*</span>
+          </label>
+          <select id="cls-period" name="academic_period" required
+                  class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none bg-white">
+            {% for p in all_periods %}
+              <option value="{{ p.id }}" {% if selected_period == p.id|stringformat:'s' %}selected{% endif %}>
+                {{ p.name }}{% if p.is_active %} (aktif){% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div>
+          <label for="cls-sessions" class="block text-xs font-semibold text-gray-700 mb-1.5">
+            Total Pertemuan <span class="text-red-500">*</span>
+          </label>
+          <input id="cls-sessions" type="number" name="total_sessions" required min="1" max="100"
+                 value="{{ total_sessions_value }}"
+                 class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none">
+        </div>
+
+        <div>
+          <label for="cls-start" class="block text-xs font-semibold text-gray-700 mb-1.5">
+            Tanggal Mulai <span class="text-red-500">*</span>
+          </label>
+          <input id="cls-start" type="date" name="start_date" required
+                 value="{{ start_date_value }}"
+                 class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none">
+        </div>
+
+        <div>
+          <label for="cls-end" class="block text-xs font-semibold text-gray-700 mb-1.5">
+            Tanggal Selesai <span class="text-red-500">*</span>
+          </label>
+          <input id="cls-end" type="date" name="end_date" required
+                 value="{{ end_date_value }}"
+                 class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+          Status Kelas <span class="text-red-500">*</span>
+        </label>
+        <div class="flex gap-1.5 flex-wrap">
+          {% for st_value, st_label in all_status_choices %}
+            <label class="cursor-pointer">
+              <input type="radio" name="status" value="{{ st_value }}" class="peer sr-only"
+                     {% if selected_status == st_value %}checked{% endif %}>
+              <span class="inline-block px-3 py-1.5 rounded-full border border-gray-300 text-xs text-gray-700 hover:border-emerald-400 peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-600 peer-checked:font-semibold transition-colors">
+                {% if st_value == 'OPEN' %}🟢
+                {% elif st_value == 'FULL' %}🟡
+                {% else %}🔴{% endif %}
+                {{ st_label }}
+              </span>
+            </label>
+          {% endfor %}
+        </div>
+        <p class="text-[10px] text-gray-400 mt-1.5">
+          Tutup kelas saat sudah tidak menerima pendaftaran. Ubah ke Penuh otomatis tidak menyembunyikan kelas dari katalog.
+        </p>
+      </div>
+    </div>
+
+    {# ── Info note ─────────────────────────────────────────────────── #}
+    <div class="bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-xs text-emerald-800">
+      <span class="font-semibold">ℹ️ Jadwal pertemuan</span>
+      (hari, jam, ruang) dikelola dari halaman <strong>detail kelas</strong>, bukan di sini.
+    </div>
+
+    {# ── Buttons ───────────────────────────────────────────────────── #}
+    <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
       <a href="{% url 'academics:teacher_classes' %}"
-         class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300
-                rounded-lg hover:bg-gray-50 transition-colors">
+         class="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors no-underline">
         Batal
       </a>
       <button type="submit"
-              class="px-5 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg
-                     hover:bg-primary-700 transition-colors">
+              class="px-5 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">
         Simpan Perubahan
       </button>
     </div>
-
   </form>
+
 </div>
 {% endblock %}
