@@ -1,7 +1,12 @@
-﻿{% comment %}
+﻿{% load grade_filters %}
+{% comment %}
   Reusable grade table component.
   Expects: grades (list of Grade objects, each with .grade_type, .score, .session, .graded_at, .notes)
   Optional: empty_message (string shown when grades is empty)
+
+  Notes column uses |grade_note to strip the `[Judul] :: ` prefix
+  that the Phase 3B gradebook stores in Grade.notes. Legacy notes
+  (no prefix) pass through unchanged.
 {% endcomment %}
 {% if grades %}
 <div class="overflow-x-auto">
@@ -58,7 +63,7 @@
 
         <!-- Notes -->
         <td class="px-4 py-3 text-gray-500 hidden md:table-cell">
-          {{ grade.notes|default:"—" }}
+          {{ grade.notes|grade_note|default:"—" }}
         </td>
 
       </tr>

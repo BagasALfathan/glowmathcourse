@@ -1,9 +1,13 @@
-﻿{% comment %}
+﻿{% load grade_filters %}
+{% comment %}
   Shared progress report body — included by teacher, student, admin, and print views.
   Required context: enrollment, kelas, student, session_rows,
     present_count, permitted_count, absent_count, unmarked_count,
     total_sessions, attendance_pct, attendance_good,
     grade_type_rows, overall_avg, letter, summary
+
+  Grade notes use |grade_note to strip the `[Judul] :: ` prefix from
+  Phase 3B gradebook entries. Legacy notes pass through unchanged.
 {% endcomment %}
 
 <!-- ── Info header ──────────────────────────────────────────────────────────── -->
@@ -160,10 +164,12 @@
                     {% elif grade.score >= 55 %}bg-amber-50 border-amber-200 text-amber-700
                     {% else %}bg-red-50 border-red-200 text-red-700{% endif %}">
           <span class="font-bold">{{ grade.score }}</span>
-          {% if grade.notes %}
+          {% with cleaned_note=grade.notes|grade_note %}
+          {% if cleaned_note %}
             <span class="text-gray-300">·</span>
-            <span class="font-normal opacity-75">{{ grade.notes }}</span>
+            <span class="font-normal opacity-75">{{ cleaned_note }}</span>
           {% endif %}
+          {% endwith %}
         </div>
         {% endfor %}
       </div>
