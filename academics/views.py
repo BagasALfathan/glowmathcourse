@@ -12,13 +12,13 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from accounts.decorators import role_required
-from accounts.models import ApprovalStatus, Role
+from accounts.models import ApprovalStatus, Level, Role, TeacherJenjang
 from activity_logs.utils import log_activity
 from enrollments.models import Enrollment, EnrollmentStatus
 from ratings.models import TeacherRating
 from sessions_app.models import BookingStatus, Session, SessionBooking, SessionStatus
 from .forms import KelasEditForm, KelasForm
-from .models import Day, Kelas, KelasStatus, Schedule, Subject
+from .models import AcademicPeriod, Day, Kelas, KelasStatus, Schedule, Subject
 from .utils import (
     update_expired_classes,
     build_schedule_grid, build_calendar_grid, _COLOR_PALETTE, _SCHEDULE_DAYS,
@@ -190,81 +190,270 @@ def teacher_classes_list(request):
 
 @role_required('TEACHER')
 def teacher_class_create(request):
-    form = KelasForm(request.POST or None)
-    schedule_errors = []
-    posted_schedules = []
+    """Phase 3B — Notion Clean Create Class page.
+
+    Single POST, zero JS. Schedule input lives on the class detail page
+    (locked decision — see PHASE_ROADMAP.md). Server-side validation only;
+    on error, falls through to re-render with submitted data preserved.
+    """
+    from decimal import Decimal, InvalidOperation
+
+    teacher_profile = request.user.teacher_profile
+
+    active_period = AcademicPeriod.objects.filter(is_active=True).first()
+    all_periods = AcademicPeriod.objects.all().order_by('-is_active', '-start_date')
+    subjects = (
+        Subject.objects.filter(is_active=True)
+        .select_related('category')
+        .order_by('name')
+    )
+    teacher_levels = list(
+        TeacherJenjang.objects
+        .filter(teacher_profile=teacher_profile)
+        .values_list('level', flat=True)
+        .order_by('level')
+    )
 
     if request.method == 'POST':
-        posted_schedules = _parse_schedules(request.POST)
-        schedule_errors = _validate_schedules(posted_schedules)
+        name = (request.POST.get('name') or '').strip()
+        subject_id = request.POST.get('subject')
+        period_id = request.POST.get('academic_period')
+        level = request.POST.get('level')
+        description = (request.POST.get('description') or '').strip()
+        start_date = request.POST.get('start_date') or None
+        end_date = request.POST.get('end_date') or None
 
-        if form.is_valid() and not schedule_errors:
-            conflict_errors = _check_teacher_schedule_conflicts(request.user, posted_schedules)
-            if conflict_errors:
-                schedule_errors = conflict_errors
-            else:
+        errors = []
+        if not name:
+            errors.append('Nama kelas wajib diisi.')
+        if not subject_id:
+            errors.append('Pilih mata pelajaran.')
+        if not period_id:
+            errors.append('Pilih periode akademik.')
+        if not level:
+            errors.append('Pilih jenjang.')
+        elif teacher_levels and level not in teacher_levels:
+            errors.append(f'Jenjang {level} belum terdaftar di profil — tambahkan di Pengaturan dulu.')
+        if not start_date:
+            errors.append('Tanggal mulai wajib diisi.')
+        if not end_date:
+            errors.append('Tanggal selesai wajib diisi.')
+
+        try:
+            capacity_int = int(request.POST.get('capacity') or 0)
+            if capacity_int <= 0:
+                errors.append('Kapasitas harus lebih dari 0.')
+        except (TypeError, ValueError):
+            errors.append('Kapasitas tidak valid.')
+            capacity_int = 0
+
+        try:
+            total_sessions_int = int(request.POST.get('total_sessions') or 0)
+            if total_sessions_int <= 0:
+                errors.append('Total pertemuan harus lebih dari 0.')
+        except (TypeError, ValueError):
+            errors.append('Total pertemuan tidak valid.')
+            total_sessions_int = 0
+
+        try:
+            price_dec = Decimal(request.POST.get('price') or '0')
+            if price_dec < 0:
+                errors.append('Harga tidak boleh negatif.')
+        except (InvalidOperation, TypeError):
+            errors.append('Harga tidak valid.')
+            price_dec = Decimal('0')
+
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+        else:
+            try:
                 with transaction.atomic():
-                    kelas = form.save(commit=False)
-                    kelas.teacher = request.user
-                    kelas.save()
-                    for s in posted_schedules:
-                        Schedule.objects.create(
-                            kelas=kelas, day=s['day'],
-                            start_time=s['start_time'], end_time=s['end_time'],
-                            room=s['room'],
-                        )
+                    kelas = Kelas.objects.create(
+                        teacher_profile=teacher_profile,
+                        subject_id=subject_id,
+                        academic_period_id=period_id,
+                        name=name,
+                        description=description,
+                        level=level,
+                        start_date=start_date,
+                        end_date=end_date,
+                        capacity=capacity_int,
+                        total_sessions=total_sessions_int,
+                        price=price_dec,
+                        status=KelasStatus.OPEN,
+                    )
                 log_activity(request.user, 'created', 'kelas', kelas.pk)
-                messages.success(request, 'Kelas berhasil dibuat!')
+                messages.success(
+                    request,
+                    f'✓ Kelas "{kelas.name}" berhasil dibuat! '
+                    f'Tambahkan jadwal pertemuan di halaman detail.',
+                )
                 return redirect('academics:teacher_classes')
+            except Exception as e:
+                messages.error(request, f'Gagal membuat kelas: {e}')
+
+        form_data = request.POST
+    else:
+        form_data = {}
+
+    start_date_default = active_period.start_date.strftime('%Y-%m-%d') if active_period else ''
+    end_date_default = active_period.end_date.strftime('%Y-%m-%d') if active_period else ''
 
     return render(request, 'academics/teacher_class_create.html', {
-        'form': form,
-        'schedule_errors': schedule_errors,
-        'schedules_json': _rows_to_json(posted_schedules),
+        'subjects': subjects,
+        'teacher_levels': teacher_levels,
+        'all_level_choices': list(Level.choices),
+        'active_period': active_period,
+        'all_periods': all_periods,
+        'form_data': form_data,
+        'default_total_sessions': 16,
+        'start_date_default': start_date_default,
+        'end_date_default': end_date_default,
     })
 
 
 @role_required('TEACHER')
 def teacher_class_edit(request, pk):
-    kelas = get_object_or_404(Kelas, pk=pk, teacher_profile__user=request.user, is_deleted=False)
-    form = KelasEditForm(request.POST or None, instance=kelas)
-    schedule_errors = []
-    posted_schedules = []
+    """Phase 3B — Notion Clean Edit Class page.
+
+    Reuses the Create Class form layout. All fields prefilled from the
+    existing Kelas instance. Adds a Status field (OPEN/FULL/CLOSED).
+    Schedule input stays on the detail page (locked decision).
+
+    Ownership: filter ensures a teacher can only edit their OWN classes —
+    foreign Kelas IDs return 404, not 403.
+    """
+    from decimal import Decimal, InvalidOperation
+
+    teacher_profile = request.user.teacher_profile
+    kelas = get_object_or_404(
+        Kelas, pk=pk, teacher_profile=teacher_profile, is_deleted=False
+    )
+
+    subjects = (
+        Subject.objects.filter(is_active=True)
+        .select_related('category')
+        .order_by('name')
+    )
+    all_periods = AcademicPeriod.objects.all().order_by('-is_active', '-start_date')
+    teacher_levels = list(
+        TeacherJenjang.objects
+        .filter(teacher_profile=teacher_profile)
+        .values_list('level', flat=True)
+        .order_by('level')
+    )
 
     if request.method == 'POST':
-        posted_schedules = _parse_schedules(request.POST)
-        schedule_errors = _validate_schedules(posted_schedules)
+        name = (request.POST.get('name') or '').strip()
+        subject_id = request.POST.get('subject')
+        period_id = request.POST.get('academic_period')
+        level = request.POST.get('level')
+        description = (request.POST.get('description') or '').strip()
+        start_date = request.POST.get('start_date') or None
+        end_date = request.POST.get('end_date') or None
+        status = request.POST.get('status') or kelas.status
 
-        if form.is_valid() and not schedule_errors:
-            conflict_errors = _check_teacher_schedule_conflicts(
-                request.user, posted_schedules, exclude_kelas_id=kelas.pk
-            )
-            if conflict_errors:
-                schedule_errors = conflict_errors
-            else:
+        errors = []
+        if not name:
+            errors.append('Nama kelas wajib diisi.')
+        if not subject_id:
+            errors.append('Pilih mata pelajaran.')
+        if not period_id:
+            errors.append('Pilih periode akademik.')
+        if not level:
+            errors.append('Pilih jenjang.')
+        elif teacher_levels and level not in teacher_levels:
+            errors.append(f'Jenjang {level} belum terdaftar di profil — tambahkan di Pengaturan dulu.')
+        if not start_date:
+            errors.append('Tanggal mulai wajib diisi.')
+        if not end_date:
+            errors.append('Tanggal selesai wajib diisi.')
+        if status not in {s for s, _ in KelasStatus.choices}:
+            errors.append('Status kelas tidak valid.')
+
+        try:
+            capacity_int = int(request.POST.get('capacity') or 0)
+            if capacity_int <= 0:
+                errors.append('Kapasitas harus lebih dari 0.')
+        except (TypeError, ValueError):
+            errors.append('Kapasitas tidak valid.')
+            capacity_int = 0
+
+        try:
+            total_sessions_int = int(request.POST.get('total_sessions') or 0)
+            if total_sessions_int <= 0:
+                errors.append('Total pertemuan harus lebih dari 0.')
+        except (TypeError, ValueError):
+            errors.append('Total pertemuan tidak valid.')
+            total_sessions_int = 0
+
+        try:
+            price_dec = Decimal(request.POST.get('price') or '0')
+            if price_dec < 0:
+                errors.append('Harga tidak boleh negatif.')
+        except (InvalidOperation, TypeError):
+            errors.append('Harga tidak valid.')
+            price_dec = Decimal('0')
+
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+        else:
+            try:
                 with transaction.atomic():
-                    form.save()
-                    kelas.schedules.all().delete()
-                    for s in posted_schedules:
-                        Schedule.objects.create(
-                            kelas=kelas, day=s['day'],
-                            start_time=s['start_time'], end_time=s['end_time'],
-                            room=s['room'],
-                        )
+                    kelas.name = name
+                    kelas.subject_id = subject_id
+                    kelas.academic_period_id = period_id
+                    kelas.level = level
+                    kelas.description = description
+                    kelas.start_date = start_date
+                    kelas.end_date = end_date
+                    kelas.capacity = capacity_int
+                    kelas.total_sessions = total_sessions_int
+                    kelas.price = price_dec
+                    kelas.status = status
+                    kelas.save()
                 log_activity(request.user, 'updated', 'kelas', kelas.pk)
-                messages.success(request, 'Kelas berhasil diperbarui!')
+                messages.success(request, f'✓ Kelas "{kelas.name}" berhasil diperbarui!')
                 return redirect('academics:teacher_classes')
+            except Exception as e:
+                messages.error(request, f'Gagal memperbarui kelas: {e}')
 
-        # On error, restore what the user typed into Alpine
-        schedules_json = _rows_to_json(posted_schedules)
+        form_data = request.POST
     else:
-        schedules_json = _schedules_to_json(kelas)
+        form_data = {}
+
+    # Single source-of-truth for chip + select prefill: submitted form_data
+    # on POST-error, else the existing kelas value.
+    selected_subject = form_data.get('subject') if form_data else str(kelas.subject_id)
+    selected_level = form_data.get('level') if form_data else kelas.level
+    selected_period = form_data.get('academic_period') if form_data else str(kelas.academic_period_id)
+    selected_status = form_data.get('status') if form_data else kelas.status
+
+    def _val(field, fallback):
+        if form_data:
+            return form_data.get(field) or ''
+        return fallback
 
     return render(request, 'academics/teacher_class_edit.html', {
-        'form': form,
         'kelas': kelas,
-        'schedule_errors': schedule_errors,
-        'schedules_json': schedules_json,
+        'subjects': subjects,
+        'teacher_levels': teacher_levels,
+        'all_level_choices': list(Level.choices),
+        'all_periods': all_periods,
+        'all_status_choices': list(KelasStatus.choices),
+        'selected_subject': selected_subject,
+        'selected_level': selected_level,
+        'selected_period': selected_period,
+        'selected_status': selected_status,
+        'name_value': _val('name', kelas.name),
+        'description_value': _val('description', kelas.description or ''),
+        'capacity_value': _val('capacity', str(kelas.capacity)),
+        'total_sessions_value': _val('total_sessions', str(kelas.total_sessions)),
+        'price_value': _val('price', f'{kelas.price:.0f}'),
+        'start_date_value': _val('start_date', kelas.start_date.strftime('%Y-%m-%d')),
+        'end_date_value': _val('end_date', kelas.end_date.strftime('%Y-%m-%d')),
     })
 
 
@@ -880,24 +1069,39 @@ def class_detail(request, pk):
 
 @role_required('TEACHER')
 def teacher_class_students(request, pk):
-    kelas = get_object_or_404(Kelas, pk=pk, teacher_profile__user=request.user, is_deleted=False)
-    from enrollments.models import Enrollment, EnrollmentStatus
-    all_enrollments = list(
+    """Phase 3B — card-grid roster of students in a class.
+
+    View + light action buttons (Nilai per-student, Kehadiran class-wide).
+    DROPPED + soft-deleted enrollments are hidden.
+    """
+    teacher_profile = request.user.teacher_profile
+    kelas = get_object_or_404(
+        Kelas.objects.select_related('subject'),
+        pk=pk, teacher_profile=teacher_profile, is_deleted=False,
+    )
+
+    enrollments = list(
         Enrollment.objects
         .filter(kelas=kelas, is_deleted=False)
+        .exclude(status=EnrollmentStatus.DROPPED)
         .select_related('student_profile__user')
-        .order_by('enrolled_at')
+        .order_by('student_profile__user__first_name', 'student_profile__user__last_name')
     )
-    active_enrollments = [e for e in all_enrollments if e.status == EnrollmentStatus.ACTIVE]
-    completed_enrollments = [e for e in all_enrollments if e.status == EnrollmentStatus.COMPLETED]
-    dropped_enrollments = [e for e in all_enrollments if e.status == EnrollmentStatus.DROPPED]
+
+    # Attach a per-enrollment WhatsApp deeplink. Phone lives on User
+    # (see PITFALLS.md — student_profile.phone is a @property shim, but
+    # we read User.phone directly to stay aligned with the canonical path).
+    for enr in enrollments:
+        phone = (enr.student_profile.user.phone or '').strip()
+        digits = ''.join(c for c in phone if c.isdigit())
+        if digits.startswith('0'):
+            digits = '62' + digits[1:]
+        enr.wa_link = f'https://wa.me/{digits}' if digits else ''
+
     return render(request, 'academics/teacher_class_students.html', {
         'kelas': kelas,
-        'active_enrollments': active_enrollments,
-        'completed_enrollments': completed_enrollments,
-        'dropped_enrollments': dropped_enrollments,
-        'active_count': len(active_enrollments),
-        'EnrollmentStatus': EnrollmentStatus,
+        'enrollments': enrollments,
+        'student_count': len(enrollments),
     })
 
 
