@@ -40,6 +40,16 @@
   <link rel="stylesheet" href="{% static 'css/animations.css' %}">
   <link rel="stylesheet" href="{% static 'css/sidebar.css' %}">
   <script src="https://unpkg.com/htmx.org@1.9/dist/htmx.min.js"></script>
+  {% comment %}
+    Alpine global store — registered before Alpine boots so $store.ui is
+    available immediately. Used by the logout modal (which lives at body
+    level to escape the sidebar's transform: containing block).
+  {% endcomment %}
+  <script>
+    document.addEventListener('alpine:init', () => {
+      Alpine.store('ui', { logoutOpen: false });
+    });
+  </script>
   <script defer src="https://unpkg.com/alpinejs@3/dist/cdn.min.js"></script>
   <style>
     .htmx-indicator { opacity: 0; transition: opacity 200ms ease-in; pointer-events: none; }
@@ -252,5 +262,55 @@
   </script>
 
   {% block extra_js %}{% endblock %}
+
+  {% comment %}
+    Logout confirmation modal — placed at body level so position:fixed
+    works correctly. The sidebar <aside> has transform (mobile drawer +
+    collapse animation) which creates a containing block for fixed
+    descendants — if the modal lived inside the sidebar, it would be
+    positioned relative to the aside instead of the viewport.
+    Trigger via Alpine global store: $store.ui.logoutOpen = true.
+  {% endcomment %}
+  {% if user.is_authenticated and user.role == 'STUDENT' %}
+  <div x-data
+       x-show="$store.ui.logoutOpen"
+       x-transition.opacity
+       x-cloak
+       @keydown.escape.window="$store.ui.logoutOpen = false"
+       @click.self="$store.ui.logoutOpen = false"
+       class="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
+
+    <div x-show="$store.ui.logoutOpen"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center">
+
+      <div class="w-20 h-20 rounded-full bg-gradient-to-br from-red-100 via-red-200 to-red-300 flex items-center justify-center mx-auto mb-4 shadow-md ring-4 ring-red-50">
+        <span class="text-5xl leading-none">🚪</span>
+      </div>
+
+      <h3 class="text-lg font-bold text-gray-900 m-0 mb-2">Yakin mau keluar?</h3>
+      <p class="text-xs text-gray-500 m-0 mb-6 leading-relaxed px-2">
+        Kamu akan keluar dari akun GlowMath. Sesi belajar kamu tetap aman tersimpan
+        dan bisa dilanjut nanti.
+      </p>
+
+      <div class="flex gap-2">
+        <button type="button" @click="$store.ui.logoutOpen = false"
+                class="flex-1 px-4 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors">
+          Batal
+        </button>
+        <form method="post" action="{% url 'accounts:logout' %}" class="flex-1">
+          {% csrf_token %}
+          <button type="submit"
+                  class="w-full px-4 py-2.5 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all">
+            Ya, Logout
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </body>
 </html>

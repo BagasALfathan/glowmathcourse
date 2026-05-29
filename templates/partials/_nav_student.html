@@ -129,7 +129,7 @@
 </style>
 
 {% with path=request.path %}
-<div class="student-nav-marker" x-data="{ showLogoutModal: false }">
+<div class="student-nav-marker">
 
   {# ── Primary nav (7) ──────────────────────────────────────────────── #}
   <a href="{% url 'dashboard:student' %}" data-label="Dashboard"
@@ -178,7 +178,7 @@
     <span class="ico">❓</span><span class="label">Bantuan</span>
   </a>
 
-  <button type="button" @click="showLogoutModal = true" data-label="Logout"
+  <button type="button" @click="$store.ui.logoutOpen = true" data-label="Logout"
           class="sidebar-item logout w-full text-left bg-transparent border-0 cursor-pointer">
     <span class="ico">🚪</span><span class="label">Logout</span>
   </button>
@@ -194,41 +194,10 @@
     <span class="edit-hint">✏️</span>
   </a>
 
-  {# ── Logout confirmation modal ────────────────────────────────────── #}
-  <div x-show="showLogoutModal"
-       x-transition.opacity
-       x-cloak
-       @click.self="showLogoutModal = false"
-       @keydown.escape.window="showLogoutModal = false"
-       class="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
-    <div x-show="showLogoutModal"
-         x-transition:enter="transition ease-out duration-200"
-         x-transition:enter-start="opacity-0 scale-95"
-         x-transition:enter-end="opacity-100 scale-100"
-         class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl text-center">
-      <div class="w-20 h-20 rounded-full bg-gradient-to-br from-red-100 via-red-200 to-red-300 flex items-center justify-center mx-auto mb-4 shadow-md ring-4 ring-red-50">
-        <span class="text-3xl leading-none">🚪</span>
-      </div>
-      <h3 class="text-lg font-bold text-gray-900 m-0 mb-2">Yakin mau keluar?</h3>
-      <p class="text-xs text-gray-500 m-0 mb-6 leading-relaxed px-2">
-        Kamu akan keluar dari akun GlowMath. Sesi belajar kamu tetap aman tersimpan
-        dan bisa dilanjut nanti.
-      </p>
-      <div class="flex gap-2">
-        <button type="button" @click="showLogoutModal = false"
-                class="flex-1 px-4 py-2.5 bg-white text-gray-600 border border-gray-200 rounded-xl text-sm font-semibold hover:bg-gray-50 transition-colors">
-          Batal
-        </button>
-        <form method="post" action="{% url 'accounts:logout' %}" class="flex-1">
-          {% csrf_token %}
-          <button type="submit"
-                  class="w-full px-4 py-2.5 bg-gradient-to-br from-red-500 to-red-600 text-white rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all">
-            Ya, Logout
-          </button>
-        </form>
-      </div>
-    </div>
-  </div>
+  {% comment %}
+    Logout modal lives at body level in base.html (sidebar has transform
+    which would break position:fixed). Triggered via $store.ui.logoutOpen.
+  {% endcomment %}
 
 </div>
 {% endwith %}
