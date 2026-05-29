@@ -6,6 +6,7 @@ app_name = 'sessions_app'
 urlpatterns = [
     path('teacher/attendance/', views.teacher_attendance_overview, name='teacher_attendance_overview'),
     path('teacher/classes/<int:pk>/sessions/', views.teacher_sessions, name='teacher_sessions'),
+    path('teacher/classes/<int:pk>/sessions/row-partial/', views.teacher_session_row_partial, name='teacher_session_row_partial'),
     path('teacher/sessions/create/<int:kelas_id>/', views.teacher_session_create, name='teacher_session_create'),
     path('teacher/sessions/<int:pk>/edit/', views.teacher_session_edit, name='teacher_session_edit'),
     path('teacher/sessions/<int:pk>/update-status/', views.teacher_session_update_status, name='teacher_session_update_status'),

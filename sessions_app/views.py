@@ -4,7 +4,7 @@ import json
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Count
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -17,7 +17,7 @@ from activity_logs.utils import log_activity
 from enrollments.models import Enrollment, EnrollmentStatus
 
 from .forms import SessionForm
-from .models import Attendance, AttendanceStatus, BookingStatus, Session, SessionBooking, SessionStatus
+from .models import Attendance, AttendanceStatus, BookingStatus, Session, SessionBooking, SessionStatus, SessionType
 
 _WEEKDAY_TO_DAY = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
 
@@ -79,50 +79,163 @@ def teacher_attendance_overview(request):
 
 @role_required('TEACHER')
 def teacher_sessions(request, pk):
-    from academics.utils import update_expired_classes
-    update_expired_classes()
+    """Phase 3B — Manage Sessions page.
 
-    kelas = get_object_or_404(Kelas, pk=pk, teacher_profile__user=request.user, is_deleted=False)
-    today = timezone.localdate()
+    Single page: progress bar + existing-sessions preview + repeat form
+    to bulk-add new sessions. Strict cap: existing + new ≤ kelas.total_sessions.
+    Race-safe via select_for_update inside transaction.
 
-    sessions = list(
-        Session.objects
-        .filter(kelas=kelas)
-        .annotate(
-            attendance_count=Count('attendances', distinct=True),
-            booked_count_ann=Count('bookings', filter=models.Q(bookings__status=BookingStatus.BOOKED), distinct=True),
-        )
-        .order_by('session_number')
+    URL stays `sessions_app:teacher_sessions` (5 existing templates reference
+    this name — renaming would break links). Spec called for `academics:`
+    namespace but pragmatic to keep here.
+    """
+    teacher_profile = request.user.teacher_profile
+    kelas = get_object_or_404(
+        Kelas.objects.select_related('subject', 'academic_period'),
+        pk=pk, teacher_profile=teacher_profile, is_deleted=False,
     )
 
-    # Attach matching schedule and live-status flags to each session
-    schedules_by_day = {s.day: s for s in kelas.schedules.all()}
-    current_time = timezone.localtime().time()
-    for session in sessions:
-        day_name = _WEEKDAY_TO_DAY[session.date.weekday()]
-        session.schedule = schedules_by_day.get(day_name)
-        # Prefer session's own stored times; fall back to class schedule
-        st = session.start_time or (session.schedule.start_time if session.schedule else None)
-        et = session.end_time or (session.schedule.end_time if session.schedule else None)
-        if session.is_today and st and et:
-            session.is_live = st <= current_time <= et
-            session.is_today_upcoming = current_time < st
-        else:
-            session.is_live = False
-            session.is_today_upcoming = False
+    existing_sessions = Session.objects.filter(kelas=kelas).order_by('session_number')
+    existing_count = existing_sessions.count()
+    remaining = max(kelas.total_sessions - existing_count, 0)
 
-    completed_count = sum(1 for s in sessions if s.status == SessionStatus.COMPLETED)
-    created_count = len(sessions)
-    can_create = created_count < kelas.total_sessions
+    valid_types = {v for v, _ in SessionType.choices}
+    valid_statuses = {v for v, _ in SessionStatus.choices}
+
+    if request.method == 'POST':
+        rows = []
+        i = 0
+        while f'topic_{i}' in request.POST:
+            rows.append({
+                'topic': (request.POST.get(f'topic_{i}') or '').strip(),
+                'date': request.POST.get(f'date_{i}') or '',
+                'start_time': request.POST.get(f'start_time_{i}') or '',
+                'end_time': request.POST.get(f'end_time_{i}') or '',
+                'session_type': request.POST.get(f'session_type_{i}') or SessionType.REGULAR,
+                'status': request.POST.get(f'status_{i}') or SessionStatus.SCHEDULED,
+            })
+            i += 1
+
+        # Drop completely-empty rows (user clicked + Tambah Baris but didn't fill)
+        rows = [r for r in rows if r['topic'] or r['date']]
+
+        errors = []
+        if not rows:
+            errors.append('Tambah minimal 1 baris sesi.')
+        if existing_count + len(rows) > kelas.total_sessions:
+            errors.append(
+                f'Total sesi melebihi kapasitas kelas '
+                f'({existing_count + len(rows)} > {kelas.total_sessions}). '
+                f'Hapus beberapa baris atau ubah Total Pertemuan di Edit Kelas.'
+            )
+        for idx, r in enumerate(rows):
+            n = idx + 1
+            if not r['topic']:
+                errors.append(f'Sesi baris #{n}: Topik wajib diisi.')
+            if not r['date']:
+                errors.append(f'Sesi baris #{n}: Tanggal wajib diisi.')
+            if not r['start_time'] or not r['end_time']:
+                errors.append(f'Sesi baris #{n}: Jam mulai & selesai wajib.')
+            if r['session_type'] not in valid_types:
+                errors.append(f'Sesi baris #{n}: Tipe sesi tidak valid.')
+            if r['status'] not in valid_statuses:
+                errors.append(f'Sesi baris #{n}: Status tidak valid.')
+
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+        else:
+            try:
+                with transaction.atomic():
+                    kelas_locked = Kelas.objects.select_for_update().get(pk=kelas.pk)
+                    current_count = Session.objects.filter(kelas=kelas_locked).count()
+                    # Defense in depth — recheck cap inside lock
+                    if current_count + len(rows) > kelas_locked.total_sessions:
+                        raise ValueError(
+                            f'Kapasitas terlampaui ({current_count + len(rows)} > '
+                            f'{kelas_locked.total_sessions}). Ada yang menambahkan sesi '
+                            f'lebih dulu — refresh halaman.'
+                        )
+                    new_sessions = [
+                        Session(
+                            kelas=kelas_locked,
+                            session_number=current_count + offset + 1,
+                            topic=r['topic'],
+                            date=r['date'],
+                            start_time=r['start_time'],
+                            end_time=r['end_time'],
+                            session_type=r['session_type'],
+                            status=r['status'],
+                            capacity=kelas_locked.capacity,
+                        )
+                        for offset, r in enumerate(rows)
+                    ]
+                    Session.objects.bulk_create(new_sessions)
+                log_activity(request.user, 'created', 'session', kelas.pk)
+                messages.success(request, f'✓ {len(rows)} sesi berhasil ditambahkan!')
+                return redirect('sessions_app:teacher_sessions', pk=kelas.pk)
+            except Exception as e:
+                messages.error(request, f'Gagal menyimpan: {e}')
+
+        # On error: re-render with submitted rows preserved
+        return render(request, 'sessions_app/teacher_sessions.html', {
+            'kelas': kelas,
+            'existing_sessions': existing_sessions,
+            'existing_count': existing_count,
+            'remaining': remaining,
+            'progress_pct': int(existing_count * 100 / kelas.total_sessions) if kelas.total_sessions else 0,
+            'submitted_rows': rows,
+            'session_types': SessionType.choices,
+            'statuses': SessionStatus.choices,
+        })
 
     return render(request, 'sessions_app/teacher_sessions.html', {
         'kelas': kelas,
-        'sessions': sessions,
-        'completed_count': completed_count,
-        'created_count': created_count,
-        'can_create': can_create,
-        'SessionStatus': SessionStatus,
-        'today': today,
+        'existing_sessions': existing_sessions,
+        'existing_count': existing_count,
+        'remaining': remaining,
+        'progress_pct': int(existing_count * 100 / kelas.total_sessions) if kelas.total_sessions else 0,
+        'submitted_rows': [],
+        'session_types': SessionType.choices,
+        'statuses': SessionStatus.choices,
+    })
+
+
+@role_required('TEACHER')
+def teacher_session_row_partial(request, pk):
+    """HTMX endpoint: returns one fresh form-row HTML for `+ Tambah Baris`.
+
+    Enforces the session cap server-side. If existing + already-drafted rows
+    has already filled the kelas's total_sessions, returns empty body + an
+    HX-Trigger header carrying a warning message for the client to flash.
+    """
+    teacher_profile = request.user.teacher_profile
+    kelas = get_object_or_404(
+        Kelas, pk=pk, teacher_profile=teacher_profile, is_deleted=False,
+    )
+
+    try:
+        idx = max(int(request.GET.get('idx', 0)), 0)
+    except (TypeError, ValueError):
+        idx = 0
+
+    existing = Session.objects.filter(kelas=kelas).count()
+    # `idx` is the count of rows ALREADY in the DOM (button sends current count
+    # BEFORE appending). So `existing + idx` is the post-add session count if
+    # we were to render. If that would exceed cap, refuse + flash warning.
+    if existing + idx >= kelas.total_sessions:
+        resp = HttpResponse('')
+        resp['HX-Trigger'] = json.dumps({
+            'showCapWarning': f'Kapasitas {kelas.total_sessions} sesi sudah tercapai.',
+        })
+        return resp
+
+    return render(request, 'sessions_app/_session_row_partial.html', {
+        'idx': idx,
+        'next_num': existing + idx + 1,
+        'session_types': SessionType.choices,
+        'statuses': SessionStatus.choices,
+        'row': {},  # no prefill
     })
 
 
@@ -238,129 +351,78 @@ def teacher_session_update_status(request, pk):
 
 @role_required('TEACHER')
 def teacher_attendance(request, pk):
+    """Phase 3B — Per-session attendance marking.
+
+    Single POST with `status_<enrollment_id>` fields, 3-state toggle per
+    student (PRESENT/PERMITTED/ABSENT). All active enrollments are listed
+    (DROPPED + soft-deleted excluded). Future sessions emit a warning but
+    still allow pre-marking (locked decision).
+    """
+    teacher_profile = request.user.teacher_profile
     session = get_object_or_404(
-        Session.objects.select_related('kelas__teacher_profile__user'),
+        Session.objects.select_related('kelas'),
         pk=pk,
+        kelas__teacher_profile=teacher_profile,
+        kelas__is_deleted=False,
     )
-    if session.kelas.teacher != request.user:
-        messages.error(request, 'Anda tidak memiliki akses untuk pertemuan ini.')
-        return redirect('academics:teacher_classes')
+    kelas = session.kelas
 
-    # Block marking attendance for future sessions
-    today = timezone.localdate()
-    if session.date > today:
-        messages.error(request, 'Belum bisa mengisi absensi untuk pertemuan yang belum berlangsung.')
-        return redirect('sessions_app:teacher_sessions', pk=session.kelas_id)
-
-    # Only students who have BOOKED this session
-    booked_enrollment_ids = SessionBooking.objects.filter(
-        session=session, status=BookingStatus.BOOKED
-    ).values_list('enrollment_id', flat=True)
-    enrollments = (
+    enrollments = list(
         Enrollment.objects
-        .filter(pk__in=booked_enrollment_ids, is_deleted=False)
+        .filter(kelas=kelas, is_deleted=False)
+        .exclude(status=EnrollmentStatus.DROPPED)
         .select_related('student_profile__user')
-        .order_by('student_profile__user__last_name', 'student_profile__user__first_name')
+        .order_by('student_profile__user__first_name', 'student_profile__user__last_name')
     )
 
-    # Existing attendance records for this session (keyed by enrollment_id)
-    existing = {
-        a.enrollment_id: a
-        for a in Attendance.objects.filter(session=session)
-    }
+    valid_statuses = {v for v, _ in AttendanceStatus.choices}
+    today = timezone.localdate()
+    is_future = session.date > today
 
     if request.method == 'POST':
-        for enrollment in enrollments:
-            key = f'attendance_{enrollment.pk}'
-            raw_status = request.POST.get(key, '').strip()
-            if raw_status not in AttendanceStatus.values:
-                raw_status = AttendanceStatus.PRESENT  # fallback
-
-            if enrollment.pk in existing:
-                att = existing[enrollment.pk]
-                if att.status != raw_status:
-                    att.status = raw_status
-                    att.save(update_fields=['status', 'updated_at'])
-            else:
-                Attendance.objects.create(
-                    enrollment=enrollment,
-                    session=session,
-                    status=raw_status,
-                )
-
-        log_activity(request.user, 'updated', 'attendance', session.pk)
-
-        action = request.POST.get('action', '')
-        if action == 'save_and_next':
-            next_session = (
-                Session.objects
-                .filter(kelas=session.kelas, session_number__gt=session.session_number)
-                .order_by('session_number')
-                .first()
+        try:
+            with transaction.atomic():
+                for enr in enrollments:
+                    status = (request.POST.get(f'status_{enr.id}') or '').strip()
+                    if status not in valid_statuses:
+                        # Empty / invalid → skip (allows partial marking)
+                        continue
+                    Attendance.objects.update_or_create(
+                        enrollment=enr,
+                        session=session,
+                        defaults={
+                            'status': status,
+                            'marked_by': request.user,
+                        },
+                    )
+            log_activity(request.user, 'marked_attendance', 'session', session.pk)
+            messages.success(
+                request,
+                f'✓ Kehadiran sesi #{session.session_number} tersimpan!',
             )
-            if next_session:
-                messages.success(
-                    request,
-                    f'Kehadiran disimpan! Sekarang Pertemuan ke-{next_session.session_number}.',
-                )
-                return redirect('sessions_app:teacher_attendance', pk=next_session.pk)
-            else:
-                messages.success(request, 'Semua kehadiran telah diisi!')
-                return redirect('sessions_app:teacher_sessions', pk=session.kelas_id)
-        else:
-            messages.success(request, 'Kehadiran berhasil disimpan!')
+            return redirect('sessions_app:teacher_attendance', pk=session.pk)
+        except Exception as e:
+            messages.error(request, f'Gagal menyimpan: {e}')
 
-        # Reload existing after save so pre-fill is up-to-date
-        existing = {
-            a.enrollment_id: a
-            for a in Attendance.objects.filter(session=session)
-        }
-
-    # Build rows with pre-filled status for template
-    rows = []
-    for enrollment in enrollments:
-        att = existing.get(enrollment.pk)
-        rows.append({
-            'enrollment': enrollment,
-            'current_status': att.status if att else '',
-        })
-
-    # Next session (for "Simpan & Lanjut" button)
-    next_session = (
-        Session.objects
-        .filter(kelas=session.kelas, session_number__gt=session.session_number)
-        .order_by('session_number')
-        .first()
-    )
-
-    # Serialize initial Alpine.js state
-    statuses_json = json.dumps({
-        str(row['enrollment'].pk): row['current_status']
-        for row in rows
-    })
-
-    # Schedule for this session (for time display + live badge)
-    schedules_by_day = {s.day: s for s in session.kelas.schedules.all()}
-    day_name = _WEEKDAY_TO_DAY[session.date.weekday()]
-    session_schedule = schedules_by_day.get(day_name)
-    current_time = timezone.localtime().time()
-    # Prefer session's own stored times; fall back to class schedule
-    _st = session.start_time or (session_schedule.start_time if session_schedule else None)
-    _et = session.end_time or (session_schedule.end_time if session_schedule else None)
-    session_is_live = bool(
-        session.date == today and _st and _et and _st <= current_time <= _et
-    )
+    # Existing attendance → prefill the toggle per enrollment
+    existing = {
+        a.enrollment_id: a.status
+        for a in Attendance.objects.filter(session=session)
+    }
+    marked_count = 0
+    for enr in enrollments:
+        enr.current_status = existing.get(enr.id, '')
+        if enr.current_status:
+            marked_count += 1
 
     return render(request, 'sessions_app/teacher_attendance.html', {
         'session': session,
-        'kelas': session.kelas,
-        'rows': rows,
-        'AttendanceStatus': AttendanceStatus,
-        'already_marked': bool(existing),
-        'next_session': next_session,
-        'statuses_json': statuses_json,
-        'session_schedule': session_schedule,
-        'session_is_live': session_is_live,
+        'kelas': kelas,
+        'enrollments': enrollments,
+        'statuses': AttendanceStatus.choices,
+        'marked_count': marked_count,
+        'total_students': len(enrollments),
+        'is_future': is_future,
     })
 
 

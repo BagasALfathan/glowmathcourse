@@ -1,0 +1,75 @@
+{% comment %}
+Single session form-row. Rendered initially inside the repeat form (loop over
+submitted_rows or one fresh row) AND returned by the HTMX `+ Tambah Baris`
+endpoint. Field names use `{name}_{idx}` so the view can iterate `topic_0`,
+`topic_1`, ... regardless of how many rows the user added/removed.
+
+Required context: idx (int), next_num (int), session_types, statuses.
+Optional: row (dict with topic/date/start_time/end_time/session_type/status).
+{% endcomment %}
+<div class="session-row bg-gray-50 border border-gray-200 rounded-lg p-3 pt-4 mt-2 relative">
+  <span class="absolute -top-2 left-3 bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded font-bold tracking-wide">
+    SESI #{{ next_num }}
+  </span>
+  <button type="button"
+          onclick="this.closest('.session-row').remove()"
+          aria-label="Hapus baris"
+          class="absolute top-1.5 right-2 text-gray-400 hover:text-red-500 text-base leading-none">
+    ✕
+  </button>
+
+  <div>
+    <label class="text-[11px] font-semibold text-gray-700 block mb-1">
+      Topik <span class="text-red-500">*</span>
+    </label>
+    <input type="text" name="topic_{{ idx }}" required maxlength="300"
+           value="{{ row.topic|default:'' }}"
+           placeholder="contoh: Limit & Kontinuitas"
+           class="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:border-emerald-500 focus:ring-1 focus:ring-emerald-100 outline-none">
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
+    <div>
+      <label class="text-[11px] font-semibold text-gray-700 block mb-1">Tanggal <span class="text-red-500">*</span></label>
+      <input type="date" name="date_{{ idx }}" required value="{{ row.date|default:'' }}"
+             class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:border-emerald-500 focus:ring-1 focus:ring-emerald-100 outline-none">
+    </div>
+    <div>
+      <label class="text-[11px] font-semibold text-gray-700 block mb-1">Jam Mulai <span class="text-red-500">*</span></label>
+      <input type="time" name="start_time_{{ idx }}" required value="{{ row.start_time|default:'' }}"
+             class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:border-emerald-500 focus:ring-1 focus:ring-emerald-100 outline-none">
+    </div>
+    <div>
+      <label class="text-[11px] font-semibold text-gray-700 block mb-1">Jam Selesai <span class="text-red-500">*</span></label>
+      <input type="time" name="end_time_{{ idx }}" required value="{{ row.end_time|default:'' }}"
+             class="w-full px-2 py-1.5 text-xs border border-gray-300 rounded-md focus:border-emerald-500 focus:ring-1 focus:ring-emerald-100 outline-none">
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+    <div>
+      <label class="text-[11px] font-semibold text-gray-700 block mb-1">Tipe</label>
+      <div class="flex gap-1 flex-wrap">
+        {% for value, label in session_types %}
+        <label class="cursor-pointer">
+          <input type="radio" name="session_type_{{ idx }}" value="{{ value }}" class="peer sr-only"
+                 {% if row.session_type == value %}checked{% elif not row.session_type and value == 'REGULAR' %}checked{% endif %}>
+          <span class="inline-block px-2.5 py-0.5 text-[11px] border border-gray-300 rounded-full hover:border-emerald-400 peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-600 peer-checked:font-semibold transition-colors">{{ label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <div>
+      <label class="text-[11px] font-semibold text-gray-700 block mb-1">Status</label>
+      <div class="flex gap-1 flex-wrap">
+        {% for value, label in statuses %}
+        <label class="cursor-pointer">
+          <input type="radio" name="status_{{ idx }}" value="{{ value }}" class="peer sr-only"
+                 {% if row.status == value %}checked{% elif not row.status and value == 'SCHEDULED' %}checked{% endif %}>
+          <span class="inline-block px-2.5 py-0.5 text-[11px] border border-gray-300 rounded-full hover:border-emerald-400 peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-600 peer-checked:font-semibold transition-colors">{{ label }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>

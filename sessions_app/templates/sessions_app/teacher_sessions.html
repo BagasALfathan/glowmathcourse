@@ -1,323 +1,159 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Pertemuan — {{ kelas.name }}{% endblock %}
 {% block page_title %}Pertemuan Kelas{% endblock %}
 
 {% block content %}
-<div class="space-y-5" x-data="{ confirmPk: null, confirmStatus: '', confirmLabel: '' }">
+<div class="max-w-4xl mx-auto space-y-4">
 
-  <!-- Status update confirmation modal -->
-  <div x-show="confirmPk !== null"
-       x-transition.opacity
-       class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-       @click.self="confirmPk = null"
-       style="display: none;">
-    <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full" @click.stop>
-      <div class="flex items-start gap-3 mb-4">
-        <div class="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-               stroke-width="1.75" stroke="currentColor" class="w-5 h-5 text-primary-600">
-            <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-        <div>
-          <h3 class="text-sm font-semibold text-gray-900">Ubah Status Pertemuan</h3>
-          <p class="text-sm text-gray-500 mt-1">
-            Ubah status menjadi <span class="font-medium text-gray-800" x-text="confirmLabel"></span>?
+  {# Breadcrumb #}
+  <nav class="text-xs flex gap-1.5 items-center flex-wrap">
+    <a href="{% url 'academics:teacher_classes' %}" class="text-emerald-700 hover:underline no-underline">Kelas Saya</a>
+    <span class="text-gray-400">›</span>
+    <span class="text-gray-700 truncate max-w-[200px]">{{ kelas.name }}</span>
+    <span class="text-gray-400">›</span>
+    <span class="text-gray-700 font-medium">Pertemuan</span>
+  </nav>
+
+  {# Header #}
+  <div>
+    <h1 class="text-xl md:text-2xl font-bold text-gray-900 m-0">📅 Tambah Pertemuan</h1>
+    <p class="text-xs text-gray-500 mt-1 m-0">{{ kelas.name }}</p>
+  </div>
+
+  {# Flash messages #}
+  {% if messages %}
+    <div class="space-y-1.5">
+    {% for msg in messages %}
+      <div class="rounded-lg border px-3 py-2 text-xs
+        {% if msg.tags == 'error' %}bg-red-50 border-red-200 text-red-700
+        {% elif msg.tags == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-700
+        {% else %}bg-blue-50 border-blue-200 text-blue-700{% endif %}">
+        {{ msg }}
+      </div>
+    {% endfor %}
+    </div>
+  {% endif %}
+
+  {# ── Progress card ───────────────────────────────────────────────── #}
+  <div class="bg-white border border-gray-200 rounded-xl p-4 hover:border-emerald-600 transition-colors">
+    <div class="flex items-center justify-between gap-3 mb-2 flex-wrap">
+      <p class="text-sm font-semibold text-gray-900 m-0">
+        {{ existing_count }} <span class="text-gray-500 font-normal">dari</span> {{ kelas.total_sessions }} <span class="text-gray-500 font-normal">sesi sudah ada</span>
+      </p>
+      {% if remaining > 0 %}
+        <span class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-700">
+          Sisa {{ remaining }} slot
+        </span>
+      {% else %}
+        <span class="inline-block px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+          Penuh
+        </span>
+      {% endif %}
+    </div>
+    <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+      <div class="h-full bg-emerald-500 transition-all" style="width: {{ progress_pct }}%"></div>
+    </div>
+  </div>
+
+  {# ── Existing sessions preview ───────────────────────────────────── #}
+  {% if existing_count > 0 %}
+  <div class="bg-white border border-gray-200 rounded-xl p-4 hover:border-emerald-600 transition-colors">
+    <h2 class="text-xs font-bold text-emerald-700 uppercase tracking-wider mb-3">
+      📚 Sesi Existing
+    </h2>
+    <div class="space-y-1.5 max-h-[300px] overflow-y-auto pr-1">
+      {% for s in existing_sessions %}
+      <div class="flex items-center gap-2.5 py-1.5 px-2 rounded-md hover:bg-gray-50 text-xs">
+        <span class="w-7 h-7 inline-flex items-center justify-center rounded-md bg-emerald-50 text-emerald-700 font-bold text-[11px] shrink-0">
+          #{{ s.session_number }}
+        </span>
+        <div class="min-w-0 flex-1">
+          <p class="font-semibold text-gray-900 m-0 truncate">{{ s.topic|default:"(tanpa topik)" }}</p>
+          <p class="text-[10px] text-gray-500 m-0 mt-0.5">
+            {{ s.date|date:"D, d M Y" }}
+            {% if s.start_time %}· {{ s.start_time|time:"H:i" }}{% if s.end_time %}–{{ s.end_time|time:"H:i" }}{% endif %}{% endif %}
           </p>
         </div>
-      </div>
-      <div class="flex gap-3 justify-end">
-        <button type="button"
-                @click="confirmPk = null"
-                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300
-                       rounded-lg hover:bg-gray-50 transition-colors">
-          Batal
-        </button>
-        <form method="post" :action="`/teacher/sessions/${confirmPk}/update-status/`">
-          {% csrf_token %}
-          <input type="hidden" name="status" :value="confirmStatus">
-          <button type="submit"
-                  class="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg
-                         hover:bg-primary-700 transition-colors">
-            Ya, Ubah
-          </button>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- Back link -->
-  <a href="{% url 'academics:teacher_classes' %}"
-     class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-         stroke-width="2" stroke="currentColor" class="w-4 h-4">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-    </svg>
-    Kelas Saya
-  </a>
-
-  <!-- Class info + progress bar -->
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-6 py-4 space-y-3">
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-      <div>
-        <h2 class="text-base font-semibold text-gray-900">{{ kelas.name }}</h2>
-        <p class="text-sm text-gray-500 mt-0.5">
-          {{ kelas.subject.name }} &nbsp;·&nbsp;
-          {% if kelas.level == 'SD' %}<span class="text-teal-600 font-medium">SD</span>
-          {% elif kelas.level == 'SMP' %}<span class="text-blue-600 font-medium">SMP</span>
-          {% else %}<span class="text-primary-600 font-medium">SMA</span>{% endif %}
-          &nbsp;·&nbsp; {{ kelas.academic_period.name }}
-        </p>
-      </div>
-      <div class="flex items-center gap-2 flex-wrap">
-        <a href="{% url 'sessions_app:export_attendance_excel' kelas.pk %}"
-           class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-green-700
-                  border border-green-300 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-               stroke-width="1.75" stroke="currentColor" class="w-4 h-4">
-            <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-          </svg>
-          Excel
-        </a>
-        <a href="{% url 'sessions_app:export_attendance_pdf' kelas.pk %}"
-           class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-red-700
-                  border border-red-300 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-               stroke-width="1.75" stroke="currentColor" class="w-4 h-4">
-            <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-          </svg>
-          PDF
-        </a>
-        {% if can_create %}
-        <a href="{% url 'sessions_app:teacher_session_create' kelas.pk %}"
-           class="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white text-sm font-medium
-                  rounded-lg hover:bg-primary-700 transition-colors">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-               stroke-width="2" stroke="currentColor" class="w-4 h-4">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          Buat Pertemuan Baru
-        </a>
-        {% else %}
-        <span class="inline-flex items-center gap-1.5 px-3 py-2 bg-green-50 text-green-700
-                     text-sm font-medium rounded-lg border border-green-200">
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-               stroke-width="2" stroke="currentColor" class="w-4 h-4">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-          </svg>
-          Semua pertemuan sudah dibuat
+        <span class="text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0
+          {% if s.status == 'COMPLETED' %}bg-emerald-100 text-emerald-700
+          {% elif s.status == 'CANCELLED' %}bg-red-100 text-red-700
+          {% else %}bg-blue-100 text-blue-700{% endif %}">
+          {{ s.get_status_display }}
         </span>
-        {% endif %}
+        <a href="{% url 'sessions_app:teacher_attendance' s.pk %}"
+           class="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 hover:bg-emerald-100 transition-colors no-underline"
+           title="Isi absensi untuk sesi ini">
+          📋 Absen
+        </a>
       </div>
-    </div>
-
-    <!-- Progress -->
-    <div class="space-y-1.5">
-      <div class="flex items-center justify-between text-xs text-gray-500">
-        <span>Pertemuan selesai: <span class="font-semibold text-gray-800">{{ completed_count }}</span> dari <span class="font-semibold text-gray-800">{{ kelas.total_sessions }}</span></span>
-        <span>{{ created_count }} dibuat</span>
-      </div>
-      <div class="w-full bg-gray-100 rounded-full h-2">
-        {% if kelas.total_sessions > 0 %}
-        <div class="bg-green-500 h-2 rounded-full transition-all"
-             style="width: {% widthratio completed_count kelas.total_sessions 100 %}%"></div>
-        {% endif %}
-      </div>
+      {% endfor %}
     </div>
   </div>
+  {% endif %}
 
-  <!-- Sessions table -->
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-    <div class="px-6 py-4 border-b border-gray-100">
-      <h3 class="text-sm font-semibold text-gray-900">Daftar Pertemuan</h3>
+  {# ── Repeat form (only when capacity remains) ────────────────────── #}
+  {% if remaining > 0 %}
+  <form method="post" action="{% url 'sessions_app:teacher_sessions' kelas.pk %}"
+        class="bg-white border border-gray-200 rounded-xl p-4 md:p-5 hover:border-emerald-600 transition-colors space-y-3">
+    {% csrf_token %}
+
+    <h2 class="text-xs font-bold text-emerald-700 uppercase tracking-wider">
+      ✍️ Sesi Baru
+    </h2>
+
+    <div id="session-rows" class="space-y-0">
+      {% if submitted_rows %}
+        {% for row in submitted_rows %}
+          {% include 'sessions_app/_session_row_partial.html' with idx=forloop.counter0 next_num=existing_count|add:forloop.counter row=row session_types=session_types statuses=statuses %}
+        {% endfor %}
+      {% else %}
+        {% include 'sessions_app/_session_row_partial.html' with idx=0 next_num=existing_count|add:1 row=None session_types=session_types statuses=statuses %}
+      {% endif %}
     </div>
 
-    {% if sessions %}
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead class="bg-gray-50 border-b border-gray-100">
-          <tr>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-16">No.</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tanggal</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden sm:table-cell">Topik</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Pendaftar</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Absensi</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ubah Status</th>
-            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Edit</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-50">
-          {% for session in sessions %}
-          <tr class="{% if session.is_live %}bg-green-50 hover:bg-green-100{% elif session.is_today %}bg-primary-50 hover:bg-primary-100{% elif session.is_past %}hover:bg-gray-50 opacity-80{% else %}hover:bg-blue-50 bg-blue-50/30{% endif %} transition-colors align-middle">
+    <button type="button"
+            hx-get="{% url 'sessions_app:teacher_session_row_partial' kelas.pk %}"
+            hx-vals='js:{idx: document.querySelectorAll("#session-rows .session-row").length}'
+            hx-target="#session-rows"
+            hx-swap="beforeend"
+            class="w-full py-2 mt-1 bg-emerald-50 border border-dashed border-emerald-300 text-emerald-700 rounded-lg text-sm font-semibold hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+      + Tambah Baris (sisa {{ remaining }} slot)
+    </button>
 
-            <!-- Session number -->
-            <td class="px-4 py-3">
-              <span class="inline-flex items-center justify-center w-8 h-8 rounded-full
-                           {% if session.is_live %}bg-green-500 text-white{% elif session.is_today %}bg-primary-600 text-white{% elif session.is_past %}bg-gray-100 text-gray-500{% else %}bg-primary-50 text-primary-700{% endif %} text-xs font-bold">
-                {{ session.session_number }}
-              </span>
-            </td>
-
-            <!-- Date + time -->
-            <td class="px-4 py-3 text-gray-700 whitespace-nowrap">
-              <div class="flex items-center gap-2 flex-wrap">
-                <span>{{ session.date|date:"l, d M Y" }}</span>
-                {% if session.start_time %}
-                  <span class="text-xs text-primary-600 font-medium bg-primary-50 px-2 py-0.5 rounded">
-                    {{ session.start_time|time:"H:i" }}–{{ session.end_time|time:"H:i" }}
-                  </span>
-                {% elif session.schedule %}
-                  <span class="text-xs text-primary-500 font-medium bg-primary-50 px-2 py-0.5 rounded">
-                    {{ session.schedule.start_time|time:"H:i" }}–{{ session.schedule.end_time|time:"H:i" }}
-                  </span>
-                {% endif %}
-                {% if session.is_live %}
-                  <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-bold bg-green-500 text-white">
-                    <span class="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>Sedang Berlangsung
-                  </span>
-                {% elif session.is_today_upcoming %}
-                  <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-primary-600 text-white">Hari ini</span>
-                {% elif session.is_today %}
-                  <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600">Selesai hari ini</span>
-                {% endif %}
-              </div>
-            </td>
-
-            <!-- Topic -->
-            <td class="px-4 py-3 text-gray-600 hidden sm:table-cell">
-              {% if session.topic %}
-                {{ session.topic }}
-              {% else %}
-                <span class="text-gray-300 italic text-xs">—</span>
-              {% endif %}
-            </td>
-
-            <!-- Status badge -->
-            <td class="px-4 py-3">
-              {% if session.status == 'SCHEDULED' %}
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">Terjadwal</span>
-              {% elif session.status == 'COMPLETED' %}
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Selesai</span>
-              {% else %}
-                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700">Dibatalkan</span>
-              {% endif %}
-            </td>
-
-            <!-- Pendaftar -->
-            <td class="px-4 py-3 hidden md:table-cell">
-              {% if session.capacity > 0 %}
-                <div class="text-sm font-semibold text-gray-800">{{ session.booked_count_ann }}/{{ session.capacity }}</div>
-                {% if session.booked_count_ann >= session.capacity %}
-                  <span class="text-xs font-medium text-red-600">Penuh</span>
-                {% else %}
-                  <span class="text-xs text-green-600">Tersedia</span>
-                {% endif %}
-              {% else %}
-                <div class="text-sm font-semibold text-gray-800">{{ session.booked_count_ann }} pendaftar</div>
-                <span class="text-xs text-green-600">Tersedia</span>
-              {% endif %}
-            </td>
-
-            <!-- Absensi link + badge -->
-            <td class="px-4 py-3">
-              <a href="{% url 'sessions_app:teacher_attendance' session.pk %}"
-                 class="inline-flex items-center gap-1.5 text-xs font-medium text-primary-600
-                        hover:text-primary-800 px-2.5 py-1 rounded-lg hover:bg-primary-50
-                        transition-colors border border-primary-200">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                     stroke-width="1.75" stroke="currentColor" class="w-3.5 h-3.5">
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {% if session.attendance_count > 0 %}Sudah diisi{% else %}Isi Absensi{% endif %}
-              </a>
-              {% if session.attendance_count > 0 %}
-              <div class="mt-1">
-                <span class="text-xs text-gray-400">{{ session.attendance_count }} siswa</span>
-              </div>
-              {% endif %}
-            </td>
-
-            <!-- Status change buttons -->
-            <td class="px-4 py-3">
-              <div class="flex items-center gap-1.5 flex-wrap">
-                {% if session.status == 'SCHEDULED' %}
-                  <button type="button"
-                          @click="confirmPk = {{ session.pk }}; confirmStatus = 'COMPLETED'; confirmLabel = 'Selesai'"
-                          class="text-xs font-medium text-green-600 hover:text-green-800 px-2.5 py-1
-                                 rounded-lg hover:bg-green-50 transition-colors border border-green-200">
-                    Selesai
-                  </button>
-                  <button type="button"
-                          @click="confirmPk = {{ session.pk }}; confirmStatus = 'CANCELLED'; confirmLabel = 'Dibatalkan'"
-                          class="text-xs font-medium text-red-500 hover:text-red-700 px-2.5 py-1
-                                 rounded-lg hover:bg-red-50 transition-colors border border-red-200">
-                    Batalkan
-                  </button>
-                {% elif session.status == 'CANCELLED' %}
-                  <button type="button"
-                          @click="confirmPk = {{ session.pk }}; confirmStatus = 'SCHEDULED'; confirmLabel = 'Terjadwal'"
-                          class="text-xs font-medium text-blue-500 hover:text-blue-700 px-2.5 py-1
-                                 rounded-lg hover:bg-blue-50 transition-colors border border-blue-200">
-                    Jadwalkan Ulang
-                  </button>
-                {% else %}
-                  <span class="text-xs text-gray-400 italic">—</span>
-                {% endif %}
-              </div>
-            </td>
-
-            <!-- Edit link -->
-            <td class="px-4 py-3 hidden md:table-cell">
-              <a href="{% url 'sessions_app:teacher_session_edit' session.pk %}"
-                 class="inline-flex items-center gap-1 text-xs font-medium text-gray-500
-                        hover:text-gray-800 px-2.5 py-1 rounded-lg hover:bg-gray-100
-                        transition-colors border border-gray-200">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-                     stroke-width="1.75" stroke="currentColor" class="w-3.5 h-3.5">
-                  <path stroke-linecap="round" stroke-linejoin="round"
-                        d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-                </svg>
-                Edit
-              </a>
-            </td>
-
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    {% else %}
-    <!-- Empty state -->
-    <div class="flex flex-col items-center justify-center py-16 text-center px-6">
-      <div class="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-             stroke-width="1.5" stroke="currentColor" class="w-7 h-7 text-gray-400">
-          <path stroke-linecap="round" stroke-linejoin="round"
-                d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-        </svg>
-      </div>
-      <p class="text-gray-600 font-medium mb-1">Belum ada pertemuan.</p>
-      <p class="text-sm text-gray-400 mb-4">Buat pertemuan pertama untuk kelas ini.</p>
-      <a href="{% url 'sessions_app:teacher_session_create' kelas.pk %}"
-         class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white
-                bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-             stroke-width="2" stroke="currentColor" class="w-4 h-4">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
-        Buat Pertemuan Baru
+    <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
+      <a href="{% url 'academics:teacher_classes' %}"
+         class="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors no-underline">
+        Batal
       </a>
+      <button type="submit"
+              class="px-5 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">
+        Simpan Sesi →
+      </button>
     </div>
-    {% endif %}
+  </form>
 
+  {# Tiny inline listener for the HTMX cap-hit warning (HX-Trigger event) #}
+  <script>
+    document.body.addEventListener('showCapWarning', function (e) {
+      const msg = (e.detail && e.detail.value) || 'Kapasitas tercapai.';
+      const div = document.createElement('div');
+      div.className = 'rounded-lg border bg-amber-50 border-amber-200 text-amber-800 px-3 py-2 text-xs mb-2';
+      div.textContent = msg;
+      const rows = document.getElementById('session-rows');
+      rows.parentNode.insertBefore(div, rows);
+      setTimeout(() => div.remove(), 4000);
+    });
+  </script>
+  {% else %}
+  {# Full state #}
+  <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-sm text-emerald-800">
+    <span class="font-semibold">✓ Semua sesi sudah dibuat.</span>
+    Klik sesi existing untuk edit atau ubah Total Pertemuan di
+    <a href="{% url 'academics:teacher_class_edit' kelas.pk %}" class="text-emerald-700 underline">Edit Kelas</a>
+    jika perlu menambah slot.
   </div>
+  {% endif %}
 
 </div>
 {% endblock %}
