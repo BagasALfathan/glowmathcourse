@@ -1,7 +1,10 @@
 import io
+import re
 from collections import defaultdict
+from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
+from django.db import transaction
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -15,6 +18,28 @@ from sessions_app.models import Attendance, AttendanceStatus, Session
 
 from .forms import GradeForm
 from .models import Grade, GradeType
+
+# Notes-prefix pattern: `[Judul] :: catatan`. Grade has no title field
+# (ERD v4 locked) so we encode the assessment title as a prefix in the
+# notes column. See PITFALLS.md and the Gradebook task spec for context.
+_NOTES_TITLE_RE = re.compile(r'^\[(?P<title>.+?)\]\s*::\s?(?P<note>.*)$', re.DOTALL)
+
+
+def _parse_grade_note(notes):
+    """Return (title, note) parsed from `[title] :: note`. Returns
+    (None, notes) for legacy/malformed entries."""
+    if not notes:
+        return None, ''
+    m = _NOTES_TITLE_RE.match(notes)
+    if m:
+        return m.group('title'), m.group('note')
+    return None, notes
+
+
+def _compose_grade_note(title, note):
+    """Compose notes string. Always emits the prefix even when note is empty
+    so startswith-matching during re-save works without ambiguity."""
+    return f'[{title}] :: {note}' if note else f'[{title}] :: '
 
 
 # ─── Teacher views ────────────────────────────────────────────────────────────
@@ -51,38 +76,160 @@ def teacher_grades_overview(request):
 
 @role_required('TEACHER')
 def teacher_grades(request, pk):
-    kelas = get_object_or_404(Kelas, pk=pk, teacher_profile__user=request.user, is_deleted=False)
+    """Phase 3B Gradebook — one page input nilai per kelas.
 
-    enrollments = (
+    Each "assessment" = bebas-judul + nilai per siswa + catatan optional.
+    grade_type hardcoded to MIDTERM (no session FK needed). Title stored
+    as a `[title] :: catatan` prefix in Grade.notes (no migration).
+    """
+    teacher_profile = request.user.teacher_profile
+    kelas = get_object_or_404(
+        Kelas.objects.select_related('subject'),
+        pk=pk, teacher_profile=teacher_profile, is_deleted=False,
+    )
+
+    enrollments = list(
         Enrollment.objects
-        .filter(kelas=kelas, status=EnrollmentStatus.ACTIVE, is_deleted=False)
+        .filter(kelas=kelas, is_deleted=False)
+        .exclude(status=EnrollmentStatus.DROPPED)
         .select_related('student_profile__user')
-        .order_by('student_profile__user__last_name', 'student_profile__user__first_name')
+        .order_by('student_profile__user__first_name', 'student_profile__user__last_name')
     )
 
-    # Prefetch grades per enrollment to avoid N+1
-    enrollment_ids = [e.pk for e in enrollments]
-    all_grades = (
+    # Pull every MIDTERM grade in this kelas, parse out (title, note) per row.
+    all_grades = list(
         Grade.objects
-        .filter(enrollment_id__in=enrollment_ids)
-        .select_related('session')
-        .order_by('grade_type', '-graded_at')
+        .filter(enrollment__kelas=kelas, grade_type=GradeType.MIDTERM)
+        .select_related('enrollment')
     )
-    grades_by_enrollment = {}
-    for grade in all_grades:
-        grades_by_enrollment.setdefault(grade.enrollment_id, []).append(grade)
 
-    rows = [
-        {
-            'enrollment': e,
-            'grades': grades_by_enrollment.get(e.pk, []),
+    # Build: { title: { enrollment_id: {score, note, grade_id} } }
+    assessments_index = defaultdict(dict)
+    for g in all_grades:
+        title, note = _parse_grade_note(g.notes)
+        if not title:
+            continue  # legacy grade without prefix → skipped from grouping
+        assessments_index[title][g.enrollment_id] = {
+            'score': g.score,
+            'note': note,
+            'grade_id': g.pk,
         }
-        for e in enrollments
-    ]
+    assessments = sorted(assessments_index.keys())
+
+    selected_title = (request.GET.get('assessment') or '').strip()
+
+    # Errors mode: if POST validation failed, surface submitted values back
+    # into the table; otherwise prefill from the selected assessment.
+    submitted_values = None
+
+    if request.method == 'POST':
+        title = (request.POST.get('assessment_title') or '').strip()
+        rows_to_save = []
+        errors = []
+
+        if not title:
+            errors.append('Judul penilaian wajib diisi.')
+        # Disallow chars that would break the [title] :: parser
+        elif any(c in title for c in '[]') or '::' in title:
+            errors.append('Judul tidak boleh mengandung karakter [ ] atau ::')
+        elif len(title) > 200:
+            errors.append('Judul terlalu panjang (maks 200 karakter).')
+
+        # Parse each enrollment's input. Empty score → skip (partial save OK).
+        for enr in enrollments:
+            score_raw = (request.POST.get(f'score_{enr.id}') or '').strip()
+            note_raw = (request.POST.get(f'note_{enr.id}') or '').strip()
+            if score_raw == '':
+                continue
+            try:
+                score = Decimal(score_raw)
+            except (InvalidOperation, TypeError):
+                errors.append(f'{enr.student_profile.user.get_full_name() or enr.student_profile.user.username}: nilai tidak valid.')
+                continue
+            if not (Decimal('0') <= score <= Decimal('100')):
+                errors.append(f'{enr.student_profile.user.get_full_name() or enr.student_profile.user.username}: nilai harus 0–100.')
+                continue
+            rows_to_save.append((enr, score, note_raw))
+
+        if not errors and not rows_to_save:
+            errors.append('Minimal isi 1 nilai siswa untuk disimpan.')
+
+        # On error: re-render with submitted values stuck in the inputs
+        if errors:
+            submitted_values = {
+                enr.id: {
+                    'score': request.POST.get(f'score_{enr.id}', ''),
+                    'note': request.POST.get(f'note_{enr.id}', ''),
+                }
+                for enr in enrollments
+            }
+            for e in errors:
+                messages.error(request, e)
+            selected_title = title or selected_title
+        else:
+            try:
+                with transaction.atomic():
+                    note_prefix = f'[{title}] ::'
+                    for enr, score, note_raw in rows_to_save:
+                        existing = Grade.objects.filter(
+                            enrollment=enr,
+                            grade_type=GradeType.MIDTERM,
+                            notes__startswith=note_prefix,
+                        ).first()
+                        composed = _compose_grade_note(title, note_raw)
+                        if existing:
+                            existing.score = score
+                            existing.notes = composed
+                            existing.graded_by_teacher = teacher_profile
+                            existing.session = None
+                            existing.save()
+                        else:
+                            Grade.objects.create(
+                                enrollment=enr,
+                                grade_type=GradeType.MIDTERM,
+                                score=score,
+                                notes=composed,
+                                graded_by_teacher=teacher_profile,
+                                session=None,
+                            )
+                log_activity(request.user, 'graded', 'kelas', kelas.pk)
+                messages.success(request, f'✓ Nilai "{title}" tersimpan untuk {len(rows_to_save)} siswa.')
+                # Redirect with the title as a query so the saved tab is active.
+                return redirect(f"{request.path}?assessment={title}")
+            except Exception as e:
+                messages.error(request, f'Gagal menyimpan: {e}')
+
+    # Build the table rows: prefill from selected assessment (or submitted_values on error)
+    prefill = assessments_index.get(selected_title, {}) if selected_title else {}
+
+    table_rows = []
+    graded_count = 0
+    for enr in enrollments:
+        if submitted_values:
+            cell = submitted_values.get(enr.id, {})
+            score_val = cell.get('score', '')
+            note_val = cell.get('note', '')
+        else:
+            cell = prefill.get(enr.id)
+            score_val = str(cell['score']).rstrip('0').rstrip('.') if cell else ''
+            note_val = cell['note'] if cell else ''
+        if score_val:
+            graded_count += 1
+        table_rows.append({
+            'enrollment': enr,
+            'score_value': score_val,
+            'note_value': note_val,
+            'has_grade': bool(cell) if not submitted_values else False,
+        })
 
     return render(request, 'grades/teacher_grades.html', {
         'kelas': kelas,
-        'rows': rows,
+        'enrollments': enrollments,
+        'assessments': assessments,           # list of titles for tabs
+        'selected_title': selected_title,
+        'table_rows': table_rows,
+        'graded_count': graded_count,
+        'total_students': len(enrollments),
     })
 
 
