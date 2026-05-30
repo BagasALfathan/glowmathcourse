@@ -239,6 +239,50 @@ Re-running without `--reset` will just top up missing data; safe. `--reset` dele
 
 ---
 
+### ❌ Two enrollment levels — don't confuse Enrollment with SessionBooking
+
+After the 2026-05-31 schema unlock, `SessionBooking` is now the universal
+session-level enrollment record (for ALL session types, not just MAKEUP/OPTIONAL).
+This creates two enrollment levels:
+
+| Model | Level | Anchors |
+|---|---|---|
+| `enrollments.Enrollment` | class-level | `Grade`, `MonthlyJournal`, `TeacherRating`, `ClassRating` (unchanged — still per-class aggregates) |
+| `sessions_app.SessionBooking` | session-level | `Attendance` (per session — already was) |
+
+Rules:
+- A **class-level** stat (avg grade, monthly journal) → query `Enrollment.objects.…`
+- A **session-level** stat ("which students are in session X") → query `SessionBooking.objects.…`
+- A student who's "enrolled in class K" has 1 Enrollment + N SessionBookings (one per REGULAR Session in K)
+
+**ORM filter rules:**
+- ❌ `SessionBooking.objects.filter(student=user)` — no `student` field on SessionBooking; that's a @property shim
+- ✅ `SessionBooking.objects.filter(enrollment__student_profile__user=user)`
+- ❌ `SessionBooking.objects.filter(student_profile=sp)` — same reason
+- ✅ `SessionBooking.objects.filter(enrollment__student_profile=sp)`
+
+`booking.student` and `booking.student_profile` work in TEMPLATES (read-only attribute access via the @property shim) — never in ORM lookups.
+
+### ❌ `'sessions.Session'` FK string resolves to Django's cookie table
+
+The project's Session model lives at `sessions_app.Session` (app_label `sessions_app`).
+There's also a stale empty `sessions/models.py` whose only registered model is
+**`django.contrib.sessions.models.Session`** — the built-in session-cookie storage
+(`django_session` table).
+
+| ❌ Wrong | ✅ Right |
+|---|---|
+| `FK('sessions.Session')` | `FK('sessions_app.Session')` |
+
+This bites when writing FK strings in new models or migrations. Always
+`sessions_app.Session`, never `sessions.Session`.
+
+### ❌ Soft-delete on SessionBooking too
+
+Phase 3R schema unlock added `is_deleted` + `deleted_at` + `soft_delete()` to
+`SessionBooking` to match the Enrollment convention. Filter `is_deleted=False`
+in default querysets — same trap as User/Kelas/Enrollment.
+
 ## Append new pitfalls here as they're discovered
 
 <!--

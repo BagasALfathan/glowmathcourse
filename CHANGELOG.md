@@ -6,6 +6,66 @@ Format: `## [Phase X] — Title — date`. Each phase has Added / Changed / Fixe
 
 ---
 
+## [Phase 3R Schema Unlock] — SessionBooking generalized for session-first enrollment — 2026-05-31
+
+ERD v4 was previously locked. Client requirement now needs **session-level
+enrollment** (a student can pick individual sessions, not just whole classes).
+Schema is intentionally extended — first deliberate unlock since v4. Migration +
+seed only this prompt; enroll-view rewrite + attendance rework come in Prompts 2–3.
+
+### Decisions
+- **Do NOT add a parallel `SessionEnrollment` model.** Extend the existing
+  `SessionBooking` table to be the universal (enrollment ↔ session) record for
+  ALL session types — REGULAR, MAKEUP, OPTIONAL.
+- **Grade / MonthlyJournal / SessionNote / TeacherRating / ClassRating** stay
+  anchored on `Enrollment` (class-level aggregates). They were NOT re-pointed.
+  Two enrollment levels coexist by design.
+
+### Changed — `sessions_app.SessionBooking`
+- Updated docstring — now the universal session-level enrollment record.
+- Added `BookingKind` enum (`AUTO`, `PICKED`, `MAKEUP`) + `kind` field
+  (default `PICKED`, indexed).
+- Added soft-delete: `is_deleted`, `deleted_at`, `soft_delete()` helper —
+  matches Enrollment convention.
+- Added template shims: `@property student_profile`, `@property student` —
+  read-only attribute access (never use in ORM filters).
+- Unchanged: FKs (`enrollment`, `session`), `status`, `unique_together`,
+  related_names (`bookings`, `session_bookings`) — to keep existing callers
+  (Session.booked_count, enrollment.session_bookings) working.
+
+### Migration — `sessions_app/migrations/0002_*`
+- Schema: AddField kind / is_deleted / deleted_at + AddIndex on kind.
+- Data: RunPython `backfill_historical_kind_makeup` sets all pre-unlock
+  `SessionBooking` rows (which were historically MAKEUP/OPTIONAL flow only) to
+  `kind='MAKEUP'`. Reverse = noop.
+- 184 historical rows were retagged on the dev database.
+- No migrations generated for `enrollments`, `grades`, `journals`, `ratings`
+  (aggregate models intentionally untouched).
+
+### Seed — `accounts/management/commands/populate_full_demo.py`
+- New step `_populate_session_bookings()` runs between `_populate_enrollments`
+  and `_populate_attendances`.
+- For each ACTIVE Enrollment, `get_or_create` a `SessionBooking(kind=AUTO,
+  status=BOOKED)` for every REGULAR Session in the kelas.
+- Capacity-respecting: tracks per-session booked count in-memory across the
+  seed pass; skips sessions at `Session.capacity`.
+- Idempotent via unique_together on (enrollment, session).
+- First run on dev DB seeded 4028 AUTO bookings.
+
+### Docs
+- `ERD_REFERENCE.md` — SessionBooking entry rewritten (kind + soft-delete + two-enrollment-level note).
+- `PITFALLS.md` — added three traps: two enrollment levels, `'sessions.Session'`
+  FK string resolves to cookie table (use `'sessions_app.Session'`), soft-delete
+  filter on SessionBooking.
+
+### Out of scope this prompt (next)
+- Prompt 2 — rewrite enroll views to optionally create SessionBookings
+  (session-first picker UI).
+- Prompt 3 — attendance views may pivot off SessionBooking instead of Enrollment
+  for non-REGULAR sessions.
+
+---
+
 ## [Phase 3A] — Khan Playful UI Redesign — 2026-05-28
 
 The big student-facing visual pass. Every Khan Playful page uses the wrapper pattern `bg-gradient-to-b from-{color}-50 to-gray-50 -m-6 p-4 md:p-6 min-h-screen`, rounded-3xl heroes with rotated emoji tiles, and `.card-hover-lift` interactions.

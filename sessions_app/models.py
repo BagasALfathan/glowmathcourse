@@ -26,6 +26,18 @@ class BookingStatus(models.TextChoices):
     CANCELLED = 'CANCELLED', 'Dibatalkan'
 
 
+class BookingKind(models.TextChoices):
+    """Provenance of the booking — orthogonal to BookingStatus.
+    AUTO  = auto-created from class enrollment (REGULAR sessions seeded for every
+            ACTIVE Enrollment in the kelas).
+    PICKED = student deliberately picked this session (session-first enrollment flow).
+    MAKEUP = legacy makeup/optional booking (historical rows + future MAKEUP/OPTIONAL flow).
+    """
+    AUTO = 'AUTO', 'Otomatis'
+    PICKED = 'PICKED', 'Dipilih'
+    MAKEUP = 'MAKEUP', 'Susulan'
+
+
 class Session(models.Model):
     kelas = models.ForeignKey(
         'academics.Kelas',
@@ -133,9 +145,25 @@ class Attendance(models.Model):
 
 
 class SessionBooking(models.Model):
-    """
-    Booking record — only used for sessions with session_type=MAKEUP or OPTIONAL.
-    Regular sessions auto-enroll all students of the kelas.
+    """Universal session-level enrollment record (Phase 3R schema unlock).
+
+    One row = "this student (via their class Enrollment) is booked into this
+    specific Session". Works for ALL session types — REGULAR, MAKEUP, OPTIONAL —
+    distinguished by the `kind` field.
+
+    Two enrollment levels in the system:
+      * Enrollment      = class-level   (anchors aggregate Grade / MonthlyJournal /
+                                         TeacherRating / ClassRating)
+      * SessionBooking  = session-level (this model — which sessions a student is in)
+
+    Provenance via `kind`:
+      * AUTO   — seeded automatically for every REGULAR session in the kelas
+                 the student's Enrollment belongs to.
+      * PICKED — student deliberately picked this session (session-first flow).
+      * MAKEUP — legacy makeup/optional flow (historical rows).
+
+    `status` (BOOKED / CANCELLED) is orthogonal to `kind` — `status` tracks the
+    active/cancelled state of the booking; `kind` tracks how the booking arose.
     """
     enrollment = models.ForeignKey(
         'enrollments.Enrollment',
@@ -154,7 +182,15 @@ class SessionBooking(models.Model):
         choices=BookingStatus.choices,
         default=BookingStatus.BOOKED,
     )
+    kind = models.CharField(
+        max_length=10,
+        choices=BookingKind.choices,
+        default=BookingKind.PICKED,
+        db_index=True,
+    )
     booked_at = models.DateTimeField(auto_now_add=True)
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -165,6 +201,7 @@ class SessionBooking(models.Model):
         indexes = [
             models.Index(fields=['enrollment']),
             models.Index(fields=['session']),
+            models.Index(fields=['kind']),
         ]
 
     def __str__(self):
@@ -173,3 +210,19 @@ class SessionBooking(models.Model):
             f'Pertemuan {self.session.session_number} — '
             f'{self.get_status_display()}'
         )
+
+    # Read-only convenience shims so templates can do {{ booking.student }}
+    # without traversing through enrollment. NEVER use these in ORM filters —
+    # always filter via enrollment__student_profile__... (see PITFALLS.md).
+    @property
+    def student_profile(self):
+        return self.enrollment.student_profile
+
+    @property
+    def student(self):
+        return self.enrollment.student_profile.user
+
+    def soft_delete(self):
+        self.is_deleted = True
+        self.deleted_at = timezone.now()
+        self.save(update_fields=['is_deleted', 'deleted_at', 'updated_at'])

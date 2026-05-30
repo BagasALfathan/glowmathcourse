@@ -49,6 +49,7 @@ class Command(BaseCommand):
                 self._populate_schedules()
                 self._populate_sessions()
                 self._populate_enrollments()
+                self._populate_session_bookings()
                 self._populate_attendances()
                 self._populate_grades()
                 self._populate_ratings()
@@ -513,6 +514,64 @@ class Command(BaseCommand):
             TeacherRating.objects.filter(enrollment=target).delete()
             ClassRating.objects.filter(enrollment=target).delete()
             self._ok(f'Ensured Rafael enrollment #{target.pk} is COMPLETED + unrated (for Rate Teacher test)')
+
+    # ── 7c. Session-level bookings ─────────────────────────────────────────
+    # Phase 3R schema unlock — for every ACTIVE Enrollment, seed a
+    # SessionBooking(kind=AUTO) row for every REGULAR Session in that
+    # enrollment's kelas. Capacity-respecting (skips full sessions) and
+    # idempotent via get_or_create on unique_together (enrollment, session).
+    # MAKEUP/OPTIONAL bookings remain historical (already kind='MAKEUP'
+    # via the 0002 data migration).
+    def _populate_session_bookings(self):
+        from django.db.models import Count
+        from enrollments.models import Enrollment, EnrollmentStatus
+        from sessions_app.models import (
+            BookingKind, BookingStatus, Session, SessionBooking, SessionType,
+        )
+
+        active_enrollments = (
+            Enrollment.objects
+            .filter(status=EnrollmentStatus.ACTIVE, is_deleted=False)
+            .select_related('kelas')
+        )
+        # Pre-fetch REGULAR sessions grouped by kelas to avoid N+1.
+        regular_sessions_by_kelas = {}
+        for s in Session.objects.filter(session_type=SessionType.REGULAR).order_by('kelas_id', 'session_number'):
+            regular_sessions_by_kelas.setdefault(s.kelas_id, []).append(s)
+
+        # Track per-session booked count so capacity is respected across the
+        # whole seed pass (not just per-DB hit).
+        per_session_count = dict(
+            SessionBooking.objects
+            .filter(status=BookingStatus.BOOKED, is_deleted=False)
+            .values('session_id')
+            .annotate(n=Count('id'))
+            .values_list('session_id', 'n')
+        )
+
+        created = 0
+        skipped_capacity = 0
+        for enr in active_enrollments:
+            for sess in regular_sessions_by_kelas.get(enr.kelas_id, []):
+                cap = sess.capacity or 0
+                if cap > 0 and per_session_count.get(sess.id, 0) >= cap:
+                    skipped_capacity += 1
+                    continue
+                _, was_created = SessionBooking.objects.get_or_create(
+                    enrollment=enr,
+                    session=sess,
+                    defaults={
+                        'status': BookingStatus.BOOKED,
+                        'kind': BookingKind.AUTO,
+                    },
+                )
+                if was_created:
+                    per_session_count[sess.id] = per_session_count.get(sess.id, 0) + 1
+                    created += 1
+        self._ok(
+            f'SessionBookings (kind=AUTO): {created} new'
+            + (f' ({skipped_capacity} skipped — session at capacity)' if skipped_capacity else '')
+        )
 
     # ── 8. Attendances ────────────────────────────────────────────────────
     def _populate_attendances(self):

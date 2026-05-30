@@ -99,11 +99,31 @@
 - price_at_enrollment (NEW): snapshot
 - unique (student, kelas)
 
-### SessionBooking
-- enrollment (FK), session (FK)
-- status: BOOKED | CANCELLED
-- unique constraint
-- Note: only for sessions with session_type=MAKEUP or OPTIONAL
+### SessionBooking (UPDATED 2026-05-31 — schema unlock)
+**Universal session-level enrollment record — one row = "this student (via their
+class Enrollment) is booked into this specific Session". Works for ALL session
+types (REGULAR, MAKEUP, OPTIONAL) distinguished by `kind`.**
+
+Two enrollment levels now exist in the system:
+- **Enrollment** = class-level (anchors aggregate Grade, MonthlyJournal,
+  TeacherRating, ClassRating — these were NOT re-pointed)
+- **SessionBooking** = session-level (which Sessions a student is in)
+
+Fields:
+- enrollment (FK 'enrollments.Enrollment' CASCADE, related_name='session_bookings')
+- session (FK Session CASCADE, related_name='bookings')
+- status: BOOKED | CANCELLED (active/cancelled state)
+- **kind**: AUTO | PICKED | MAKEUP (provenance — orthogonal to status)
+  - AUTO   — auto-seeded for every REGULAR session in the kelas the student's Enrollment belongs to (via `populate_full_demo._populate_session_bookings`)
+  - PICKED — student deliberately picked this session (session-first flow, Prompt 2)
+  - MAKEUP — legacy makeup/optional booking (historical rows backfilled in migration 0002)
+- booked_at (auto_now_add)
+- **is_deleted, deleted_at** (soft delete to match Enrollment convention) + `soft_delete()` helper
+- created_at, updated_at
+- unique_together [(enrollment, session)] — still enforced
+- Indexes: enrollment, session, kind
+- @property `student_profile` → enrollment.student_profile (template shim; NEVER use in ORM filters)
+- @property `student` → enrollment.student_profile.user (template shim)
 
 ## Records (3 tables)
 
