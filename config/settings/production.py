@@ -9,13 +9,29 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
+# DATABASE_SSL=1 only when the DB is on a managed/remote host that requires it.
+# For Hostinger VPS with Postgres on the same box (loopback), keep this False.
 DATABASES = {
     'default': dj_database_url.config(
         default=os.environ['DATABASE_URL'],
         conn_max_age=600,
-        ssl_require=True,
+        ssl_require=os.getenv('DATABASE_SSL', '0') == '1',
     )
 }
+
+# Email — SMTP via Hostinger or any provider; configured purely via env.
+# Falls back to console backend if EMAIL_HOST is unset (safe default in
+# case .env is incomplete on first boot — logs to journalctl, doesn't crash).
+EMAIL_HOST = os.getenv('EMAIL_HOST', '')
+if EMAIL_HOST:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+    EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', '1') == '1'
+    DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 

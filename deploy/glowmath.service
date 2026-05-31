@@ -1,0 +1,45 @@
+; ─────────────────────────────────────────────────────────────────────────
+; Gunicorn systemd unit for GlowMath Course
+;
+; Install:   sudo cp deploy/glowmath.service /etc/systemd/system/
+; Activate:  sudo systemctl daemon-reload && sudo systemctl enable --now glowmath
+; Status:    sudo systemctl status glowmath
+; Logs:      sudo journalctl -u glowmath -f
+;
+; Assumes the canonical paths from DEPLOYMENT.md. Adjust if you deviate:
+;   App dir:     /var/www/glowmathcourse
+;   Venv:        /var/www/glowmathcourse/venv
+;   Env file:    /var/www/glowmathcourse/.env       (chmod 600, owner glowmath:glowmath)
+;   Socket:      /var/www/glowmathcourse/gunicorn.sock
+;   App user:    glowmath  (system user, member of www-data group)
+; ─────────────────────────────────────────────────────────────────────────
+
+[Unit]
+Description=Gunicorn for GlowMath Course
+After=network.target postgresql.service
+Requires=postgresql.service
+
+[Service]
+Type=notify
+User=glowmath
+Group=www-data
+WorkingDirectory=/var/www/glowmathcourse
+EnvironmentFile=/var/www/glowmathcourse/.env
+ExecStart=/var/www/glowmathcourse/venv/bin/gunicorn \
+          --workers 3 \
+          --timeout 60 \
+          --access-logfile - \
+          --error-logfile - \
+          --bind unix:/var/www/glowmathcourse/gunicorn.sock \
+          config.wsgi:application
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+
+; Harden a little
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

@@ -181,7 +181,7 @@ server {
     listen 80;
     server_name glowmathclass.com www.glowmathclass.com;
 
-    client_max_body_size 5M;          # Allow teacher profile photos (≤2 MB) + course materials
+    client_max_body_size 25M;         # Course-material uploads cap at 20 MB (Prompt 11); 25 covers multipart overhead
     keepalive_timeout 60s;
 
     location /static/ {
