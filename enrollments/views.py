@@ -187,6 +187,13 @@ def enroll(request, kelas_id):
 
     enrollment = payload
     log_activity(request.user, 'created', 'enrollment', enrollment.pk)
+
+    # Phase 3R: fan out session-level AUTO bookings for every REGULAR session
+    # in this kelas. Idempotent via unique (enrollment, session) — re-enroll
+    # after drop, or pre-existing bookings, are tolerated.
+    from sessions_app.views import _auto_book_regular_sessions
+    _auto_book_regular_sessions(enrollment)
+
     # Invalidate detail-page caches so the next view shows the updated capacity.
     # Sibling related-classes caches also need a refresh since this kelas's active_count changed.
     from django.core.cache import cache

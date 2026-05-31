@@ -17,9 +17,38 @@ from activity_logs.utils import log_activity
 from enrollments.models import Enrollment, EnrollmentStatus
 
 from .forms import SessionForm
-from .models import Attendance, AttendanceStatus, BookingStatus, Session, SessionBooking, SessionStatus, SessionType
+from .models import (
+    Attendance, AttendanceStatus, BookingKind, BookingStatus,
+    Session, SessionBooking, SessionStatus, SessionType,
+)
 
 _WEEKDAY_TO_DAY = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']
+
+
+def _session_overlap_conflicts(teacher_profile, date, start_time, end_time, exclude_session_id=None):
+    """Return Session rows on `date` (across all teacher's classes) that overlap
+    with [start_time, end_time). Strict `<` comparison — back-to-back times
+    (one session ends exactly when next begins) are NOT considered overlap.
+    """
+    qs = (
+        Session.objects
+        .filter(
+            kelas__teacher_profile=teacher_profile,
+            kelas__is_deleted=False,
+            date=date,
+        )
+        .select_related('kelas')
+    )
+    if exclude_session_id:
+        qs = qs.exclude(pk=exclude_session_id)
+    conflicts = []
+    for s in qs:
+        if s.start_time is None or s.end_time is None:
+            continue  # legacy / malformed — skip rather than crash
+        # Overlap iff start_a < end_b AND start_b < end_a
+        if start_time < s.end_time and s.start_time < end_time:
+            conflicts.append(s)
+    return conflicts
 
 
 @role_required('TEACHER')
@@ -128,6 +157,7 @@ def teacher_sessions(request, pk):
                 f'({existing_count + len(rows)} > {kelas.total_sessions}). '
                 f'Hapus beberapa baris atau ubah Total Pertemuan di Edit Kelas.'
             )
+        batch_intervals = []  # (date, start, end) accumulator for intra-batch overlap check
         for idx, r in enumerate(rows):
             n = idx + 1
             if not r['topic']:
@@ -140,6 +170,61 @@ def teacher_sessions(request, pk):
                 errors.append(f'Sesi baris #{n}: Tipe sesi tidak valid.')
             if r['status'] not in valid_statuses:
                 errors.append(f'Sesi baris #{n}: Status tidak valid.')
+
+            # Stop here if basic field errors are already present for this row —
+            # parsing/overlap checks would be noise.
+            if not (r['date'] and r['start_time'] and r['end_time']):
+                continue
+
+            # Parse to typed values. HTML5 inputs post `YYYY-MM-DD` and `HH:MM`,
+            # but some browsers also include seconds (`HH:MM:SS`). Try both.
+            try:
+                r_date = datetime.datetime.strptime(r['date'], '%Y-%m-%d').date()
+            except (TypeError, ValueError):
+                errors.append(f'Sesi baris #{n}: format tanggal tidak valid.')
+                continue
+            try:
+                r_start = datetime.datetime.strptime(r['start_time'][:5], '%H:%M').time()
+                r_end = datetime.datetime.strptime(r['end_time'][:5], '%H:%M').time()
+            except (TypeError, ValueError):
+                errors.append(f'Sesi baris #{n}: format jam tidak valid.')
+                continue
+
+            # Replace string values with typed objects so bulk_create gets clean inputs.
+            r['date'] = r_date
+            r['start_time'] = r_start
+            r['end_time'] = r_end
+
+            # End must be strictly after start
+            if r_end <= r_start:
+                errors.append(f'Sesi baris #{n}: Jam selesai harus setelah jam mulai.')
+                continue
+
+            # (1) Cross-class overlap vs existing sessions in the DB
+            conflicts = _session_overlap_conflicts(
+                teacher_profile, r_date, r_start, r_end,
+            )
+            if conflicts:
+                c = conflicts[0]
+                errors.append(
+                    f'Sesi baris #{n} ({r_date} {r_start.strftime("%H:%M")}–{r_end.strftime("%H:%M")}) '
+                    f'bentrok dengan "{c.kelas.name}" sesi #{c.session_number} '
+                    f'({c.start_time.strftime("%H:%M")}–{c.end_time.strftime("%H:%M")}) di tanggal yang sama.'
+                )
+                continue
+
+            # (2) Intra-batch overlap vs rows already accepted in this submit
+            intra_clash = False
+            for b_idx, (b_date, b_start, b_end) in enumerate(batch_intervals):
+                if r_date == b_date and r_start < b_end and b_start < r_end:
+                    errors.append(
+                        f'Sesi baris #{n} bentrok dengan baris #{b_idx + 1} di batch ini '
+                        f'(tanggal {r_date}, jam tumpang tindih).'
+                    )
+                    intra_clash = True
+                    break
+            if not intra_clash:
+                batch_intervals.append((r_date, r_start, r_end))
 
         if errors:
             for e in errors:
@@ -680,13 +765,15 @@ def student_book_session(request, enrollment_id, session_id):
     booking, created = SessionBooking.objects.get_or_create(
         enrollment=enrollment,
         session=session,
-        defaults={'status': BookingStatus.BOOKED},
+        defaults={'status': BookingStatus.BOOKED, 'kind': BookingKind.PICKED},
     )
 
     if not created:
         if booking.status == BookingStatus.CANCELLED:
             booking.status = BookingStatus.BOOKED
-            booking.save(update_fields=['status', 'updated_at'])
+            # Reactivating a cancelled booking — treat as a deliberate re-pick.
+            booking.kind = BookingKind.PICKED
+            booking.save(update_fields=['status', 'kind', 'updated_at'])
             messages.success(request, f'Berhasil mendaftar ke Pertemuan ke-{session.session_number}!')
         else:
             messages.info(request, 'Kamu sudah terdaftar di pertemuan ini.')
@@ -731,6 +818,164 @@ def student_cancel_booking(request, enrollment_id, session_id):
         messages.info(request, 'Tidak ada pendaftaran aktif untuk pertemuan ini.')
 
     return redirect('sessions_app:student_session_list', enrollment_id=enrollment_id)
+
+
+# ─── Phase 3R: helpers + session-first pick ────────────────────────────────────
+
+def _auto_book_regular_sessions(enrollment):
+    """For every REGULAR session in enrollment's kelas, ensure a
+    SessionBooking(kind=AUTO, status=BOOKED) exists. Capacity governance is at
+    the Kelas level (already enforced by enroll()), so we do NOT block per
+    session here. Uses bulk_create(ignore_conflicts=True) so the unique
+    constraint (enrollment, session) makes the call idempotent — re-enroll
+    after drop, or partial pre-existing PICKED rows, are tolerated.
+
+    Returns the number of newly-created bookings (best-effort; bulk_create
+    with ignore_conflicts returns None on SQLite for the inserted rows, so
+    we count via a pre/post diff).
+    """
+    regular_sessions = Session.objects.filter(
+        kelas=enrollment.kelas,
+        session_type=SessionType.REGULAR,
+        status__in=[SessionStatus.SCHEDULED, SessionStatus.COMPLETED],
+    )
+    if not regular_sessions.exists():
+        return 0
+    pre = SessionBooking.objects.filter(enrollment=enrollment).count()
+    rows = [
+        SessionBooking(
+            enrollment=enrollment, session=s,
+            status=BookingStatus.BOOKED, kind=BookingKind.AUTO,
+        )
+        for s in regular_sessions
+    ]
+    SessionBooking.objects.bulk_create(rows, ignore_conflicts=True)
+    post = SessionBooking.objects.filter(enrollment=enrollment).count()
+    return max(0, post - pre)
+
+
+@role_required('STUDENT')
+@require_POST
+def student_pick_session(request, session_id):
+    """Session-first enrollment: student picks ONE Session → we ensure a
+    class-level Enrollment exists (creating if needed, race-safe via the
+    shared _try_enroll helper) → mark the picked booking kind=PICKED → fan
+    out AUTO bookings for the kelas's other REGULAR sessions.
+
+    Mirrors enroll() pre-checks (level match, kelas OPEN, not started,
+    schedule conflict) so behavior is consistent regardless of which entry
+    point the student uses.
+    """
+    from enrollments.views import _student_schedule_conflict, _try_enroll
+    from academics.models import KelasStatus
+
+    student_profile = request.user.student_profile
+    session = get_object_or_404(
+        Session.objects.select_related('kelas'),
+        pk=session_id,
+        kelas__is_deleted=False,
+        status=SessionStatus.SCHEDULED,
+    )
+    kelas = session.kelas
+
+    # Mirror enroll()'s pre-checks
+    if kelas.status != KelasStatus.OPEN:
+        if kelas.status == KelasStatus.FULL:
+            messages.error(request, 'Kelas sudah penuh.')
+        else:
+            messages.error(request, 'Kelas ini sudah tidak menerima pendaftaran.')
+        return redirect('academics:class_detail', pk=kelas.pk)
+
+    if kelas.start_date < timezone.localdate():
+        messages.error(request, 'Pendaftaran sudah ditutup, kelas sudah dimulai.')
+        return redirect('academics:class_detail', pk=kelas.pk)
+
+    if student_profile.level != kelas.level:
+        messages.error(
+            request,
+            f'Kelas ini untuk jenjang {kelas.level}, bukan {student_profile.level}.',
+        )
+        return redirect('academics:class_detail', pk=kelas.pk)
+
+    # Schedule-conflict check (skipped if student is already enrolled — let
+    # _try_enroll handle the 'already' path without re-flagging conflicts).
+    existing = Enrollment.objects.filter(
+        student_profile=student_profile, kelas=kelas, is_deleted=False
+    ).first()
+    if not existing or existing.status != EnrollmentStatus.ACTIVE:
+        conflict = _student_schedule_conflict(student_profile, kelas)
+        if conflict:
+            messages.error(request, conflict)
+            return redirect('academics:class_detail', pk=kelas.pk)
+
+    # Race-safe Enrollment ensure (Kelas + Enrollment row both locked inside).
+    result, payload = _try_enroll(student_profile, kelas)
+
+    if result == 'full':
+        messages.error(request, 'Kelas sudah penuh.')
+        return redirect('academics:class_detail', pk=kelas.pk)
+    if result == 'closed':
+        messages.error(request, 'Kelas ini sudah tidak menerima pendaftaran.')
+        return redirect('academics:class_detail', pk=kelas.pk)
+    if result == 'completed':
+        messages.error(request, 'Anda sudah menyelesaikan kelas ini.')
+        return redirect('academics:class_detail', pk=kelas.pk)
+    # 'already' and 'ok' both yield a valid enrollment to attach the booking to
+    enrollment = payload
+
+    # Session-level capacity check (slot-aware for the session-first flow)
+    if session.capacity and session.capacity > 0:
+        already_at_session = (
+            SessionBooking.objects
+            .filter(session=session, status=BookingStatus.BOOKED, is_deleted=False)
+            .exclude(enrollment=enrollment)
+            .count()
+        )
+        if already_at_session >= session.capacity:
+            messages.error(request, 'Sesi ini sudah penuh.')
+            return redirect('academics:class_detail', pk=kelas.pk)
+
+    with transaction.atomic():
+        # The picked session: PICKED (or upgrade an existing AUTO/CANCELLED → PICKED+BOOKED)
+        booking, created = SessionBooking.objects.get_or_create(
+            enrollment=enrollment,
+            session=session,
+            defaults={'status': BookingStatus.BOOKED, 'kind': BookingKind.PICKED},
+        )
+        if not created:
+            # Pre-existing row (AUTO from prior class-enroll, or CANCELLED) — promote it.
+            dirty = []
+            if booking.status != BookingStatus.BOOKED:
+                booking.status = BookingStatus.BOOKED
+                dirty.append('status')
+            if booking.kind != BookingKind.PICKED:
+                booking.kind = BookingKind.PICKED
+                dirty.append('kind')
+            if booking.is_deleted:
+                booking.is_deleted = False
+                booking.deleted_at = None
+                dirty += ['is_deleted', 'deleted_at']
+            if dirty:
+                dirty.append('updated_at')
+                booking.save(update_fields=dirty)
+
+        # Fan out AUTO bookings for the rest of the kelas's REGULAR sessions.
+        # bulk_create(ignore_conflicts=True) honors unique (enrollment, session) —
+        # the picked row above stays PICKED because get_or_create won't update it.
+        _auto_book_regular_sessions(enrollment)
+
+    log_activity(request.user, 'created', 'session_booking', booking.pk)
+    if result == 'ok':
+        messages.success(
+            request,
+            f'Berhasil bergabung di kelas {kelas.name} — Pertemuan ke-{session.session_number} terdaftar.',
+        )
+    else:
+        messages.success(
+            request,
+            f'Pertemuan ke-{session.session_number} berhasil didaftarkan.',
+        )
+    return redirect('enrollments:my_class_detail', enrollment_id=enrollment.pk)
 
 
 # ─── Attendance exports ────────────────────────────────────────────────────────

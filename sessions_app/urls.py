@@ -16,6 +16,8 @@ urlpatterns = [
     path('teacher/classes/<int:pk>/export/attendance/pdf/', views.export_attendance_pdf, name='export_attendance_pdf'),
     # Student session booking
     path('sessions/<int:pk>/', views.student_session_redirect, name='session_detail'),
+    # Phase 3R session-first pick — ensures Enrollment + creates PICKED booking + fans out AUTO bookings
+    path('sessions/<int:session_id>/pick/', views.student_pick_session, name='student_pick_session'),
     path('my-classes/<int:enrollment_id>/sessions/', views.student_session_list, name='student_session_list'),
     path('my-classes/<int:enrollment_id>/sessions/<int:session_id>/book/', views.student_book_session, name='student_book_session'),
     path('my-classes/<int:enrollment_id>/sessions/<int:session_id>/cancel/', views.student_cancel_booking, name='student_cancel_booking'),
