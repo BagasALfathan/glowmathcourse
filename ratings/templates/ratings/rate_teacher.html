@@ -37,7 +37,7 @@
 
 /* Section card */
 .rt-sect { border-radius: 18px; padding: 18px; margin-bottom: 14px; border: 1px solid; }
-.rt-sect.teacher { background: linear-gradient(135deg, #ccfbf1 0%, #d1fae5 100%); border-color: #99f6e4; }
+.rt-sect.teacher { background: linear-gradient(135deg, #ccfbf1 0%, #e0f1f2 100%); border-color: #99f6e4; }
 .rt-sect.kelas { background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%); border-color: #e9d5ff; }
 .rt-sect-h { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
 .rt-sect-h .ic { width: 38px; height: 38px; border-radius: 11px; background: #ffffff; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.04); }
@@ -58,24 +58,24 @@
 .rt-comment-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 11px; color: #6b7280; }
 .rt-comment-h .ct { font-size: 10px; color: #9ca3af; }
 .rt-comment textarea { width: 100%; min-height: 80px; padding: 10px 11px; border: 1px solid #e5e7eb; border-radius: 9px; font-size: 13px; outline: none; resize: vertical; background: #f9fafb; color: #111827; font-family: inherit; transition: background 0.15s, border-color 0.15s, box-shadow 0.15s; }
-.rt-comment textarea:focus { background: #ffffff; border-color: #10b981; box-shadow: 0 0 0 3px rgba(16,185,129,0.12); }
+.rt-comment textarea:focus { background: #ffffff; border-color: #4a9499; box-shadow: 0 0 0 3px rgba(16,185,129,0.12); }
 .rt-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
 .rt-chip { font-size: 10px; padding: 4px 10px; border-radius: 999px; background: #f3f4f6; color: #4b5563; border: none; cursor: pointer; font-family: inherit; transition: background 0.12s, color 0.12s; }
-.rt-sect.teacher .rt-chip:hover { background: #d1fae5; color: #047857; }
+.rt-sect.teacher .rt-chip:hover { background: #e0f1f2; color: #3d7c80; }
 .rt-sect.kelas .rt-chip:hover { background: #ede9fe; color: #6d28d9; }
 
 /* Submit row */
 .rt-submit { display: flex; gap: 10px; margin-top: 18px; }
 .rt-btn-cancel { padding: 13px 18px; background: #ffffff; color: #4b5563; border: 1px solid #e5e7eb; border-radius: 14px; font-size: 13px; font-weight: 600; text-decoration: none; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; transition: background 0.15s; }
 .rt-btn-cancel:hover { background: #f9fafb; }
-.rt-btn-submit { flex: 1; padding: 13px; background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; border: none; border-radius: 14px; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 14px rgba(16,185,129,0.28); display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit; transition: filter 0.15s, box-shadow 0.15s, transform 0.15s; }
+.rt-btn-submit { flex: 1; padding: 13px; background: linear-gradient(135deg, #4a9499, #4a9499); color: #ffffff; border: none; border-radius: 14px; font-size: 14px; font-weight: 700; cursor: pointer; box-shadow: 0 6px 14px rgba(16,185,129,0.28); display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit; transition: filter 0.15s, box-shadow 0.15s, transform 0.15s; }
 .rt-btn-submit:hover:not(:disabled) { filter: brightness(1.05); box-shadow: 0 10px 20px rgba(16,185,129,0.4); transform: translateY(-1px); }
 .rt-btn-submit:disabled { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; box-shadow: none; }
 
 /* Messages */
 .rt-msg { padding: 11px 13px; border-radius: 12px; font-size: 12px; margin-bottom: 12px; border: 1px solid; }
 .rt-msg.error { background: #fef2f2; border-color: #fecaca; color: #b91c1c; }
-.rt-msg.success { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+.rt-msg.success { background: #f0f9fa; border-color: #c2e4e6; color: #3d7c80; }
 .rt-msg.info { background: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
 
 @media (prefers-reduced-motion: reduce) {
@@ -246,7 +246,7 @@ function rateForm() {
       5: { title: '5 bintang · Luar Biasa! ⭐',   desc: 'Pengalaman belajar terbaik' },
     },
     teacherChips: ['Penjelasannya jelas', 'Sabar mengajar', 'Materi update', 'Responsif', 'Inspiratif', 'Profesional'],
-    classChips:   ['Materi lengkap', 'Latihan banyak', 'Sesuai harga', 'Jadwal pas', 'Worth it', 'Struktur baik'],
+    classChips:   ['Materi lengkap', 'Latihan banyak', 'Penjelasan rinci', 'Jadwal pas', 'Rekomendasi', 'Struktur baik'],
     get canSubmit() { return this.teacherScore > 0 && this.classScore > 0; },
     appendChip(target, chip) {
       const field = (target === 'teacher') ? 'teacherComment' : 'classComment';

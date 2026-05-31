@@ -24,6 +24,16 @@
 .bt-search-pill button { background: linear-gradient(135deg, #10b981, #059669); color: #ffffff; border: none; padding: 9px 18px; border-radius: 999px; font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 0 4px 10px rgba(16,185,129,0.25); transition: all 0.18s; font-family: inherit; white-space: nowrap; }
 .bt-search-pill button:hover { filter: brightness(1.05); box-shadow: 0 6px 14px rgba(16,185,129,0.35); }
 
+/* Jenjang tab strip (Phase 3R Grup B) */
+.bt-jenjang-banner { background: #e0f1f2; border: 1px solid #c2e4e6; color: #326568; font-size: 12px; padding: 8px 12px; border-radius: 8px; margin-bottom: 10px; }
+.bt-jenjang-banner b { color: #1f3d3f; }
+.bt-jenjang-tabs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+.bt-jenjang-tab { position: relative; padding: 6px 14px; background: #ffffff; color: #6b7280; border: 1px solid #d1d5db; border-radius: 999px; font-size: 12px; font-weight: 600; text-decoration: none; transition: all 0.15s; }
+.bt-jenjang-tab:hover { border-color: #7fcacd; color: #326568; }
+.bt-jenjang-tab.active { background: #4a9499; color: #ffffff; border-color: #4a9499; }
+.bt-jenjang-tab .bt-kamu-badge { position: absolute; top: -6px; right: -4px; background: #5fb3b7; color: #ffffff; font-size: 8px; font-weight: 700; padding: 1px 6px; border-radius: 999px; letter-spacing: 0.02em; }
+.bt-jenjang-sep { display: inline-block; width: 1px; height: 16px; background: #e5e7eb; margin: 0 2px; }
+
 /* Filter chips */
 .bt-chips { display: flex; gap: 7px; flex-wrap: wrap; }
 .bt-chip { font-size: 11px; padding: 6px 12px; border-radius: 999px; font-weight: 600; border: 1px solid #a7f3d0; background: #ffffff; color: #047857; cursor: pointer; font-family: inherit; transition: all 0.15s; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
@@ -55,12 +65,12 @@
 
 .bt-avatar-wrap { display: flex; justify-content: center; margin-bottom: 12px; }
 .bt-avatar { width: 72px; height: 72px; border-radius: 50%; color: #ffffff; display: inline-flex; align-items: center; justify-content: center; font-size: 24px; font-weight: 700; box-shadow: 0 6px 16px rgba(0,0,0,0.12); }
-.bt-avatar.from-emerald-500 { background: linear-gradient(135deg, #10b981, #059669); }
+.bt-avatar.from-primary-500 { background: linear-gradient(135deg, #10b981, #059669); }
 .bt-avatar.from-blue-500 { background: linear-gradient(135deg, #3b82f6, #2563eb); }
-.bt-avatar.from-violet-500 { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+.bt-avatar.from-primary-500 { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
 .bt-avatar.from-pink-500 { background: linear-gradient(135deg, #ec4899, #db2777); }
 .bt-avatar.from-amber-500 { background: linear-gradient(135deg, #f59e0b, #d97706); }
-.bt-avatar.from-teal-500 { background: linear-gradient(135deg, #14b8a6, #0d9488); }
+.bt-avatar.from-primary-500 { background: linear-gradient(135deg, #14b8a6, #0d9488); }
 
 .bt-name { text-align: center; }
 .bt-name h3 { font-size: 14px; font-weight: 700; color: #111827; margin: 0; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -132,14 +142,6 @@
       </div>
 
       <div class="bt-chips">
-        <select name="level" onchange="this.form.submit()" class="bt-chip bt-chip-sel">
-          <option value="" {% if not level_filter %}selected{% endif %}>Semua Jenjang</option>
-          <option value="TK" {% if level_filter == 'TK' %}selected{% endif %}>TK</option>
-          <option value="SD" {% if level_filter == 'SD' %}selected{% endif %}>SD</option>
-          <option value="SMP" {% if level_filter == 'SMP' %}selected{% endif %}>SMP</option>
-          <option value="SMA" {% if level_filter == 'SMA' %}selected{% endif %}>SMA</option>
-          <option value="UMUM" {% if level_filter == 'UMUM' %}selected{% endif %}>UMUM</option>
-        </select>
         <select name="subject" onchange="this.form.submit()" class="bt-chip bt-chip-sel">
           <option value="">Semua Pelajaran</option>
           {% for s in subjects %}
@@ -148,11 +150,33 @@
         </select>
         <a href="?{% querystring_replace request.GET quick='top_rated' page=None %}" class="bt-chip{% if quick == 'top_rated' %} active{% endif %}">⭐ Top Rated</a>
         <a href="?{% querystring_replace request.GET quick='new' page=None %}" class="bt-chip{% if quick == 'new' %} active{% endif %}">✨ Guru Baru</a>
-        {% if search or level_filter or subject_filter or quick %}
-        <a href="{% url 'academics:teacher_list' %}" class="bt-chip bt-chip-reset">✕ Reset</a>
+        {% if search or subject_filter or quick or selected_jenjang != 'ALL' %}
+        <a href="{% url 'academics:teacher_list' %}?jenjang=ALL" class="bt-chip bt-chip-reset">✕ Reset</a>
         {% endif %}
       </div>
     </form>
+  </div>
+
+  {# ── Jenjang tab strip (Phase 3R Grup B) ─────────────────────────────── #}
+  {% if student_level %}
+  <div class="bt-jenjang-banner">
+    🎯 Default menampilkan tentor jenjang <b>{{ student_level }}</b> (sesuai profil kamu).
+    Klik tab lain untuk lihat jenjang lain.
+  </div>
+  {% endif %}
+  <div class="bt-jenjang-tabs">
+    {% for jenjang in jenjang_choices %}
+    <a href="?{% querystring_replace request.GET jenjang=jenjang page=None %}"
+       class="bt-jenjang-tab{% if selected_jenjang == jenjang %} active{% endif %}">
+      {{ jenjang }}
+      {% if student_level == jenjang %}<span class="bt-kamu-badge">kamu</span>{% endif %}
+    </a>
+    {% endfor %}
+    <span class="bt-jenjang-sep"></span>
+    <a href="?{% querystring_replace request.GET jenjang='ALL' page=None %}"
+       class="bt-jenjang-tab{% if selected_jenjang == 'ALL' %} active{% endif %}">
+      Semua
+    </a>
   </div>
 
   {# ── Results header ──────────────────────────────────────────────────── #}
@@ -160,7 +184,7 @@
     <p>Menampilkan <b>{{ page_obj|length }} dari {{ total_count }} guru</b>{% if total_count != total_approved %} (dari total {{ total_approved }} pengajar){% endif %}</p>
     <form method="get" class="bt-sort">
       {% if search %}<input type="hidden" name="q" value="{{ search }}">{% endif %}
-      {% if level_filter %}<input type="hidden" name="level" value="{{ level_filter }}">{% endif %}
+      {% if selected_jenjang and selected_jenjang != 'ALL' %}<input type="hidden" name="jenjang" value="{{ selected_jenjang }}">{% elif selected_jenjang == 'ALL' %}<input type="hidden" name="jenjang" value="ALL">{% endif %}
       {% if subject_filter %}<input type="hidden" name="subject" value="{{ subject_filter }}">{% endif %}
       {% if quick %}<input type="hidden" name="quick" value="{{ quick }}">{% endif %}
       <label>Urutkan:</label>
@@ -228,9 +252,9 @@
     {% empty %}
     <div class="bt-empty">
       <div class="em">🔍</div>
-      <h3>Tidak ada guru ditemukan</h3>
-      <p>Coba ganti filter atau kata kunci pencarian</p>
-      <a href="{% url 'academics:teacher_list' %}" class="btn">Reset Filter</a>
+      <h3>Belum ada tentor untuk jenjang ini</h3>
+      <p>Coba pilih tab jenjang lain atau ganti kata kunci pencarian.</p>
+      <a href="{% url 'academics:teacher_list' %}?jenjang=ALL" class="btn">Lihat Semua Jenjang</a>
     </div>
     {% endfor %}
   </div>

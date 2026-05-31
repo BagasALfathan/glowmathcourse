@@ -8,7 +8,7 @@
 
   {# Breadcrumb #}
   <nav class="text-xs flex gap-1.5 items-center">
-    <a href="{% url 'academics:teacher_classes' %}" class="text-emerald-700 hover:underline no-underline">Kelas Saya</a>
+    <a href="{% url 'academics:teacher_classes' %}" class="text-primary-700 hover:underline no-underline">Kelas Saya</a>
     <span class="text-gray-400">›</span>
     <span class="text-gray-700 font-medium">Buat Kelas</span>
   </nav>
@@ -18,7 +18,7 @@
     <h1 class="text-xl md:text-2xl font-bold text-gray-900 m-0">➕ Buat Kelas Baru</h1>
     <p class="text-xs text-gray-500 mt-1 m-0">
       Field bertanda
-      <span class="inline-block bg-emerald-100 text-emerald-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">otomatis</span>
+      <span class="inline-block bg-primary-100 text-primary-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">otomatis</span>
       udah keisi default — tinggal cek atau ubah.
     </p>
   </div>
@@ -29,7 +29,7 @@
     {% for msg in messages %}
       <div class="rounded-lg border px-3 py-2 text-xs
         {% if msg.tags == 'error' %}bg-red-50 border-red-200 text-red-700
-        {% elif msg.tags == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-700
+        {% elif msg.tags == 'success' %}bg-primary-50 border-primary-200 text-primary-700
         {% else %}bg-blue-50 border-blue-200 text-blue-700{% endif %}">
         {{ msg }}
       </div>
@@ -38,12 +38,12 @@
   {% endif %}
 
   <form method="post" novalidate
-        class="bg-white border border-gray-200 rounded-xl p-5 md:p-6 hover:border-emerald-600 transition-colors space-y-5">
+        class="bg-white border border-gray-200 rounded-xl p-5 md:p-6 hover:border-primary-600 transition-colors space-y-5">
     {% csrf_token %}
 
     {# ── GROUP 1: Detail Kelas ─────────────────────────────────────── #}
     <div class="space-y-4">
-      <div class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
+      <div class="text-[11px] font-bold text-primary-700 uppercase tracking-wider">
         📝 Detail Kelas
       </div>
 
@@ -54,7 +54,7 @@
         <input id="cls-name" type="text" name="name" required maxlength="200"
                value="{{ form_data.name|default:'' }}"
                placeholder="contoh: Matematika UTBK Intensif"
-               class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none">
+               class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
       </div>
 
       <div>
@@ -67,7 +67,7 @@
             <label class="cursor-pointer">
               <input type="radio" name="subject" value="{{ s.id }}" class="peer sr-only"
                      {% if form_data.subject == s.id|stringformat:'s' %}checked{% endif %}>
-              <span class="inline-block px-3 py-1.5 rounded-full border border-gray-300 text-xs text-gray-700 hover:border-emerald-400 peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-600 peer-checked:font-semibold transition-colors">
+              <span class="inline-block px-3 py-1.5 rounded-full border border-gray-300 text-xs text-gray-700 hover:border-primary-400 peer-checked:bg-primary-600 peer-checked:text-white peer-checked:border-primary-600 peer-checked:font-semibold transition-colors">
                 {{ s.icon|default:'📖' }} {{ s.name }}
               </span>
             </label>
@@ -87,7 +87,7 @@
               <label class="cursor-pointer">
                 <input type="radio" name="level" value="{{ lvl_value }}" class="peer sr-only"
                        {% if form_data.level == lvl_value %}checked{% endif %}>
-                <span class="inline-block px-3 py-1.5 rounded-full border border-gray-300 text-xs text-gray-700 hover:border-emerald-400 peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-600 peer-checked:font-semibold transition-colors">
+                <span class="inline-block px-3 py-1.5 rounded-full border border-gray-300 text-xs text-gray-700 hover:border-primary-400 peer-checked:bg-primary-600 peer-checked:text-white peer-checked:border-primary-600 peer-checked:font-semibold transition-colors">
                   {{ lvl_label }}
                 </span>
               </label>
@@ -102,26 +102,13 @@
         {% endif %}
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <div>
-          <label for="cls-cap" class="block text-xs font-semibold text-gray-700 mb-1.5">
-            Kapasitas <span class="text-red-500">*</span>
-          </label>
-          <input id="cls-cap" type="number" name="capacity" required min="1" max="100"
-                 value="{{ form_data.capacity|default:'15' }}"
-                 class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none">
-        </div>
-        <div>
-          <label for="cls-price" class="block text-xs font-semibold text-gray-700 mb-1.5">
-            Harga (Rp) <span class="text-red-500">*</span>
-          </label>
-          <div class="relative">
-            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">Rp</span>
-            <input id="cls-price" type="number" name="price" required min="0" step="1000"
-                   value="{{ form_data.price|default:'500000' }}"
-                   class="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none">
-          </div>
-        </div>
+      <div>
+        <label for="cls-cap" class="block text-xs font-semibold text-gray-700 mb-1.5">
+          Kapasitas <span class="text-red-500">*</span>
+        </label>
+        <input id="cls-cap" type="number" name="capacity" required min="1" max="100"
+               value="{{ form_data.capacity|default:'15' }}"
+               class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
       </div>
 
       <div>
@@ -130,13 +117,13 @@
         </label>
         <textarea id="cls-desc" name="description" rows="3" maxlength="1000"
                   placeholder="Materi yang akan dipelajari, target capaian, prasyarat, dll."
-                  class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none resize-none">{{ form_data.description|default:'' }}</textarea>
+                  class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none resize-none">{{ form_data.description|default:'' }}</textarea>
       </div>
     </div>
 
     {# ── GROUP 2: Periode & Durasi ─────────────────────────────────── #}
     <div class="space-y-4 pt-5 border-t border-gray-100">
-      <div class="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">
+      <div class="text-[11px] font-bold text-primary-700 uppercase tracking-wider">
         📅 Periode &amp; Durasi
       </div>
 
@@ -144,10 +131,10 @@
         <div>
           <label for="cls-period" class="block text-xs font-semibold text-gray-700 mb-1.5">
             Periode Akademik <span class="text-red-500">*</span>
-            <span class="inline-block ml-1 bg-emerald-100 text-emerald-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">otomatis</span>
+            <span class="inline-block ml-1 bg-primary-100 text-primary-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">otomatis</span>
           </label>
           <select id="cls-period" name="academic_period" required
-                  class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none bg-white">
+                  class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none bg-white">
             {% for p in all_periods %}
               <option value="{{ p.id }}"
                       {% if form_data.academic_period == p.id|stringformat:'s' %}selected
@@ -162,37 +149,37 @@
         <div>
           <label for="cls-sessions" class="block text-xs font-semibold text-gray-700 mb-1.5">
             Total Pertemuan <span class="text-red-500">*</span>
-            <span class="inline-block ml-1 bg-emerald-100 text-emerald-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">otomatis</span>
+            <span class="inline-block ml-1 bg-primary-100 text-primary-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">otomatis</span>
           </label>
           <input id="cls-sessions" type="number" name="total_sessions" required min="1" max="100"
                  value="{{ form_data.total_sessions|default:default_total_sessions }}"
-                 class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none">
+                 class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
         </div>
 
         <div>
           <label for="cls-start" class="block text-xs font-semibold text-gray-700 mb-1.5">
             Tanggal Mulai <span class="text-red-500">*</span>
-            <span class="inline-block ml-1 bg-emerald-100 text-emerald-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">otomatis</span>
+            <span class="inline-block ml-1 bg-primary-100 text-primary-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">otomatis</span>
           </label>
           <input id="cls-start" type="date" name="start_date" required
                  value="{{ form_data.start_date|default:start_date_default }}"
-                 class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none">
+                 class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
         </div>
 
         <div>
           <label for="cls-end" class="block text-xs font-semibold text-gray-700 mb-1.5">
             Tanggal Selesai <span class="text-red-500">*</span>
-            <span class="inline-block ml-1 bg-emerald-100 text-emerald-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">otomatis</span>
+            <span class="inline-block ml-1 bg-primary-100 text-primary-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">otomatis</span>
           </label>
           <input id="cls-end" type="date" name="end_date" required
                  value="{{ form_data.end_date|default:end_date_default }}"
-                 class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 outline-none">
+                 class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
         </div>
       </div>
     </div>
 
     {# ── Info note ─────────────────────────────────────────────────── #}
-    <div class="bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-xs text-emerald-800">
+    <div class="bg-primary-50 border border-primary-100 rounded-lg p-3 text-xs text-primary-800">
       <span class="font-semibold">ℹ️ Status default <em>Buka</em>.</span>
       Setelah dibuat, Anda akan diarahkan ke <strong>Kelas Saya</strong>.
       Tambahkan jadwal pertemuan (hari + jam + ruang) di halaman <strong>detail kelas</strong>.
@@ -205,7 +192,7 @@
         Batal
       </a>
       <button type="submit"
-              class="px-5 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">
+              class="px-5 py-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors">
         Buat Kelas →
       </button>
     </div>

@@ -45,7 +45,7 @@
           <div class="text-xs rounded-lg px-3 py-2 border
                 {% if m.tags == 'error' %}bg-red-50 border-red-200 text-red-700
                 {% elif 'warning' in m.tags %}bg-yellow-50 border-yellow-200 text-yellow-800
-                {% else %}bg-emerald-50 border-emerald-200 text-emerald-800{% endif %}">
+                {% else %}bg-primary-50 border-primary-200 text-primary-800{% endif %}">
             {{ m }}
           </div>
           {% endfor %}
@@ -66,7 +66,7 @@
                  style="background:linear-gradient(90deg,#10b981 0%,#059669 100%);"
                  :style="'width:' + progressPct() + '%'"></div>
           </div>
-          <span class="text-xs font-bold text-emerald-700 w-8 text-right"
+          <span class="text-xs font-bold text-primary-700 w-8 text-right"
                 x-text="progressPct() + '%'"></span>
         </div>
       </div>
@@ -76,12 +76,12 @@
 
         <!-- STEP 1 -->
         <div class="mb-4 rounded-2xl transition-all"
-             :class="step === 1 ? 'bg-white shadow-lg ring-2 ring-emerald-100 border border-emerald-300'
+             :class="step === 1 ? 'bg-white shadow-lg ring-2 ring-primary-100 border border-primary-300'
                                 : 'bg-white border border-gray-200'"
              style="border-width:0.5px;">
           <button type="button" @click="goto(1)" class="w-full flex items-center gap-3 p-4 text-left">
             <div class="w-8 h-8 rounded-full flex items-center justify-center text-white shrink-0 font-bold text-sm"
-                 :class="done.s1 ? 'bg-emerald-500' : step === 1 ? 'bg-emerald-500' : 'bg-gray-200 text-gray-500'">
+                 :class="done.s1 ? 'bg-primary-500' : step === 1 ? 'bg-primary-500' : 'bg-gray-200 text-gray-500'">
               <i class="ti ti-check" x-show="done.s1"></i>
               <span x-show="!done.s1">1</span>
             </div>
@@ -89,27 +89,18 @@
               <div class="flex items-center gap-2">
                 <span class="font-semibold text-gray-900 text-sm">Buat Akun</span>
                 <span x-show="done.s1"
-                      class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700">Selesai</span>
+                      class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-primary-50 text-primary-700">Selesai</span>
               </div>
-              <p class="text-[11px] text-gray-500" x-text="done.s1 ? form1.username + ' • ' + form1.email : 'Username, email, kata sandi'"></p>
+              <p class="text-[11px] text-gray-500" x-text="done.s1 ? form1.email : 'Email dan kata sandi'"></p>
             </div>
           </button>
           <div class="step-collapse px-5 pb-5 space-y-3" x-show="step === 1"
                x-transition:enter="animate-slide-right">
             <div>
-              <label class="block text-xs font-semibold text-gray-700 mb-1">Username</label>
-              <input type="text" name="username" x-model="form1.username" autocomplete="username" placeholder="andi_pratama"
-                     :class="{ 'input-error': err1.username }"
-                     class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
-              <p class="error-message" x-show="err1.username">
-                <i class="ti ti-alert-circle"></i> <span x-text="err1.username"></span>
-              </p>
-            </div>
-            <div>
               <label class="block text-xs font-semibold text-gray-700 mb-1">Email</label>
               <input type="email" name="email" x-model="form1.email" autocomplete="email" placeholder="andi@email.com"
                      :class="{ 'input-error': err1.email }"
-                     class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                     class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100">
               <p class="error-message" x-show="err1.email">
                 <i class="ti ti-alert-circle"></i> <span x-text="err1.email"></span>
               </p>
@@ -119,13 +110,13 @@
                 <label class="block text-xs font-semibold text-gray-700 mb-1">Kata Sandi</label>
                 <input type="password" name="password" x-model="form1.password" autocomplete="new-password"
                        :class="{ 'input-error': err1.password }"
-                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100">
               </div>
               <div>
                 <label class="block text-xs font-semibold text-gray-700 mb-1">Konfirmasi</label>
                 <input type="password" name="password2" x-model="form1.password2" autocomplete="new-password"
                        :class="{ 'input-error': err1.password }"
-                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100">
               </div>
             </div>
             <p class="error-message" x-show="err1.password">
@@ -136,13 +127,13 @@
 
         <!-- STEP 2 -->
         <div class="mb-4 rounded-2xl transition-all"
-             :class="step === 2 ? 'bg-white shadow-lg ring-2 ring-emerald-100 border border-emerald-300'
+             :class="step === 2 ? 'bg-white shadow-lg ring-2 ring-primary-100 border border-primary-300'
                     : done.s2 ? 'bg-white border border-gray-200' : 'bg-gray-50 border border-gray-200'"
              style="border-width:0.5px;">
           <button type="button" @click="done.s1 && goto(2)" :disabled="!done.s1"
                   class="w-full flex items-center gap-3 p-4 text-left">
             <div class="w-8 h-8 rounded-full flex items-center justify-center text-white shrink-0 font-bold text-sm"
-                 :class="done.s2 ? 'bg-emerald-500' : step === 2 ? 'bg-emerald-500' : 'bg-gray-200 text-gray-500'">
+                 :class="done.s2 ? 'bg-primary-500' : step === 2 ? 'bg-primary-500' : 'bg-gray-200 text-gray-500'">
               <i class="ti ti-check" x-show="done.s2"></i>
               <span x-show="!done.s2">2</span>
             </div>
@@ -150,7 +141,7 @@
               <div class="flex items-center gap-2">
                 <span class="font-semibold text-gray-900 text-sm">Data Diri &amp; Pendidikan</span>
                 <span x-show="done.s2"
-                      class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700">Selesai</span>
+                      class="px-2 py-0.5 text-[10px] font-bold rounded-full bg-primary-50 text-primary-700">Selesai</span>
               </div>
               <p class="text-[11px] text-gray-500" x-text="done.s2 ? form2.full_name + ' • ' + (form2.level || '—') : 'Nama, kontak, jenjang, sekolah'"></p>
             </div>
@@ -160,18 +151,18 @@
             <div>
               <label class="block text-xs font-semibold text-gray-700 mb-1">Nama Lengkap</label>
               <input type="text" name="full_name" x-model="form2.full_name" placeholder="Andi Pratama"
-                     class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                     class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100">
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-xs font-semibold text-gray-700 mb-1">No. WA</label>
                 <input type="tel" name="phone" x-model="form2.phone" placeholder="0812xxxxxxxx"
-                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100">
               </div>
               <div>
                 <label class="block text-xs font-semibold text-gray-700 mb-1">Tanggal Lahir</label>
                 <input type="date" name="date_of_birth" x-model="form2.date_of_birth"
-                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100">
               </div>
             </div>
             <div>
@@ -180,7 +171,7 @@
                 {% for value, label in gender_choices %}
                 <label class="flex-1">
                   <input type="radio" name="gender" value="{{ value }}" x-model="form2.gender" class="peer sr-only">
-                  <div class="peer-checked:bg-emerald-50 peer-checked:border-emerald-400 peer-checked:text-emerald-700
+                  <div class="peer-checked:bg-primary-50 peer-checked:border-primary-400 peer-checked:text-primary-700
                               px-3 py-2 rounded-lg border border-gray-200 text-center text-xs font-medium cursor-pointer transition">
                     {{ label }}
                   </div>
@@ -207,12 +198,12 @@
               <div>
                 <label class="block text-xs font-semibold text-gray-700 mb-1">Asal Sekolah</label>
                 <input type="text" name="school_name" x-model="form2.school_name" placeholder="SMA Negeri 1"
-                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100">
               </div>
               <div>
                 <label class="block text-xs font-semibold text-gray-700 mb-1">Kelas / Tingkat</label>
                 <input type="text" name="school_grade" x-model="form2.school_grade" placeholder="11 IPA"
-                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                       class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100">
               </div>
             </div>
           </div>
@@ -220,13 +211,13 @@
 
         <!-- STEP 3 -->
         <div class="mb-4 rounded-2xl transition-all"
-             :class="step === 3 ? 'bg-white shadow-lg ring-2 ring-emerald-100 border border-emerald-300'
+             :class="step === 3 ? 'bg-white shadow-lg ring-2 ring-primary-100 border border-primary-300'
                     : 'bg-gray-50 border border-gray-200'"
              style="border-width:0.5px;">
           <button type="button" @click="done.s2 && goto(3)" :disabled="!done.s2"
                   class="w-full flex items-center gap-3 p-4 text-left">
             <div class="w-8 h-8 rounded-full flex items-center justify-center text-white shrink-0 font-bold text-sm"
-                 :class="step === 3 ? 'bg-emerald-500' : 'bg-gray-200 text-gray-500'">
+                 :class="step === 3 ? 'bg-primary-500' : 'bg-gray-200 text-gray-500'">
               <span>3</span>
             </div>
             <div class="flex-1 min-w-0">
@@ -239,17 +230,17 @@
             <div>
               <label class="block text-xs font-semibold text-gray-700 mb-1">Nama Orang Tua</label>
               <input type="text" name="parent_name" x-model="form3.parent_name" placeholder="Budi Pratama"
-                     class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                     class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100">
             </div>
             <div>
               <label class="block text-xs font-semibold text-gray-700 mb-1">No. WA Orang Tua</label>
               <input type="tel" name="parent_phone" x-model="form3.parent_phone" placeholder="0812xxxxxxxx"
-                     class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                     class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100">
             </div>
             <div>
               <label class="block text-xs font-semibold text-gray-700 mb-1">Email Orang Tua <span class="text-gray-400 font-normal">(opsional)</span></label>
               <input type="email" name="parent_email" x-model="form3.parent_email" placeholder="budi@email.com"
-                     class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+                     class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100">
             </div>
           </div>
         </div>
@@ -282,7 +273,7 @@
 
       <p class="text-center text-xs text-gray-500 mt-6">
         Sudah punya akun?
-        <a href="/" class="font-semibold text-emerald-600 hover:text-emerald-700">Login →</a>
+        <a href="/" class="font-semibold text-primary-600 hover:text-primary-700">Login →</a>
       </p>
     </div>
   </main>
@@ -294,11 +285,10 @@
         loading: false,
         done: { s1: false, s2: false },
         form1: {
-          username: "{{ form_data.username|default:'' }}",
           email:    "{{ form_data.email|default:'' }}",
           password: '', password2: '',
         },
-        err1: { username: '', email: '', password: '' },
+        err1: { email: '', password: '' },
         form2: {
           full_name:     "{{ form_data.full_name|default:'' }}",
           phone:         "{{ form_data.phone|default:'' }}",
@@ -319,13 +309,12 @@
           return (this.done.s1 ? 1 : 0) + (this.done.s2 ? 1 : 0) + (this.step === 3 ? 1 : 0);
         },
         validateStep1() {
-          this.err1.username = /^[A-Za-z0-9_]{3,30}$/.test(this.form1.username) ? '' : 'Username 3-30 karakter (huruf/angka/_).';
           this.err1.email = (this.form1.email.includes('@') && this.form1.email.includes('.')) ? '' : 'Email tidak valid.';
           let e = '';
           if (this.form1.password.length < 8) e = 'Kata sandi minimal 8 karakter.';
           else if (this.form1.password !== this.form1.password2) e = 'Konfirmasi kata sandi tidak cocok.';
           this.err1.password = e;
-          return !this.err1.username && !this.err1.email && !this.err1.password;
+          return !this.err1.email && !this.err1.password;
         },
         validateStep2() {
           if (!this.form2.full_name || this.form2.full_name.length < 2) { alert('Nama lengkap wajib diisi.'); return false; }

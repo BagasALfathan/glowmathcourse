@@ -1,3 +1,5 @@
+import re
+
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from crispy_forms.helper import FormHelper
@@ -7,6 +9,24 @@ from .models import (
     User, Level, Education, Role, ApprovalStatus,
     StudentProfile, TeacherProfile, AdminProfile,
 )
+
+
+def _username_from_email(email):
+    """Derive a unique username from an email address.
+
+    Phase 3R Grup A item 1 — email is the login credential, but the
+    User.username column is required by AbstractUser. We auto-generate
+    a stable, URL-safe username from the email's local-part and suffix
+    with an incrementing counter on collision.
+    """
+    local = (email or '').split('@')[0]
+    base = re.sub(r'[^a-zA-Z0-9]', '', local).lower() or 'user'
+    candidate = base
+    counter = 1
+    while User.objects.filter(username=candidate).exists():
+        candidate = f'{base}{counter}'
+        counter += 1
+    return candidate
 
 
 # ── Auth forms ────────────────────────────────────────────────────────────────
@@ -46,7 +66,10 @@ class StudentRegistrationForm(UserCreationForm):
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ('first_name', 'last_name', 'username', 'email', 'password1', 'password2')
+        # Phase 3R: username dropped from the user-visible form — auto-generated
+        # from email in save(). The User.username column is still required by
+        # AbstractUser (no destructive migration).
+        fields = ('first_name', 'last_name', 'email', 'password1', 'password2')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -55,10 +78,11 @@ class StudentRegistrationForm(UserCreationForm):
         self.fields['email'].required = True
         self.fields['first_name'].label = 'Nama Depan'
         self.fields['last_name'].label = 'Nama Belakang'
-        self.fields['username'].label = 'Username'
         self.fields['email'].label = 'Email'
         self.fields['password1'].label = 'Kata Sandi'
         self.fields['password2'].label = 'Konfirmasi Kata Sandi'
+        # Remove the username field that UserCreationForm wires in by default.
+        self.fields.pop('username', None)
         self.helper = FormHelper()
         self.helper.form_tag = False
         self.helper.layout = Layout(
@@ -68,11 +92,7 @@ class StudentRegistrationForm(UserCreationForm):
                 Column('last_name', css_class='md:col-span-1'),
                 css_class='grid grid-cols-1 md:grid-cols-2 gap-4',
             ),
-            Row(
-                Column('username', css_class='md:col-span-1'),
-                Column('email', css_class='md:col-span-1'),
-                css_class='grid grid-cols-1 md:grid-cols-2 gap-4',
-            ),
+            Field('email'),
             Row(
                 Column('password1', css_class='md:col-span-1'),
                 Column('password2', css_class='md:col-span-1'),
@@ -100,11 +120,15 @@ class StudentRegistrationForm(UserCreationForm):
             raise forms.ValidationError('Email sudah terdaftar.')
         return email
 
-    def clean_username(self):
-        username = self.cleaned_data.get('username', '').strip()
-        if User.objects.filter(username=username, is_deleted=False).exists():
-            raise forms.ValidationError('Username sudah terdaftar.')
-        return username
+    def save(self, commit=True):
+        # Auto-derive username from email before the UserCreationForm save path
+        # (which expects self.cleaned_data['username']).
+        self.cleaned_data['username'] = _username_from_email(self.cleaned_data.get('email'))
+        user = super().save(commit=False)
+        user.username = self.cleaned_data['username']
+        if commit:
+            user.save()
+        return user
 
 
 class TeacherRegistrationForm(UserCreationForm):
@@ -133,7 +157,10 @@ class TeacherRegistrationForm(UserCreationForm):
 
     class Meta(UserCreationForm.Meta):
         model = User
-        fields = ('first_name', 'last_name', 'username', 'email', 'password1', 'password2')
+        # Phase 3R: username dropped from the user-visible form — auto-generated
+        # from email in save(). The User.username column is still required by
+        # AbstractUser (no destructive migration).
+        fields = ('first_name', 'last_name', 'email', 'password1', 'password2')
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -142,10 +169,10 @@ class TeacherRegistrationForm(UserCreationForm):
         self.fields['email'].required = True
         self.fields['first_name'].label = 'Nama Depan'
         self.fields['last_name'].label = 'Nama Belakang'
-        self.fields['username'].label = 'Username'
         self.fields['email'].label = 'Email'
         self.fields['password1'].label = 'Kata Sandi'
         self.fields['password2'].label = 'Konfirmasi Kata Sandi'
+        self.fields.pop('username', None)
         self.helper = FormHelper()
         self.helper.form_tag = False
         self.helper.layout = Layout(
@@ -155,11 +182,7 @@ class TeacherRegistrationForm(UserCreationForm):
                 Column('last_name', css_class='md:col-span-1'),
                 css_class='grid grid-cols-1 md:grid-cols-2 gap-4',
             ),
-            Row(
-                Column('username', css_class='md:col-span-1'),
-                Column('email', css_class='md:col-span-1'),
-                css_class='grid grid-cols-1 md:grid-cols-2 gap-4',
-            ),
+            Field('email'),
             Row(
                 Column('password1', css_class='md:col-span-1'),
                 Column('password2', css_class='md:col-span-1'),
@@ -191,11 +214,13 @@ class TeacherRegistrationForm(UserCreationForm):
             raise forms.ValidationError('Email sudah terdaftar.')
         return email
 
-    def clean_username(self):
-        username = self.cleaned_data.get('username', '').strip()
-        if User.objects.filter(username=username, is_deleted=False).exists():
-            raise forms.ValidationError('Username sudah terdaftar.')
-        return username
+    def save(self, commit=True):
+        self.cleaned_data['username'] = _username_from_email(self.cleaned_data.get('email'))
+        user = super().save(commit=False)
+        user.username = self.cleaned_data['username']
+        if commit:
+            user.save()
+        return user
 
 
 # ── Profile edit forms ────────────────────────────────────────────────────────

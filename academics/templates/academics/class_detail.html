@@ -447,7 +447,6 @@
                   <span class="seats">👥 {{ rel.active_count }}/{{ rel.capacity }}</span>
                 </div>
                 <div class="rel-bottom">
-                  <span class="rel-price">{% if rel.price %}Rp {{ rel.price|floatformat:0|intcomma }}<span class="pm">/bln</span>{% else %}Gratis{% endif %}</span>
                   {% if rel.is_full_or_no_slots %}
                     <span class="rel-pill full">🔒 PENUH</span>
                   {% elif rel.slots_remaining <= 3 %}
@@ -469,16 +468,13 @@
     <div class="enroll-wrap">
       <div class="enroll-card">
 
-        {# Price (centered) #}
+        {# Phase 3R: Price block hidden per client revision (Kelas.price stays in DB). #}
+        {% if total_sessions %}
         <div class="enroll-price-block">
-          <span class="enroll-price-tag">Biaya Kelas</span>
-          {% if kelas.price %}
-          <div class="enroll-price-big">Rp {{ kelas.price|floatformat:0|intcomma }}<span class="pm">/bulan</span></div>
-          {% if total_sessions %}<p class="enroll-price-sub">{{ total_sessions }} pertemuan total</p>{% endif %}
-          {% else %}
-          <div class="enroll-price-big">Gratis</div>
-          {% endif %}
+          <span class="enroll-price-tag">Total Pertemuan</span>
+          <div class="enroll-price-big">{{ total_sessions }}<span class="pm">×</span></div>
         </div>
+        {% endif %}
 
         {# Capacity #}
         <div class="enroll-cap-block">
@@ -555,7 +551,6 @@
                   <span class="seats">👥 {{ rel.active_count }}/{{ rel.capacity }}</span>
                 </div>
                 <div class="rel-bottom">
-                  <span class="rel-price">{% if rel.price %}Rp {{ rel.price|floatformat:0|intcomma }}<span class="pm">/bln</span>{% else %}Gratis{% endif %}</span>
                   {% if rel.is_full_or_no_slots %}
                     <span class="rel-pill full">🔒 PENUH</span>
                   {% elif rel.slots_remaining <= 3 %}
@@ -580,17 +575,14 @@
 <div class="mobile-bar">
   <div class="mobile-bar-inner">
     <div class="mobile-bar-left">
-      {% if kelas.price %}
-      <div class="mobile-bar-price">Rp {{ kelas.price|floatformat:0|intcomma }}<span class="pm">/bln</span></div>
-      {% else %}
-      <div class="mobile-bar-price">Gratis</div>
-      {% endif %}
+      {# Phase 3R: price line hidden — show capacity headline instead. #}
+      <div class="mobile-bar-price">{{ active_count }}/{{ kelas.capacity }}<span class="pm"> terisi</span></div>
       {% if slots_remaining == 0 %}
         <p class="mobile-bar-sub urgent">🔒 Kelas penuh</p>
       {% elif slots_remaining <= 3 %}
         <p class="mobile-bar-sub urgent">⚡ Sisa {{ slots_remaining }} slot lagi!</p>
       {% else %}
-        <p class="mobile-bar-sub">{{ active_count }}/{{ kelas.capacity }} terisi{% if teacher_stats.avg_rating %} · <span class="star">⭐</span> {{ teacher_stats.avg_rating }}{% endif %}</p>
+        <p class="mobile-bar-sub">{% if teacher_stats.avg_rating %}<span class="star">⭐</span> {{ teacher_stats.avg_rating }}{% endif %}</p>
       {% endif %}
     </div>
     {% if user_enrolled and user_enrollment.status == 'ACTIVE' %}

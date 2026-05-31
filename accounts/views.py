@@ -11,6 +11,7 @@ from django.contrib.auth.decorators import login_required
 from .forms import (
     LoginForm, StudentRegistrationForm, TeacherRegistrationForm,
     ProfileUserForm, StudentProfileEditForm, TeacherProfileEditForm, AdminProfileEditForm,
+    _username_from_email,
 )
 from .models import (
     User, Role, ApprovalStatus, Level, Gender, Education,
@@ -69,7 +70,7 @@ def _do_role_login(request, expected_role, template_name, dashboard_url, extra_c
 
         user_obj = _resolve_user(username)
         if user_obj is None or not user_obj.check_password(password):
-            messages.error(request, 'Username atau kata sandi salah.')
+            messages.error(request, 'Email atau kata sandi salah.')
             return render(request, template_name, context)
 
         if user_obj.role != expected_role:
@@ -107,7 +108,7 @@ def _do_role_login(request, expected_role, template_name, dashboard_url, extra_c
 
         user = authenticate(request, username=user_obj.username, password=password)
         if user is None:
-            messages.error(request, 'Username atau kata sandi salah.')
+            messages.error(request, 'Email atau kata sandi salah.')
             return render(request, template_name, context)
 
         login(request, user)
@@ -224,18 +225,17 @@ def _parse_register_payload(post, is_teacher):
     errors = []
     g = lambda k: (post.get(k) or '').strip()
 
-    username = g('username')
     email = g('email')
     password = g('password')
     password2 = g('password2')
     full_name = g('full_name')
     phone = _norm_phone(g('phone'))
 
-    # Step 1: account
-    if not re.fullmatch(r'[A-Za-z0-9_]{3,30}', username):
-        errors.append('Username 3-30 karakter, hanya huruf/angka/underscore.')
+    # Step 1: account (email-as-credential; username auto-derived in the view)
     if '@' not in email or '.' not in email.split('@')[-1]:
         errors.append('Email tidak valid.')
+    if User.objects.filter(email__iexact=email, is_deleted=False).exists():
+        errors.append('Email sudah terdaftar.')
     if password != password2:
         errors.append('Konfirmasi kata sandi tidak cocok.')
     try:
@@ -250,7 +250,7 @@ def _parse_register_payload(post, is_teacher):
         errors.append('Nomor WA tidak valid (gunakan format 08xxx atau +62xxx).')
 
     data = {
-        'username': username, 'email': email, 'password': password,
+        'email': email, 'password': password,
         'full_name': full_name, 'phone': phone,
     }
 
@@ -305,18 +305,13 @@ def _parse_register_payload(post, is_teacher):
         if not jenjang_levels:
             errors.append('Pilih minimal satu jenjang yang dapat Anda ajar.')
         bio = g('bio')[:500]
-        rate_raw = g('hourly_rate').replace('.', '').replace(',', '').replace('Rp', '').strip()
-        try:
-            from decimal import Decimal
-            hourly_rate = Decimal(rate_raw) if rate_raw else None
-        except Exception:
-            hourly_rate = None
-        bank_account = g('bank_account')
+        # Phase 3R: hourly_rate + bank_account hidden from the register UI.
+        # Defaults are applied at create time; both columns remain in the DB.
 
         data.update({
             'education': education, 'experience_years': experience_years,
             'specialization': specialization, 'jenjang_levels': jenjang_levels,
-            'bio': bio, 'hourly_rate': hourly_rate, 'bank_account': bank_account,
+            'bio': bio,
         })
 
     return data, errors
@@ -337,14 +332,11 @@ def register_student_view(request):
     data, errors = _parse_register_payload(request.POST, is_teacher=False)
 
     if not errors:
-        # Block re-registration
+        # Block re-registration by email (username is auto-derived, so it's no
+        # longer a meaningful uniqueness signal at this layer).
         existing = (
             User.objects
             .filter(email__iexact=data['email'], is_deleted=False)
-            .exclude(approval_status=ApprovalStatus.APPROVED)
-            .first()
-            or User.objects
-            .filter(username=data['username'], is_deleted=False)
             .exclude(approval_status=ApprovalStatus.APPROVED)
             .first()
         )
@@ -358,7 +350,7 @@ def register_student_view(request):
 
     if not errors:
         user = User.objects.create_user(
-            username=data['username'],
+            username=_username_from_email(data['email']),
             email=data['email'],
             password=data['password'],
             first_name=data['full_name'],
@@ -411,10 +403,6 @@ def register_teacher_view(request):
             .filter(email__iexact=data['email'], is_deleted=False)
             .exclude(approval_status=ApprovalStatus.APPROVED)
             .first()
-            or User.objects
-            .filter(username=data['username'], is_deleted=False)
-            .exclude(approval_status=ApprovalStatus.APPROVED)
-            .first()
         )
         if existing:
             if existing.approval_status == ApprovalStatus.PENDING:
@@ -426,7 +414,7 @@ def register_teacher_view(request):
 
     if not errors:
         user = User.objects.create_user(
-            username=data['username'],
+            username=_username_from_email(data['email']),
             email=data['email'],
             password=data['password'],
             first_name=data['full_name'],
@@ -441,8 +429,8 @@ def register_teacher_view(request):
         profile.experience_years = data['experience_years']
         profile.specialization = data['specialization']
         profile.bio = data['bio']
-        profile.hourly_rate = data['hourly_rate']
-        profile.bank_account = data['bank_account']
+        # Phase 3R: hourly_rate + bank_account no longer collected at register.
+        # Leave existing DB defaults intact for new rows.
         profile.save()
         profile.set_jenjang(data['jenjang_levels'])
 

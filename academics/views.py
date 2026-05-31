@@ -255,13 +255,9 @@ def teacher_class_create(request):
             errors.append('Total pertemuan tidak valid.')
             total_sessions_int = 0
 
-        try:
-            price_dec = Decimal(request.POST.get('price') or '0')
-            if price_dec < 0:
-                errors.append('Harga tidak boleh negatif.')
-        except (InvalidOperation, TypeError):
-            errors.append('Harga tidak valid.')
-            price_dec = Decimal('0')
+        # Phase 3R: price field removed from the create form. Kelas.price stays
+        # in the schema (billing FK integrity) — default new rows to 0.
+        price_dec = Decimal('0')
 
         if errors:
             for e in errors:
@@ -388,13 +384,8 @@ def teacher_class_edit(request, pk):
             errors.append('Total pertemuan tidak valid.')
             total_sessions_int = 0
 
-        try:
-            price_dec = Decimal(request.POST.get('price') or '0')
-            if price_dec < 0:
-                errors.append('Harga tidak boleh negatif.')
-        except (InvalidOperation, TypeError):
-            errors.append('Harga tidak valid.')
-            price_dec = Decimal('0')
+        # Phase 3R: price field removed from the edit form. Preserve the
+        # existing kelas.price value rather than overwriting it.
 
         if errors:
             for e in errors:
@@ -411,7 +402,6 @@ def teacher_class_edit(request, pk):
                     kelas.end_date = end_date
                     kelas.capacity = capacity_int
                     kelas.total_sessions = total_sessions_int
-                    kelas.price = price_dec
                     kelas.status = status
                     kelas.save()
                 log_activity(request.user, 'updated', 'kelas', kelas.pk)
@@ -529,6 +519,25 @@ def class_browse(request):
             | Q(teacher_profile__user__last_name__icontains=search)
             | Q(teacher_profile__user__username__icontains=search)
         )
+
+    # ── Filter: jenjang tab (Phase 3R Grup B) ─────────────────────────────────
+    # Primary jenjang selector — defaults to the signed-in student's level,
+    # otherwise 'ALL'. Tabs let the student peek at other jenjang without
+    # mutating their profile.
+    student_level = None
+    if user.is_authenticated and getattr(user, 'role', None) == 'STUDENT':
+        sp = getattr(user, 'student_profile', None)
+        student_level = getattr(sp, 'level', None) if sp is not None else None
+
+    requested_jenjang = request.GET.get('jenjang')
+    if requested_jenjang is None:
+        selected_jenjang = student_level or 'ALL'
+    else:
+        selected_jenjang = requested_jenjang or 'ALL'
+    if selected_jenjang != 'ALL' and selected_jenjang not in Level.values:
+        selected_jenjang = 'ALL'
+    if selected_jenjang != 'ALL':
+        qs = qs.filter(level=selected_jenjang)
 
     # ── Filter: level ─────────────────────────────────────────────────────────
     level_filter = [v for v in request.GET.getlist('level') if v in Level.values]
@@ -824,6 +833,9 @@ def class_browse(request):
         'total_count': paginator.count,
         # Sticky filter state
         'search': search,
+        'selected_jenjang': selected_jenjang,
+        'student_level': student_level,
+        'jenjang_choices': ['TK', 'SD', 'SMP', 'SMA', 'UMUM'],
         'selected_levels': level_filter,
         'selected_subjects': subject_filter,
         'selected_days': days_filter,
@@ -1436,22 +1448,152 @@ def teacher_schedule_redirect(request):
     return redirect('academics:teacher_schedule_classes')
 
 
+# Phase 3B monthly calendar — Indonesian month names + color palette per kelas
+_INDONESIAN_MONTHS = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+]
+# (palette_name, chip_class for Tailwind cells, dot_class for legend dots)
+_KELAS_PALETTE = [
+    ('emerald', 'bg-emerald-100 text-emerald-800 border-emerald-200', 'bg-emerald-500'),
+    ('blue',    'bg-blue-100 text-blue-800 border-blue-200',          'bg-blue-500'),
+    ('amber',   'bg-amber-100 text-amber-800 border-amber-200',       'bg-amber-500'),
+    ('purple',  'bg-purple-100 text-purple-800 border-purple-200',    'bg-purple-500'),
+    ('pink',    'bg-pink-100 text-pink-800 border-pink-200',          'bg-pink-500'),
+    ('teal',    'bg-teal-100 text-teal-800 border-teal-200',          'bg-teal-500'),
+]
+
+
+def _teacher_monthly_schedule_ctx(user, request):
+    """Build the monthly-calendar context used by both screen + print views.
+
+    Pulls every Session from every (non-deleted) class taught by the user
+    for the requested (year, month). Assigns one Tailwind color slot per
+    distinct kelas (cycling through _KELAS_PALETTE).
+    """
+    import calendar as _cal
+
+    teacher_profile = user.teacher_profile
+    today = timezone.localdate()
+
+    try:
+        year = int(request.GET.get('year') or today.year)
+        month = int(request.GET.get('month') or today.month)
+    except (TypeError, ValueError):
+        year, month = today.year, today.month
+    if not (1 <= month <= 12):
+        year, month = today.year, today.month
+
+    sessions = list(
+        Session.objects
+        .filter(
+            kelas__teacher_profile=teacher_profile,
+            kelas__is_deleted=False,
+            date__year=year,
+            date__month=month,
+        )
+        .select_related('kelas', 'kelas__subject')
+        .order_by('date', 'start_time')
+    )
+
+    # Deterministic color assignment: ordered by kelas.id so colors are
+    # stable across paginated months.
+    distinct_kelas = sorted(
+        {s.kelas_id: s.kelas for s in sessions}.values(),
+        key=lambda k: k.id,
+    )
+    color_by_kelas = {}
+    legend = []
+    for i, k in enumerate(distinct_kelas):
+        name, chip_class, dot_class = _KELAS_PALETTE[i % len(_KELAS_PALETTE)]
+        color_by_kelas[k.id] = (name, chip_class)
+        legend.append({
+            'kelas': k,
+            'color_name': name,
+            'chip_class': chip_class,
+            'dot_class': dot_class,
+        })
+
+    # Attach color class + color name to each session for template simplicity
+    for s in sessions:
+        name, chip_class = color_by_kelas.get(s.kelas_id, (_KELAS_PALETTE[0][0], _KELAS_PALETTE[0][1]))
+        s.color_name = name
+        s.chip_class = chip_class
+
+    # Group sessions by day-of-month → {day_int: [session, ...]}
+    sessions_by_day = {}
+    for s in sessions:
+        sessions_by_day.setdefault(s.date.day, []).append(s)
+
+    # Build the calendar weeks. monthcalendar returns weeks as [int]
+    # where 0 means "padding" (day outside this month). We enrich each
+    # cell into a dict the template can render directly.
+    _cal.setfirstweekday(_cal.MONDAY)
+    raw_weeks = _cal.monthcalendar(year, month)
+    is_today_month = (year == today.year and month == today.month)
+    weeks = []
+    for week in raw_weeks:
+        row = []
+        for day in week:
+            if day == 0:
+                row.append({'is_padding': True})
+            else:
+                day_sessions = sessions_by_day.get(day, [])
+                row.append({
+                    'is_padding': False,
+                    'day': day,
+                    'is_today': is_today_month and day == today.day,
+                    'sessions': day_sessions[:2],
+                    'overflow': max(0, len(day_sessions) - 2),
+                })
+        weeks.append(row)
+
+    prev_month = 12 if month == 1 else month - 1
+    prev_year = year - 1 if month == 1 else year
+    next_month = 1 if month == 12 else month + 1
+    next_year = year + 1 if month == 12 else year
+
+    return {
+        'year': year,
+        'month': month,
+        'month_name': _INDONESIAN_MONTHS[month - 1],
+        'weeks': weeks,
+        'legend': legend,
+        'session_count': len(sessions),
+        'distinct_kelas_count': len(distinct_kelas),
+        'prev_year': prev_year, 'prev_month': prev_month,
+        'next_year': next_year, 'next_month': next_month,
+        'today': today,
+        'is_current_month': is_today_month,
+        'teacher_name': user.get_full_name() or user.username,
+    }
+
+
 @role_required('TEACHER')
 def teacher_schedule(request):
-    return render(request, 'academics/teacher_schedule.html',
-                  _teacher_schedule_ctx(request.user))
+    return render(
+        request,
+        'academics/teacher_schedule.html',
+        _teacher_monthly_schedule_ctx(request.user, request),
+    )
 
 
 @role_required('TEACHER')
 def teacher_schedule_classes(request):
-    return render(request, 'academics/teacher_schedule.html',
-                  _teacher_schedule_ctx(request.user))
+    return render(
+        request,
+        'academics/teacher_schedule.html',
+        _teacher_monthly_schedule_ctx(request.user, request),
+    )
 
 
 @role_required('TEACHER')
 def teacher_schedule_print(request):
-    return render(request, 'academics/teacher_schedule_print.html',
-                  _teacher_schedule_ctx(request.user))
+    return render(
+        request,
+        'academics/teacher_schedule_print.html',
+        _teacher_monthly_schedule_ctx(request.user, request),
+    )
 
 
 @role_required('TEACHER')
@@ -1621,6 +1763,32 @@ def teacher_list(request):
             | Q(bio__icontains=search)
         )
 
+    # ── Filter: jenjang tab (Phase 3R Grup B) ──────────────────────────────
+    # Primary filter — default to signed-in student's level, fallback 'ALL'.
+    # A teacher matches a jenjang if they have a TeacherJenjang row at that
+    # level OR they teach a Kelas at that level (live/non-deleted).
+    user = request.user
+    student_level = None
+    if user.is_authenticated and getattr(user, 'role', None) == 'STUDENT':
+        sp = getattr(user, 'student_profile', None)
+        student_level = getattr(sp, 'level', None) if sp is not None else None
+
+    requested_jenjang = request.GET.get('jenjang')
+    if requested_jenjang is None:
+        selected_jenjang = student_level or 'ALL'
+    else:
+        selected_jenjang = requested_jenjang or 'ALL'
+    if selected_jenjang != 'ALL' and selected_jenjang not in Level.values:
+        selected_jenjang = 'ALL'
+    if selected_jenjang != 'ALL':
+        qs = qs.filter(
+            Q(jenjang_set__level=selected_jenjang)
+            | Q(taught_classes__level=selected_jenjang,
+                taught_classes__is_deleted=False)
+        ).distinct()
+
+    # Legacy `?level=` param (single value) — kept for backward-compat with
+    # any existing bookmarks; the new tab UI uses `?jenjang=` instead.
     level_filter = request.GET.get('level', '')
     if level_filter in Level.values:
         qs = qs.filter(jenjang_set__level=level_filter).distinct()
@@ -1704,6 +1872,9 @@ def teacher_list(request):
         'total_approved': total_approved,
         'search': search,
         'level_filter': level_filter,
+        'selected_jenjang': selected_jenjang,
+        'student_level': student_level,
+        'jenjang_choices': ['TK', 'SD', 'SMP', 'SMA', 'UMUM'],
         'subject_filter': subject_filter,
         'quick': quick,
         'sort': sort,
@@ -1725,10 +1896,33 @@ def teacher_list_partial(request):
     if spec_filter:
         qs = qs.filter(teacher_profile__specialization__icontains=spec_filter)
 
+    # Phase 3R Grup B: mirror the jenjang tab filter from teacher_list so
+    # HTMX-driven swaps stay consistent with the full-page filter.
+    user = request.user
+    student_level = None
+    if user.is_authenticated and getattr(user, 'role', None) == 'STUDENT':
+        sp = getattr(user, 'student_profile', None)
+        student_level = getattr(sp, 'level', None) if sp is not None else None
+    requested_jenjang = request.GET.get('jenjang')
+    if requested_jenjang is None:
+        selected_jenjang = student_level or 'ALL'
+    else:
+        selected_jenjang = requested_jenjang or 'ALL'
+    if selected_jenjang != 'ALL' and selected_jenjang not in Level.values:
+        selected_jenjang = 'ALL'
+    if selected_jenjang != 'ALL':
+        qs = qs.filter(
+            Q(teacher_profile__jenjang_set__level=selected_jenjang)
+            | Q(teacher_profile__taught_classes__level=selected_jenjang,
+                teacher_profile__taught_classes__is_deleted=False)
+        ).distinct()
+
     return render(request, 'academics/_teacher_list_grid.html', {
         'teachers': qs,
         'q': q,
         'spec_filter': spec_filter,
+        'selected_jenjang': selected_jenjang,
+        'student_level': student_level,
     })
 
 
@@ -1835,12 +2029,139 @@ def teacher_profile(request, pk):
     if reviews_data is None:
         reviews_data = {'total': 0, 'distribution': {}, 'bars': [], 'top_reviews': []}
 
+    # ── Weekly schedule grid (Phase 3R Grup C) ─────────────────────────────
+    # Source: this tutor's REGULAR sessions on or after today that are still
+    # SCHEDULED. We derive each cell from session.date.weekday() + start_time
+    # (a real Session row → a pickable slot), so taps map to a concrete pk.
+    # Time rows = sorted distinct start_times across the visible sessions.
+    weekly_grid = None
+    if profile:
+        from sessions_app.models import (
+            Session, SessionBooking, SessionStatus, SessionType, BookingStatus,
+        )
+        today_d = timezone.localdate()
+        upcoming = list(
+            Session.objects
+            .filter(
+                kelas__teacher_profile=profile,
+                kelas__is_deleted=False,
+                session_type=SessionType.REGULAR,
+                status=SessionStatus.SCHEDULED,
+                date__gte=today_d,
+            )
+            .select_related('kelas', 'kelas__subject')
+            .order_by('date', 'start_time')
+        )
+
+        # Per-viewer state: which of those sessions does the logged-in student
+        # already have a BOOKED, non-deleted SessionBooking for? Cheap because
+        # we restrict by session_id__in.
+        enrolled_session_ids = set()
+        viewer_student_level = None
+        if request.user.is_authenticated and getattr(request.user, 'role', None) == Role.STUDENT:
+            sp = getattr(request.user, 'student_profile', None)
+            if sp is not None:
+                viewer_student_level = sp.level
+                if upcoming:
+                    enrolled_session_ids = set(
+                        SessionBooking.objects
+                        .filter(
+                            enrollment__student_profile=sp,
+                            session_id__in=[s.pk for s in upcoming],
+                            status=BookingStatus.BOOKED,
+                            is_deleted=False,
+                        )
+                        .values_list('session_id', flat=True)
+                    )
+
+        # Pre-compute booked counts per session in one query (avoid N+1
+        # triggered by Session.booked_count @property in template).
+        booked_map = {}
+        if upcoming:
+            from django.db.models import Count as _Count
+            booked_map = dict(
+                SessionBooking.objects
+                .filter(
+                    session_id__in=[s.pk for s in upcoming],
+                    status=BookingStatus.BOOKED, is_deleted=False,
+                )
+                .values('session_id')
+                .annotate(n=_Count('id'))
+                .values_list('session_id', 'n')
+            )
+
+        # Mon-Sat (project convention — no Sun). Indexes match Python's
+        # date.weekday(): Mon=0 … Sun=6, so we keep 0..5.
+        day_keys = [
+            (0, 'Senin', 'Sen'),
+            (1, 'Selasa', 'Sel'),
+            (2, 'Rabu', 'Rab'),
+            (3, 'Kamis', 'Kam'),
+            (4, 'Jumat', 'Jum'),
+            (5, 'Sabtu', 'Sab'),
+        ]
+
+        # cells_by_time[time_str][day_idx] = list of cell dicts (usually 1)
+        cells_by_time = {}
+        all_times = set()
+        for s in upcoming:
+            day_idx = s.date.weekday()
+            if day_idx > 5:  # skip Sunday
+                continue
+            t = s.start_time
+            if t is None:
+                continue
+            time_key = t.strftime('%H:%M')
+            all_times.add((t, time_key))
+            booked = booked_map.get(s.pk, 0)
+            cap = s.kelas.capacity or 0
+            is_full = cap > 0 and booked >= cap
+            is_enrolled = s.pk in enrolled_session_ids
+            level_match = (viewer_student_level is None) or (viewer_student_level == s.kelas.level)
+            if is_enrolled:
+                state = 'enrolled'
+            elif is_full:
+                state = 'full'
+            elif not level_match:
+                state = 'wrong_level'
+            else:
+                state = 'open'
+            cell = {
+                'session': s,
+                'kelas': s.kelas,
+                'state': state,
+                'booked': booked,
+                'capacity': cap,
+            }
+            cells_by_time.setdefault(time_key, {}).setdefault(day_idx, []).append(cell)
+
+        # Build the final grid rows. Empty cells render as blanks.
+        sorted_times = sorted(all_times, key=lambda x: x[0])
+        grid_rows = []
+        for t_obj, time_key in sorted_times:
+            row = {
+                'time_label': t_obj.strftime('%H:%M'),
+                'cells': [
+                    cells_by_time.get(time_key, {}).get(day_idx, [])
+                    for day_idx, _, _ in day_keys
+                ],
+            }
+            grid_rows.append(row)
+
+        weekly_grid = {
+            'days': day_keys,
+            'rows': grid_rows,
+            'is_empty': len(grid_rows) == 0,
+            'viewer_level': viewer_student_level,
+        }
+
     return render(request, 'academics/teacher_profile.html', {
         'teacher': teacher_user,
         'profile': profile,
         'stats': stats,
         'reviews_data': reviews_data,
         'viewer_is_student': request.user.role == Role.STUDENT,
+        'weekly_grid': weekly_grid,
     })
 
 

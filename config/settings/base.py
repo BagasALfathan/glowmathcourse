@@ -88,6 +88,14 @@ AUTH_PASSWORD_VALIDATORS = [
 
 AUTH_USER_MODEL = 'accounts.User'
 
+# Email-first auth (Phase 3R Grup A). EmailBackend resolves users by email;
+# ModelBackend stays as fallback so legacy username-based credentials keep
+# working for pre-rebrand accounts.
+AUTHENTICATION_BACKENDS = [
+    'accounts.backends.EmailBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 LANGUAGE_CODE = 'id'
 TIME_ZONE = 'Asia/Jakarta'
 USE_I18N = True

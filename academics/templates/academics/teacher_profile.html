@@ -106,6 +106,64 @@
   .tp-class-card { transition: none; }
   .tp-class-card:hover { transform: none; }
 }
+
+/* ── Weekly grid (Phase 3R Grup C) ───────────────────────────────────────── */
+.tp-grid-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
+.tp-grid { min-width: 640px; display: grid; grid-template-columns: 72px repeat(6, minmax(80px, 1fr)); gap: 6px; }
+.tp-grid-head { font-size: 11px; font-weight: 700; color: #374151; text-align: center; padding: 8px 4px; background: #f0f9fa; border-radius: 8px; }
+.tp-grid-head.time { background: transparent; color: #6b7280; }
+.tp-grid-time { font-size: 11px; font-weight: 600; color: #6b7280; text-align: right; padding: 14px 8px 0 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tp-grid-cell { min-height: 56px; border: 1px dashed #e5e7eb; border-radius: 10px; padding: 6px; display: flex; flex-direction: column; align-items: stretch; justify-content: center; }
+.tp-grid-cell.empty { background: #fafafa; }
+.tp-grid-cell.has-content { border-style: solid; padding: 0; }
+.tp-slot { display: flex; flex-direction: column; align-items: stretch; padding: 8px 6px; border-radius: 10px; min-height: 56px; text-decoration: none; text-align: left; cursor: pointer; border: none; background: transparent; width: 100%; font-family: inherit; transition: all 0.18s; }
+.tp-slot .topic { font-size: 11px; font-weight: 600; color: #111827; line-height: 1.2; margin: 0; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.tp-slot .meta { font-size: 9px; color: #6b7280; margin-top: 4px; display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
+.tp-slot .meta .pill { padding: 1px 6px; border-radius: 999px; font-weight: 600; font-size: 9px; }
+.tp-slot .meta .pill.cap { background: #f3f4f6; color: #4b5563; }
+.tp-slot.open { background: #ffffff; border: 1px solid #c2e4e6; }
+.tp-slot.open:hover { background: #f0f9fa; border-color: #7fcacd; box-shadow: 0 2px 6px rgba(74,148,153,0.08); }
+.tp-slot.open .topic { color: #1f3d3f; }
+.tp-slot.open .plus { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 999px; background: #4a9499; color: #ffffff; font-size: 11px; font-weight: 700; }
+.tp-slot.enrolled { background: linear-gradient(135deg, #d1fae5, #a7f3d0); border: 1px solid #6ee7b7; cursor: default; }
+.tp-slot.enrolled .topic { color: #065f46; }
+.tp-slot.enrolled .meta .pill.tag { background: #047857; color: #ffffff; }
+.tp-slot.full { background: #f9fafb; border: 1px solid #e5e7eb; cursor: not-allowed; opacity: 0.85; }
+.tp-slot.full .topic { color: #6b7280; }
+.tp-slot.full .meta .pill.tag { background: #fee2e2; color: #b91c1c; }
+.tp-slot.wrong_level { background: #fff7ed; border: 1px solid #fed7aa; cursor: not-allowed; }
+.tp-slot.wrong_level .topic { color: #9a3412; }
+.tp-slot.wrong_level .meta .pill.tag { background: #fdba74; color: #7c2d12; }
+.tp-slot.locked { background: #ffffff; border: 1px solid #e5e7eb; cursor: default; }
+.tp-slot.locked .topic { color: #374151; }
+
+.tp-grid-legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: #6b7280; margin-bottom: 12px; }
+.tp-grid-legend .item { display: inline-flex; align-items: center; gap: 5px; }
+.tp-grid-legend .sw { width: 14px; height: 10px; border-radius: 3px; border: 1px solid transparent; }
+.tp-grid-legend .sw.open { background: #ffffff; border-color: #c2e4e6; }
+.tp-grid-legend .sw.enrolled { background: linear-gradient(135deg, #d1fae5, #a7f3d0); border-color: #6ee7b7; }
+.tp-grid-legend .sw.full { background: #f9fafb; border-color: #e5e7eb; }
+
+.tp-grid-empty { text-align: center; color: #94a3b8; font-size: 13px; padding: 32px 16px; background: #f8fafc; border: 1px dashed #e5e7eb; border-radius: 10px; }
+.tp-grid-empty .em { font-size: 32px; margin-bottom: 6px; }
+
+/* ── Pick confirmation modal (Phase 3R Grup C) ───────────────────────────── */
+.tp-modal-bg { position: fixed; inset: 0; z-index: 60; background: rgba(15,23,42,0.55); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.tp-modal { background: #ffffff; border-radius: 16px; width: 100%; max-width: 440px; padding: 22px; box-shadow: 0 24px 48px rgba(0,0,0,0.18); }
+.tp-modal h3 { margin: 0 0 6px; font-size: 16px; font-weight: 700; color: #0f172a; }
+.tp-modal p.lead { margin: 0 0 16px; font-size: 13px; color: #475569; line-height: 1.55; }
+.tp-modal .detail { background: #f0f9fa; border: 1px solid #c2e4e6; border-radius: 10px; padding: 12px 14px; margin-bottom: 16px; }
+.tp-modal .detail .label { font-size: 10px; font-weight: 700; color: #326568; text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 4px; }
+.tp-modal .detail .kelas-name { font-size: 14px; font-weight: 700; color: #1f3d3f; margin: 0 0 6px; }
+.tp-modal .detail .first-sess { font-size: 12px; color: #475569; margin: 0; }
+.tp-modal .actions { display: flex; gap: 8px; justify-content: flex-end; }
+.tp-modal .btn { padding: 10px 18px; font-size: 13px; font-weight: 700; border-radius: 8px; cursor: pointer; border: 1px solid transparent; font-family: inherit; transition: all 0.15s; text-decoration: none; }
+.tp-modal .btn-cancel { background: #ffffff; color: #475569; border-color: #e5e7eb; }
+.tp-modal .btn-cancel:hover { background: #f1f5f9; }
+.tp-modal .btn-confirm { background: #4a9499; color: #ffffff; }
+.tp-modal .btn-confirm:hover { background: #3d7c80; }
+
+[x-cloak] { display: none !important; }
 </style>
 {% endblock %}
 
@@ -204,7 +262,6 @@
         </div>
         <div class="tp-class-meta">
           {% if k.class_avg_rating %}<span class="rating">{% star_rating k.class_avg_rating size=10 show_number=True %}</span>{% else %}<span></span>{% endif %}
-          <span class="price">{% if k.price %}Rp {{ k.price|floatformat:0|intcomma }}{% else %}Gratis{% endif %}</span>
         </div>
         <div class="tp-class-cap">
           <div class="track">
@@ -218,6 +275,117 @@
       {% endfor %}
     </div>
   </div>
+
+  {# ── Weekly schedule grid (Phase 3R Grup C) ─────────────────────── #}
+  {% if weekly_grid %}
+  <div class="tp-card" style="margin-bottom:16px">
+    <div class="tp-section-h">
+      <div class="left">
+        <div class="ic emerald">🗓️</div>
+        <h2>Jadwal Mingguan</h2>
+      </div>
+      <span style="font-size:11px;color:#94a3b8;">Mulai dari hari ini</span>
+    </div>
+
+    {% if weekly_grid.is_empty %}
+    <div class="tp-grid-empty">
+      <div class="em">📭</div>
+      <p style="margin:0;font-weight:600;color:#475569;">Belum ada sesi terjadwal</p>
+      <p style="margin:4px 0 0;font-size:12px;">Tutor ini belum mempublikasikan sesi mendatang.</p>
+    </div>
+    {% else %}
+
+    <div class="tp-grid-legend">
+      <span class="item"><span class="sw open"></span> Bisa Dipilih</span>
+      <span class="item"><span class="sw enrolled"></span> Sudah Terdaftar</span>
+      <span class="item"><span class="sw full"></span> Penuh</span>
+    </div>
+
+    <div class="tp-grid-wrap">
+      <div class="tp-grid">
+        {% comment %} Header row: time-col placeholder + 6 days {% endcomment %}
+        <div class="tp-grid-head time">Jam</div>
+        {% for _, _, short in weekly_grid.days %}
+        <div class="tp-grid-head">{{ short }}</div>
+        {% endfor %}
+
+        {% comment %} One row per distinct start_time, 6 day-cells each {% endcomment %}
+        {% for row in weekly_grid.rows %}
+        <div class="tp-grid-time">{{ row.time_label }}</div>
+        {% for day_cells in row.cells %}
+          {% if day_cells %}
+            <div class="tp-grid-cell has-content">
+              {% for cell in day_cells %}
+              {% if cell.state == 'open' and viewer_is_student %}
+                <button type="button" class="tp-slot open"
+                        x-data
+                        @click="$dispatch('open-pick-modal', {
+                          sessionId: {{ cell.session.pk }},
+                          kelasName: '{{ cell.kelas.name|escapejs }}',
+                          subject: '{{ cell.kelas.subject.name|default:''|escapejs }}',
+                          topic: '{{ cell.session.topic|default:'(tanpa topik)'|escapejs }}',
+                          dateLabel: '{{ cell.session.date|date:'l, j M Y'|escapejs }}',
+                          timeLabel: '{{ cell.session.start_time|time:'H:i' }}{% if cell.session.end_time %} – {{ cell.session.end_time|time:'H:i' }}{% endif %}',
+                          actionUrl: '{% url 'sessions_app:student_pick_session' cell.session.pk %}',
+                        })">
+                  <p class="topic">{{ cell.session.topic|default:cell.kelas.name }}</p>
+                  <div class="meta">
+                    <span class="pill cap">{{ cell.booked }}/{{ cell.capacity }}</span>
+                    <span class="plus">+</span>
+                  </div>
+                </button>
+              {% elif cell.state == 'enrolled' %}
+                <div class="tp-slot enrolled" title="Kamu sudah terdaftar di sesi ini">
+                  <p class="topic">{{ cell.session.topic|default:cell.kelas.name }}</p>
+                  <div class="meta">
+                    <span class="pill tag">✓ Terdaftar</span>
+                  </div>
+                </div>
+              {% elif cell.state == 'full' %}
+                <div class="tp-slot full" title="Sesi penuh">
+                  <p class="topic">{{ cell.session.topic|default:cell.kelas.name }}</p>
+                  <div class="meta">
+                    <span class="pill tag">Penuh</span>
+                  </div>
+                </div>
+              {% elif cell.state == 'wrong_level' %}
+                <div class="tp-slot wrong_level" title="Jenjang tidak cocok dengan profilmu">
+                  <p class="topic">{{ cell.session.topic|default:cell.kelas.name }}</p>
+                  <div class="meta">
+                    <span class="pill tag">{{ cell.kelas.level }}</span>
+                  </div>
+                </div>
+              {% else %}
+                {% comment %} Read-only view (anon / teacher / admin) — show slot but no pick action {% endcomment %}
+                <div class="tp-slot locked">
+                  <p class="topic">{{ cell.session.topic|default:cell.kelas.name }}</p>
+                  <div class="meta">
+                    <span class="pill cap">{{ cell.booked }}/{{ cell.capacity }}</span>
+                  </div>
+                </div>
+              {% endif %}
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="tp-grid-cell empty"></div>
+          {% endif %}
+        {% endfor %}
+        {% endfor %}
+      </div>
+    </div>
+    {% if viewer_is_student and weekly_grid.viewer_level %}
+    <p style="margin:10px 2px 0;font-size:11px;color:#94a3b8;">
+      Sesi dengan jenjang berbeda dari profilmu (<b>{{ weekly_grid.viewer_level }}</b>) ditandai oranye.
+    </p>
+    {% elif not request.user.is_authenticated %}
+    <p style="margin:10px 2px 0;font-size:11px;color:#94a3b8;">
+      <a href="{% url 'accounts:login' %}?next={{ request.path }}" style="color:#326568;font-weight:600;">Login sebagai siswa</a>
+      untuk memilih sesi.
+    </p>
+    {% endif %}
+    {% endif %}
+  </div>
+  {% endif %}
 
   {# ── Top reviews ────────────────────────────────────────────────── #}
   {% if reviews_data.top_reviews %}
@@ -247,4 +415,54 @@
   {% endif %}
 
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% comment %}
+  Pick-confirmation modal — rendered at body level (outside the sidebar's
+  transformed ancestor) to avoid the PITFALL where position:fixed inside a
+  transformed parent positions relative to that parent, not the viewport.
+  State lives in a local Alpine x-data; opened via the 'open-pick-modal'
+  custom event dispatched from each pickable slot button.
+{% endcomment %}
+{% if viewer_is_student %}
+<div x-data="{
+       open: false,
+       payload: { sessionId: '', kelasName: '', subject: '', topic: '', dateLabel: '', timeLabel: '', actionUrl: '' },
+       openModal(detail) { this.payload = detail; this.open = true; },
+       close() { this.open = false; }
+     }"
+     @open-pick-modal.window="openModal($event.detail)"
+     @keydown.escape.window="close()"
+     x-cloak>
+  <div x-show="open" x-transition.opacity class="tp-modal-bg" @click.self="close()">
+    <div class="tp-modal"
+         x-show="open"
+         x-transition:enter="transition ease-out duration-150"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100">
+      <h3>Gabung kelas ini? 🎓</h3>
+      <p class="lead">
+        Dengan memilih sesi ini, kamu otomatis bergabung ke kelas dan ikut
+        semua sesi reguler-nya. Sesi pertamamu di bawah ini.
+      </p>
+      <div class="detail">
+        <p class="label">Kelas</p>
+        <p class="kelas-name" x-text="payload.kelasName + (payload.subject ? ' · ' + payload.subject : '')"></p>
+        <p class="first-sess">
+          📌 <span x-text="payload.topic"></span><br>
+          🗓 <span x-text="payload.dateLabel"></span> · 🕒 <span x-text="payload.timeLabel"></span>
+        </p>
+      </div>
+      <form method="post" :action="payload.actionUrl">
+        {% csrf_token %}
+        <div class="actions">
+          <button type="button" class="btn btn-cancel" @click="close()">Batal</button>
+          <button type="submit" class="btn btn-confirm">Ya, Gabung Kelas</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
