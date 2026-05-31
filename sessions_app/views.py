@@ -29,6 +29,9 @@ def _session_overlap_conflicts(teacher_profile, date, start_time, end_time, excl
     """Return Session rows on `date` (across all teacher's classes) that overlap
     with [start_time, end_time). Strict `<` comparison — back-to-back times
     (one session ends exactly when next begins) are NOT considered overlap.
+
+    Excludes CANCELLED sessions (the teacher is no longer occupied at that
+    time so they shouldn't block scheduling).
     """
     qs = (
         Session.objects
@@ -37,6 +40,7 @@ def _session_overlap_conflicts(teacher_profile, date, start_time, end_time, excl
             kelas__is_deleted=False,
             date=date,
         )
+        .exclude(status=SessionStatus.CANCELLED)
         .select_related('kelas')
     )
     if exclude_session_id:
@@ -341,20 +345,37 @@ def teacher_session_create(request, kelas_id):
 
     if request.method == 'POST' and form.is_valid():
         session_date = form.cleaned_data['date']
+        start_t = form.cleaned_data.get('start_time')
+        end_t = form.cleaned_data.get('end_time')
         if session_date < kelas.start_date or session_date > kelas.end_date:
             form.add_error(
                 'date',
                 f'Tanggal harus antara {kelas.start_date.strftime("%d %b %Y")} '
                 f'dan {kelas.end_date.strftime("%d %b %Y")}.',
             )
+        elif start_t and end_t and end_t <= start_t:
+            form.add_error('end_time', 'Jam selesai harus setelah jam mulai.')
         else:
-            session = form.save(commit=False)
-            session.kelas = kelas
-            session.session_number = next_number
-            session.status = SessionStatus.SCHEDULED
-            session.save()
-            messages.success(request, f'Pertemuan ke-{next_number} berhasil dibuat!')
-            return redirect('sessions_app:teacher_sessions', pk=kelas.pk)
+            # Cross-class overlap guard — teacher can't be in two places at once.
+            conflicts = (
+                _session_overlap_conflicts(kelas.teacher_profile, session_date, start_t, end_t)
+                if start_t and end_t else []
+            )
+            if conflicts:
+                c = conflicts[0]
+                form.add_error(
+                    'start_time',
+                    f'Bentrok dengan "{c.kelas.name}" sesi #{c.session_number} '
+                    f'({c.start_time.strftime("%H:%M")}–{c.end_time.strftime("%H:%M")}) di tanggal yang sama.',
+                )
+            else:
+                session = form.save(commit=False)
+                session.kelas = kelas
+                session.session_number = next_number
+                session.status = SessionStatus.SCHEDULED
+                session.save()
+                messages.success(request, f'Pertemuan ke-{next_number} berhasil dibuat!')
+                return redirect('sessions_app:teacher_sessions', pk=kelas.pk)
 
     return render(request, 'sessions_app/teacher_session_create.html', {
         'kelas': kelas,
@@ -376,16 +397,37 @@ def teacher_session_edit(request, pk):
 
     if request.method == 'POST' and form.is_valid():
         session_date = form.cleaned_data['date']
+        start_t = form.cleaned_data.get('start_time')
+        end_t = form.cleaned_data.get('end_time')
         if session_date < kelas.start_date or session_date > kelas.end_date:
             form.add_error(
                 'date',
                 f'Tanggal harus antara {kelas.start_date.strftime("%d %b %Y")} '
                 f'dan {kelas.end_date.strftime("%d %b %Y")}.',
             )
+        elif start_t and end_t and end_t <= start_t:
+            form.add_error('end_time', 'Jam selesai harus setelah jam mulai.')
         else:
-            form.save()
-            messages.success(request, f'Pertemuan ke-{session.session_number} berhasil diperbarui!')
-            return redirect('sessions_app:teacher_sessions', pk=kelas.pk)
+            # Cross-class overlap guard — exclude this session itself so editing
+            # without changing the time doesn't trigger a self-conflict.
+            conflicts = (
+                _session_overlap_conflicts(
+                    kelas.teacher_profile, session_date, start_t, end_t,
+                    exclude_session_id=session.pk,
+                )
+                if start_t and end_t else []
+            )
+            if conflicts:
+                c = conflicts[0]
+                form.add_error(
+                    'start_time',
+                    f'Bentrok dengan "{c.kelas.name}" sesi #{c.session_number} '
+                    f'({c.start_time.strftime("%H:%M")}–{c.end_time.strftime("%H:%M")}) di tanggal yang sama.',
+                )
+            else:
+                form.save()
+                messages.success(request, f'Pertemuan ke-{session.session_number} berhasil diperbarui!')
+                return redirect('sessions_app:teacher_sessions', pk=kelas.pk)
 
     return render(request, 'sessions_app/teacher_session_edit.html', {
         'kelas': kelas,

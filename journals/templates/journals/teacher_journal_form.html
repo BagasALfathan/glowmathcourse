@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block title %}
+  {% if mode == 'edit' %}Edit{% else %}Tulis{% endif %} Jurnal Bulanan
+  — {{ enrollment.student_profile.user.get_full_name|default:enrollment.student_profile.user.username }}
+{% endblock %}
+{% block page_title %}Jurnal Bulanan{% endblock %}
+
+{% block extra_css %}
+<style>
+.jr-page { max-width: 760px; margin: 0 auto; padding: 4px 0; }
+.jr-crumb { display: inline-flex; align-items: center; gap: 6px; color: #6b7280; font-size: 13px; text-decoration: none; margin-bottom: 14px; }
+.jr-crumb:hover { color: #326568; }
+
+.jr-context { background: linear-gradient(135deg, #f0f9fa 0%, #ffffff 100%); border: 1px solid #c2e4e6; border-radius: 14px; padding: 16px 18px; margin-bottom: 14px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.jr-context .em { width: 48px; height: 48px; border-radius: 12px; background: #4a9499; color: #ffffff; display: inline-flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+.jr-context h1 { font-size: 16px; font-weight: 700; color: #1f3d3f; margin: 0; line-height: 1.2; }
+.jr-context p { font-size: 12px; color: #326568; margin: 3px 0 0; }
+.jr-context .meta-pill { background: #ffffff; border: 1px solid #c2e4e6; color: #326568; font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 999px; }
+.jr-context .mode-pill { background: #e0f1f2; color: #326568; font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+.jr-card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; margin-bottom: 14px; }
+.jr-card .head { padding: 14px 18px; border-bottom: 1px solid #f1f5f9; }
+.jr-card .head h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0; display: inline-flex; align-items: center; gap: 8px; }
+.jr-card .head h3 .ic { width: 26px; height: 26px; border-radius: 7px; background: #e0f1f2; color: #326568; display: inline-flex; align-items: center; justify-content: center; font-size: 13px; }
+.jr-card .head p { font-size: 11px; color: #94a3b8; margin: 4px 0 0; }
+.jr-card .body { padding: 18px; }
+
+.jr-field { margin-bottom: 14px; }
+.jr-field:last-child { margin-bottom: 0; }
+.jr-field label { display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 5px; }
+.jr-field label .req { color: #ef4444; }
+.jr-field textarea { width: 100%; padding: 10px 12px; font-size: 13px; line-height: 1.5; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff; color: #0f172a; font-family: inherit; resize: vertical; min-height: 80px; }
+.jr-field textarea:focus { outline: none; border-color: #7fcacd; box-shadow: 0 0 0 3px rgba(127,202,205,0.18); }
+.jr-field .hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+
+.jr-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.jr-actions .left { font-size: 11px; color: #94a3b8; }
+.jr-actions .right { display: inline-flex; gap: 8px; }
+.jr-btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 18px; font-size: 13px; font-weight: 700; border-radius: 9px; cursor: pointer; border: 1px solid transparent; text-decoration: none; transition: all 0.15s; font-family: inherit; }
+.jr-btn-cancel { background: #ffffff; color: #475569; border-color: #e2e8f0; }
+.jr-btn-cancel:hover { background: #f1f5f9; color: #0f172a; }
+.jr-btn-draft { background: #ffffff; color: #326568; border-color: #c2e4e6; }
+.jr-btn-draft:hover { background: #f0f9fa; }
+.jr-btn-publish { background: #4a9499; color: #ffffff; border: none; }
+.jr-btn-publish:hover { background: #3d7c80; }
+</style>
+{% endblock %}
+
+{% block content %}
+{% with student=enrollment.student_profile.user kelas=enrollment.kelas %}
+<div class="jr-page">
+
+  <a href="{% url 'grades:teacher_student_progress' pk=kelas.pk enrollment_id=enrollment.pk %}" class="jr-crumb">
+    <i class="ti ti-arrow-left"></i>
+    Kembali ke progress siswa
+  </a>
+
+  <div class="jr-context">
+    <div class="em">📓</div>
+    <div style="flex:1;min-width:200px;">
+      <h1>{{ student.get_full_name|default:student.username }}</h1>
+      <p>{{ kelas.name }}{% if kelas.subject %} · {{ kelas.subject.name }}{% endif %}</p>
+    </div>
+    <span class="meta-pill">{{ month|stringformat:"02d" }}/{{ year }}</span>
+    <span class="mode-pill">{% if mode == 'edit' %}Edit{% else %}Baru{% endif %}</span>
+  </div>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="jr-card">
+      <div class="head">
+        <h3><span class="ic">📝</span> Ringkasan Bulan</h3>
+        <p>Catatan umum tentang siswa untuk periode ini.</p>
+      </div>
+      <div class="body">
+        <div class="jr-field">
+          <label>Ringkasan <span class="req">*</span></label>
+          <textarea name="summary" rows="4" required>{% if form_data %}{{ form_data.summary }}{% elif journal %}{{ journal.summary }}{% endif %}</textarea>
+          <p class="hint">Ringkas progres siswa bulan ini secara umum.</p>
+        </div>
+        <div class="jr-field">
+          <label>Topik yang Dipelajari <span class="req">*</span></label>
+          <textarea name="topics_covered" rows="3" required>{% if form_data %}{{ form_data.topics_covered }}{% elif journal %}{{ journal.topics_covered }}{% endif %}</textarea>
+          <p class="hint">Materi atau bab yang dipelajari bulan ini.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="jr-card">
+      <div class="head">
+        <h3><span class="ic">⭐</span> Penilaian Guru</h3>
+        <p>Observasi spesifik — diperhatikan orang tua saat membuka jurnal ini.</p>
+      </div>
+      <div class="body">
+        <div class="jr-field">
+          <label>Kekuatan / Hal Positif <span class="req">*</span></label>
+          <textarea name="strengths" rows="3" required>{% if form_data %}{{ form_data.strengths }}{% elif journal %}{{ journal.strengths }}{% endif %}</textarea>
+        </div>
+        <div class="jr-field">
+          <label>Yang Perlu Ditingkatkan <span class="req">*</span></label>
+          <textarea name="areas_for_improvement" rows="3" required>{% if form_data %}{{ form_data.areas_for_improvement }}{% elif journal %}{{ journal.areas_for_improvement }}{% endif %}</textarea>
+          <p class="hint">Sampaikan dengan bahasa yang konstruktif — orang tua akan membaca ini.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="jr-card">
+      <div class="body">
+        <div class="jr-actions">
+          <div class="left">
+            {% if journal and journal.published_at %}
+              ✓ Sudah dipublikasikan pada {{ journal.published_at|date:"d M Y, H:i" }}
+            {% elif journal %}
+              Tersimpan sebagai draf — orang tua belum bisa lihat
+            {% else %}
+              Belum disimpan
+            {% endif %}
+          </div>
+          <div class="right">
+            <a href="{% url 'grades:teacher_student_progress' pk=kelas.pk enrollment_id=enrollment.pk %}" class="jr-btn jr-btn-cancel">
+              <i class="ti ti-x"></i> Batal
+            </a>
+            <button type="submit" class="jr-btn jr-btn-draft" name="publish" value="0">
+              <i class="ti ti-device-floppy"></i> Simpan Draf
+            </button>
+            <button type="submit" class="jr-btn jr-btn-publish" name="publish" value="1">
+              <i class="ti ti-send"></i>
+              {% if journal and journal.published_at %}Update &amp; Tetap Publik{% else %}Publikasikan{% endif %}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+{% endwith %}
+{% endblock %}

@@ -77,8 +77,19 @@
       <li class="px-5 py-4">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0">
+            {% comment %}
+              Anonymous rating → hide the student's name. The student opted in
+              to anonymity when submitting the rating; respect it on this
+              teacher-facing page too.
+            {% endcomment %}
             <p class="text-sm font-medium text-gray-900">
-              {{ rating.enrollment.student.get_full_name }}
+              {% if rating.is_anonymous %}
+                <span class="inline-flex items-center gap-1 text-gray-500 italic font-normal">
+                  <i class="ti ti-eye-off text-xs"></i> Anonim
+                </span>
+              {% else %}
+                {{ rating.enrollment.student.get_full_name }}
+              {% endif %}
             </p>
             {% if rating.comment %}
             <p class="text-sm text-gray-600 mt-1 leading-relaxed">{{ rating.comment }}</p>
