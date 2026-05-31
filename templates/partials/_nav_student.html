@@ -6,7 +6,7 @@
 <style>
   aside.sidebar:has(.student-nav-marker) {
     background: linear-gradient(180deg, #f0fdfa 0%, #ffffff 80%);
-    border-right: 0.5px solid #ccfbf1;
+    border-right: 0.5px solid #e0f1f2;
     overflow-x: hidden;
   }
   /* Student sidebar replaces the shared bottom profile/logout block with its
@@ -50,13 +50,13 @@
   .sidebar-item:hover {
     background: #ffffff;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
-    color: #0f766e;
+    color: #3d7c80;
   }
   .sidebar-item.active {
     background: #ffffff;
-    color: #0f766e;
+    color: #3d7c80;
     font-weight: 600;
-    border: 1px solid #99f6e4 !important;
+    border: 1px solid #c2e4e6 !important;
     box-shadow: 0 4px 12px rgba(20, 184, 166, 0.18), 0 1px 3px rgba(20, 184, 166, 0.08) !important;
     transform: translateX(2px);
   }
@@ -65,13 +65,13 @@
     filter: drop-shadow(0 2px 3px rgba(20, 184, 166, 0.25));
   }
   .sidebar-item.utility { color: #64748b; }
-  .sidebar-item.utility:hover { color: #0f766e; }
+  .sidebar-item.utility:hover { color: #3d7c80; }
   .sidebar-item.logout { color: #dc2626; }
   .sidebar-item.logout:hover { background: #fef2f2; color: #b91c1c; }
 
   .student-divider {
     height: 1px;
-    background: linear-gradient(90deg, transparent, #99f6e4, transparent);
+    background: linear-gradient(90deg, transparent, #c2e4e6, transparent);
     margin: 12px 8px;
   }
 
@@ -79,7 +79,7 @@
     margin: 12px 4px 4px;
     padding: 10px;
     background: #ffffff;
-    border: 1px solid #99f6e4;
+    border: 1px solid #c2e4e6;
     border-radius: 12px;
     display: flex;
     align-items: center;
@@ -90,16 +90,16 @@
     transition: border-color 0.2s, box-shadow 0.2s;
   }
   .student-user-block:hover {
-    border-color: #2dd4bf;
+    border-color: #7fcacd;
     box-shadow: 0 4px 14px rgba(20, 184, 166, 0.15);
   }
   .student-user-block.active {
-    border-color: #14b8a6;
+    border-color: #4a9499;
     box-shadow: 0 3px 10px rgba(20, 184, 166, 0.18);
   }
   .student-user-block .avatar {
     width: 32px; height: 32px; border-radius: 999px;
-    background: linear-gradient(135deg, #14b8a6, #0d9488);
+    background: linear-gradient(135deg, #4a9499, #3d7c80);
     color: #fff; display: flex; align-items: center; justify-content: center;
     font-size: 11px; font-weight: 700; flex-shrink: 0;
   }
@@ -108,14 +108,14 @@
   .student-user-block .info .nm { font-size: 12px; font-weight: 600; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .student-user-block .info .rl { font-size: 10px; color: #6b7280; margin-top: 1px; }
   .student-user-block .edit-hint {
-    font-size: 13px; color: #14b8a6; flex-shrink: 0;
+    font-size: 13px; color: #4a9499; flex-shrink: 0;
     transition: transform 0.2s;
   }
   .student-user-block:hover .edit-hint { transform: scale(1.15); }
 
   /* Collapsed-mode rescue: keep emojis + avatar visible */
   aside.sidebar-collapsed .sidebar-item .ico { font-size: 18px !important; }
-  aside.sidebar-collapsed .sidebar-item.active { border: 1px solid #99f6e4 !important; }
+  aside.sidebar-collapsed .sidebar-item.active { border: 1px solid #c2e4e6 !important; }
   aside.sidebar-collapsed .student-divider { margin: 8px 8px; }
   aside.sidebar-collapsed .student-user-block { padding: 6px; justify-content: center; }
   aside.sidebar-collapsed .student-user-block .info,

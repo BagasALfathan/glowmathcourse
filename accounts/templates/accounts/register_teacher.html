@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" href="{% static 'images/logo.png' %}">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = { theme: { extend: { colors: { primary: '#10b981' } } } }
+    tailwind.config = { theme: { extend: { colors: { primary: '#4a9499' } } } }
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="{% static 'css/animations.css' %}">
@@ -27,13 +27,13 @@
     <!-- Top bar: logo + role pill -->
     <div class="w-full max-w-[480px] flex items-center justify-between mb-6">
       <a href="/guru/login/" class="flex items-center gap-2">
-        <div class="w-8 h-8 rounded-md flex items-center justify-center text-white" style="background:#10b981;">
+        <div class="w-8 h-8 rounded-md flex items-center justify-center text-white" style="background:#4a9499;">
           <i class="ti ti-math-symbols text-base"></i>
         </div>
         <span class="font-bold text-gray-900 text-sm">GlowMath Course</span>
       </a>
       <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold"
-            style="background:#ecfdf5; color:#047857;">
+            style="background:#f0f9fa; color:#326568;">
         <i class="ti ti-school text-sm"></i> Portal Guru
       </span>
     </div>
@@ -240,9 +240,9 @@
             </button>
             <button type="button" x-show="step < 3" @click="next()"
                     class="flex-1 py-2.5 rounded-lg text-white text-sm font-semibold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition"
-                    style="background:#10b981;"
-                    onmouseover="this.style.background='#059669'"
-                    onmouseout="this.style.background='#10b981'">
+                    style="background:#4a9499;"
+                    onmouseover="this.style.background='#3d7c80'"
+                    onmouseout="this.style.background='#4a9499'">
               <span x-text="'Lanjut ke Langkah ' + (step + 1)"></span>
               <i class="ti ti-arrow-right"></i>
             </button>
@@ -250,9 +250,9 @@
                     :disabled="loading"
                     :class="{ 'btn-loading': loading }"
                     class="flex-1 py-2.5 rounded-lg text-white text-sm font-semibold inline-flex items-center justify-center gap-2 active:scale-[0.98] transition"
-                    style="background:#10b981;"
-                    onmouseover="if(!this.disabled)this.style.background='#059669'"
-                    onmouseout="this.style.background='#10b981'">
+                    style="background:#4a9499;"
+                    onmouseover="if(!this.disabled)this.style.background='#3d7c80'"
+                    onmouseout="this.style.background='#4a9499'">
               <template x-if="!loading">
                 <span class="inline-flex items-center gap-2"><i class="ti ti-user-plus"></i> Daftar sebagai Guru <i class="ti ti-arrow-right"></i></span>
               </template>

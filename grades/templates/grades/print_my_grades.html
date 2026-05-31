@@ -27,7 +27,7 @@
           {% if row.enrollment.kelas.teacher %}
             &nbsp;·&nbsp; {{ row.enrollment.kelas.teacher.get_full_name }}
           {% endif %}
-          {% if row.enrollment.kelas.level == 'SD' %}&nbsp;·&nbsp;<span class="text-teal-700">SD</span>
+          {% if row.enrollment.kelas.level == 'SD' %}&nbsp;·&nbsp;<span class="text-primary-700">SD</span>
           {% elif row.enrollment.kelas.level == 'SMP' %}&nbsp;·&nbsp;<span class="text-blue-700">SMP</span>
           {% else %}&nbsp;·&nbsp;<span class="text-primary-700">SMA</span>{% endif %}
         </p>

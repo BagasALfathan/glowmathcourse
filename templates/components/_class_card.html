@@ -62,9 +62,9 @@
     <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full"
          @click.stop>
       <div class="flex items-start gap-3 mb-4">
-        <div class="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
+        <div class="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-               stroke-width="1.75" stroke="currentColor" class="w-5 h-5 text-orange-600">
+               stroke-width="1.75" stroke="currentColor" class="w-5 h-5 text-primary-600">
             <path stroke-linecap="round" stroke-linejoin="round"
                   d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
           </svg>
@@ -87,8 +87,8 @@
         <form method="post" action="{% url 'enrollments:drop_class' enrollment.pk %}">
           {% csrf_token %}
           <button type="submit"
-                  class="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg
-                         hover:bg-orange-700 transition-colors">
+                  class="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg
+                         hover:bg-primary-700 transition-colors">
             Ya, Keluar
           </button>
         </form>
@@ -108,9 +108,9 @@
     <div class="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full"
          @click.stop>
       <div class="flex items-start gap-3 mb-4">
-        <div class="w-10 h-10 rounded-full bg-teal-100 flex items-center justify-center shrink-0">
+        <div class="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center shrink-0">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-               stroke-width="1.75" stroke="currentColor" class="w-5 h-5 text-teal-600">
+               stroke-width="1.75" stroke="currentColor" class="w-5 h-5 text-primary-600">
             <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
           </svg>
         </div>
@@ -132,8 +132,8 @@
         <form method="post" action="{% url 'academics:teacher_class_complete' kelas.pk %}">
           {% csrf_token %}
           <button type="submit"
-                  class="px-4 py-2 text-sm font-medium text-white bg-teal-600 rounded-lg
-                         hover:bg-teal-700 transition-colors">
+                  class="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg
+                         hover:bg-primary-700 transition-colors">
             Ya, Selesaikan
           </button>
         </form>
@@ -151,7 +151,7 @@
       {% if show_enroll_button or enrollment %}
       {% if kelas.teacher_id %}
       <a href="{% url 'academics:teacher_profile' kelas.teacher_id %}"
-         class="text-xs text-gray-400 mt-0.5 truncate block hover:text-teal-600 transition-colors"
+         class="text-xs text-gray-400 mt-0.5 truncate block hover:text-primary-600 transition-colors"
          onclick="event.stopPropagation()">
         {{ kelas.teacher.get_full_name }}
       </a>
@@ -175,7 +175,7 @@
   <!-- Level + enrolled/capacity + sessions -->
   <div class="px-5 py-3 flex items-center gap-3 flex-wrap">
     {% if kelas.level == 'SD' %}
-      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-teal-50 text-teal-700">SD</span>
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-50 text-primary-700">SD</span>
     {% elif kelas.level == 'SMP' %}
       <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">SMP</span>
     {% else %}
@@ -226,8 +226,8 @@
     <!-- Row 1: main actions -->
     <div class="flex gap-1">
       <a href="{% url 'sessions_app:teacher_sessions' kelas.pk %}"
-         class="flex-1 text-center text-xs font-medium text-teal-600 hover:text-teal-800
-                py-1.5 rounded-lg hover:bg-teal-50 transition-colors">
+         class="flex-1 text-center text-xs font-medium text-primary-600 hover:text-primary-800
+                py-1.5 rounded-lg hover:bg-primary-50 transition-colors">
         Pertemuan
       </a>
       <a href="{% url 'academics:teacher_class_students' kelas.pk %}"
@@ -254,8 +254,8 @@
     {% if kelas.can_complete %}
     <button type="button"
             @click="completing = true"
-            class="w-full text-center text-xs font-medium text-teal-700 bg-teal-50 hover:bg-teal-100
-                   py-1.5 rounded-lg transition-colors border border-teal-200">
+            class="w-full text-center text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100
+                   py-1.5 rounded-lg transition-colors border border-primary-200">
       Selesaikan Kelas
     </button>
     {% else %}
@@ -322,17 +322,17 @@
       {% endif %}
       {% if enrollment.status == 'ACTIVE' %}
       <a href="{% url 'sessions_app:student_session_list' enrollment.pk %}"
-         class="text-xs font-medium text-teal-600 hover:text-teal-800 px-3 py-1.5
-                rounded-lg hover:bg-teal-50 transition-colors border border-teal-100">
+         class="text-xs font-medium text-primary-600 hover:text-primary-800 px-3 py-1.5
+                rounded-lg hover:bg-primary-50 transition-colors border border-primary-100">
         Pilih Pertemuan
         {% if enrollment.booked_sessions is not None %}
-          <span class="ml-0.5 text-teal-500">({{ enrollment.booked_sessions }})</span>
+          <span class="ml-0.5 text-primary-500">({{ enrollment.booked_sessions }})</span>
         {% endif %}
       </a>
       <button type="button"
               @click="dropping = true"
-              class="text-xs font-medium text-orange-500 hover:text-orange-700 px-3 py-1.5
-                     rounded-lg hover:bg-orange-50 transition-colors">
+              class="text-xs font-medium text-primary-500 hover:text-primary-700 px-3 py-1.5
+                     rounded-lg hover:bg-primary-50 transition-colors">
         Keluar
       </button>
       {% endif %}

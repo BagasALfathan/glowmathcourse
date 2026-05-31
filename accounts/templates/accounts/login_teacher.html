@@ -12,10 +12,10 @@
       theme: {
         extend: {
           colors: {
-            primary:        '#10b981',
-            'primary-hover':'#059669',
-            'primary-light':'#d1fae5',
-            'primary-bg':   '#ecfdf5',
+            primary:        '#4a9499',
+            'primary-hover':'#3d7c80',
+            'primary-light':'#e0f1f2',
+            'primary-bg':   '#f0f9fa',
           }
         }
       }
@@ -38,7 +38,7 @@
       <!-- Brand row -->
       <div class="flex items-center gap-2.5 mb-5">
         <div class="w-8 h-8 rounded-md flex items-center justify-center text-white"
-             style="background:#10b981;">
+             style="background:#4a9499;">
           <i class="ti ti-math-symbols text-base"></i>
         </div>
         <div class="font-bold text-gray-900 text-sm">GlowMath Course</div>
@@ -46,7 +46,7 @@
 
       <!-- Role pill -->
       <div class="inline-flex items-center gap-1.5 mb-4 px-2.5 py-1 rounded-full text-xs font-semibold"
-           style="background:#ecfdf5; color:#047857;">
+           style="background:#f0f9fa; color:#326568;">
         🎓 Portal Guru
       </div>
 
@@ -112,9 +112,9 @@
                 :disabled="loading"
                 :class="{ 'btn-loading': loading }"
                 class="w-full inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-white text-sm font-semibold transition active:scale-[0.98]"
-                style="background:#10b981;"
-                onmouseover="if(!this.disabled)this.style.background='#059669'"
-                onmouseout="this.style.background='#10b981'">
+                style="background:#4a9499;"
+                onmouseover="if(!this.disabled)this.style.background='#3d7c80'"
+                onmouseout="this.style.background='#4a9499'">
           <template x-if="!loading"><span>Masuk</span></template>
           <template x-if="loading"><span class="inline-flex items-center gap-2"><span class="spinner"></span> Memeriksa…</span></template>
         </button>

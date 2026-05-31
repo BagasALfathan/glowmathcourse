@@ -8,17 +8,17 @@
 {% endcomment %}
 <a href="{% url 'announcements:detail' ann.pk %}"
    class="block bg-white rounded-2xl p-4 no-underline transition-all hover:-translate-y-0.5 hover:shadow-lg
-          {% if is_pinned %}border-2 border-amber-300{% else %}border border-gray-200 border-l-4 border-l-orange-400 hover:border-l-orange-500{% endif %}">
+          {% if is_pinned %}border-2 border-amber-300{% else %}border border-gray-200 border-l-4 border-l-primary-400 hover:border-l-primary-500{% endif %}">
   <div class="flex items-start gap-3">
 
     {% if ann.target_role == 'STUDENT' and ann.level == 'ALL' %}
-      <div class="w-10 h-10 rounded-xl bg-pink-100 text-pink-700 flex items-center justify-center text-base flex-shrink-0">🎓</div>
+      <div class="w-10 h-10 rounded-xl bg-primary-100 text-primary-700 flex items-center justify-center text-base flex-shrink-0">🎓</div>
     {% elif ann.target_role == 'STUDENT' %}
       <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center text-base flex-shrink-0">📚</div>
     {% elif ann.target_role == 'TEACHER' %}
-      <div class="w-10 h-10 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center text-base flex-shrink-0">👩‍🏫</div>
+      <div class="w-10 h-10 rounded-xl bg-primary-100 text-primary-700 flex items-center justify-center text-base flex-shrink-0">👩‍🏫</div>
     {% else %}
-      <div class="w-10 h-10 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center text-base flex-shrink-0">📢</div>
+      <div class="w-10 h-10 rounded-xl bg-primary-100 text-primary-700 flex items-center justify-center text-base flex-shrink-0">📢</div>
     {% endif %}
 
     <div class="flex-1 min-w-0">
@@ -26,11 +26,11 @@
         {% if ann.target_role == 'STUDENT' and ann.level != 'ALL' %}
           <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700">{{ ann.level }}</span>
         {% elif ann.target_role == 'STUDENT' %}
-          <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-pink-50 text-pink-700">Siswa</span>
+          <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-primary-50 text-primary-700">Siswa</span>
         {% elif ann.target_role == 'TEACHER' %}
-          <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-violet-50 text-violet-700">Guru</span>
+          <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-primary-50 text-primary-700">Guru</span>
         {% else %}
-          <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-orange-50 text-orange-700">Semua</span>
+          <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-primary-50 text-primary-700">Semua</span>
         {% endif %}
         {% if ann.is_pinned %}
           <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">📌 Penting</span>
@@ -43,7 +43,7 @@
         <span class="text-[10px] text-gray-500">
           {% if ann.author %}— {{ ann.author.get_full_name|default:ann.author.username }}{% else %}— Admin{% endif %}
         </span>
-        <span class="text-[11px] text-orange-600 font-semibold">Baca selengkapnya →</span>
+        <span class="text-[11px] text-primary-600 font-semibold">Baca selengkapnya →</span>
       </div>
     </div>
   </div>

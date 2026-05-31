@@ -9,7 +9,7 @@
 <!-- 1. ANNOUNCEMENT HERO ─────────────────────────────────────────────── -->
 {% if featured_announcement %}
 <div class="rounded-2xl p-5 md:p-7 mb-6 text-white relative overflow-hidden min-h-[160px] md:min-h-[180px] flex items-center"
-     style="background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);">
+     style="background: linear-gradient(135deg, #4a9499 0%, #4a9499 50%, #3d7c80 100%);">
   <!-- decorative dot pattern (hidden on mobile to save space) -->
   <div class="hidden md:block absolute right-0 top-0 bottom-0 w-72 opacity-10 pointer-events-none"
        style="background-image: radial-gradient(circle at 30% 30%, white 2px, transparent 2px),
@@ -45,40 +45,40 @@
 <div class="flex flex-col sm:flex-row gap-3 sm:gap-3 mb-6 p-4 bg-white border border-gray-200 rounded-xl">
   <a href="{% url 'student:my_classes' %}"
      class="group flex-1 flex gap-3 items-center -m-2 p-2 rounded-lg hover:bg-gray-50 transition-colors">
-    <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+    <div class="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center shrink-0">
       <i class="ti ti-school text-lg"></i>
     </div>
     <div>
       <div class="text-lg font-semibold text-gray-900 leading-none">{{ total_active_classes }}</div>
       <div class="text-xs text-gray-500 mt-1 inline-flex items-center gap-1">
         Kelas Aktif
-        <i class="ti ti-arrow-right text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]"></i>
+        <i class="ti ti-arrow-right text-primary-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]"></i>
       </div>
     </div>
   </a>
   <a href="{% url 'student:my_attendance' %}"
      class="group flex-1 flex gap-3 items-center -m-2 p-2 rounded-lg sm:ml-1 sm:border-l sm:border-t-0 border-t border-gray-100 sm:pl-4 pt-3 sm:pt-2 hover:bg-gray-50 transition-colors">
-    <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+    <div class="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center shrink-0">
       <i class="ti ti-calendar-check text-lg"></i>
     </div>
     <div>
       <div class="text-lg font-semibold text-gray-900 leading-none">{{ attendance_rate }}%</div>
       <div class="text-xs text-gray-500 mt-1 inline-flex items-center gap-1">
         Kehadiran
-        <i class="ti ti-arrow-right text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]"></i>
+        <i class="ti ti-arrow-right text-primary-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]"></i>
       </div>
     </div>
   </a>
   <a href="{% url 'student:my_monthly_score' %}"
      class="group flex-1 flex gap-3 items-center -m-2 p-2 rounded-lg sm:ml-1 sm:border-l sm:border-t-0 border-t border-gray-100 sm:pl-4 pt-3 sm:pt-2 hover:bg-gray-50 transition-colors">
-    <div class="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+    <div class="w-9 h-9 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center shrink-0">
       <i class="ti ti-star text-lg"></i>
     </div>
     <div>
       <div class="text-lg font-semibold text-gray-900 leading-none">{{ avg_score }}</div>
       <div class="text-xs text-gray-500 mt-1 inline-flex items-center gap-1">
         Nilai Rata-rata
-        <i class="ti ti-arrow-right text-emerald-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]"></i>
+        <i class="ti ti-arrow-right text-primary-500 opacity-0 group-hover:opacity-100 transition-opacity text-[10px]"></i>
       </div>
     </div>
   </a>
@@ -87,14 +87,14 @@
 <!-- 3. ACTIVE CLASSES MINI ────────────────────────────────────────────── -->
 <div class="flex justify-between items-center mb-3">
   <h2 class="text-base font-semibold m-0">📚 Kelas saya</h2>
-  <a href="{% url 'student:my_classes' %}" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Semua kelas →</a>
+  <a href="{% url 'student:my_classes' %}" class="text-xs text-primary-600 hover:text-primary-700 font-semibold">Semua kelas →</a>
 </div>
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
   {% for e in active_enrollments %}
   <a href="{% url 'academics:class_detail' e.kelas.id %}"
      class="card-hover-lift block bg-white border border-gray-200 rounded-xl p-3.5">
     <div class="flex items-center gap-2.5 mb-3">
-      <div class="w-9 h-9 rounded-lg bg-emerald-50 flex items-center justify-center text-lg shrink-0">
+      <div class="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center text-lg shrink-0">
         {{ e.kelas.subject.name|subject_emoji }}
       </div>
       <div class="min-w-0">
@@ -106,15 +106,15 @@
     </div>
     <div class="flex items-center gap-1.5">
       <div class="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
-        <div class="h-full bg-emerald-500 rounded-full" style="width: {{ e.progress_pct }}%"></div>
+        <div class="h-full bg-primary-500 rounded-full" style="width: {{ e.progress_pct }}%"></div>
       </div>
-      <span class="text-[10px] font-semibold text-emerald-700 w-9 text-right">{{ e.progress_pct }}%</span>
+      <span class="text-[10px] font-semibold text-primary-700 w-9 text-right">{{ e.progress_pct }}%</span>
     </div>
   </a>
   {% empty %}
   <div class="sm:col-span-2 lg:col-span-3 text-center p-6 bg-gray-50 rounded-xl text-sm text-gray-500">
     Belum ada kelas aktif.
-    <a href="{% url 'academics:class_browse' %}" class="text-emerald-600 hover:text-emerald-700 font-semibold">Cari kelas →</a>
+    <a href="{% url 'academics:class_browse' %}" class="text-primary-600 hover:text-primary-700 font-semibold">Cari kelas →</a>
   </div>
   {% endfor %}
 </div>
@@ -123,7 +123,7 @@
 {% if top_teachers %}
 <div class="flex justify-between items-center mb-3 mt-7">
   <h2 class="text-base font-semibold m-0">⭐ Guru Terbaik Bulan Ini</h2>
-  <a href="{% url 'academics:teacher_list' %}" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Semua guru →</a>
+  <a href="{% url 'academics:teacher_list' %}" class="text-xs text-primary-600 hover:text-primary-700 font-semibold">Semua guru →</a>
 </div>
 <div class="grid grid-cols-1 md:grid-cols-3 md:[grid-template-columns:1.4fr_1fr_1fr] gap-3">
   {% for t in top_teachers %}
@@ -150,10 +150,10 @@
     </p>
     <div class="flex gap-3 text-xs text-gray-800 items-center mb-2">
       <span class="inline-flex items-center gap-1">{% star_rating t.avg_score size=12 show_number=True %}</span>
-      <span class="inline-flex items-center gap-1"><i class="ti ti-users text-emerald-700"></i> {{ t.student_count }} siswa</span>
+      <span class="inline-flex items-center gap-1"><i class="ti ti-users text-primary-700"></i> {{ t.student_count }} siswa</span>
     </div>
     <a href="{% url 'academics:teacher_profile' t.profile.user.id %}"
-       class="block py-1.5 bg-white text-emerald-700 text-center rounded-lg text-xs font-semibold border border-emerald-100 hover:border-emerald-300 transition">
+       class="block py-1.5 bg-white text-primary-700 text-center rounded-lg text-xs font-semibold border border-primary-100 hover:border-primary-300 transition">
       Lihat Profil
     </a>
   </div>
@@ -161,7 +161,7 @@
   <!-- Runners-up -->
   <div class="card-hover-lift bg-white border border-gray-200 rounded-2xl p-4">
     <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl font-semibold text-white mb-2 overflow-hidden"
-         style="background: linear-gradient(135deg, #10b981, #059669);">
+         style="background: linear-gradient(135deg, #4a9499, #4a9499);">
       {% if t.profile.photo %}
         <img src="{{ t.profile.photo.url }}" class="w-full h-full rounded-full object-cover">
       {% else %}
@@ -177,7 +177,7 @@
       <span class="inline-flex items-center gap-1 text-gray-500"><i class="ti ti-users"></i> {{ t.student_count }}</span>
     </div>
     <a href="{% url 'academics:teacher_profile' t.profile.user.id %}"
-       class="block py-1.5 bg-white text-emerald-700 text-center rounded-lg text-xs font-semibold border border-emerald-100 hover:border-emerald-300 transition">
+       class="block py-1.5 bg-white text-primary-700 text-center rounded-lg text-xs font-semibold border border-primary-100 hover:border-primary-300 transition">
       Lihat Profil
     </a>
   </div>
@@ -192,7 +192,7 @@
   <div>
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-base font-semibold m-0">🔥 Kelas Populer</h2>
-      <a href="{% url 'academics:class_browse' %}" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Lihat →</a>
+      <a href="{% url 'academics:class_browse' %}" class="text-xs text-primary-600 hover:text-primary-700 font-semibold">Lihat →</a>
     </div>
     <div class="grid grid-cols-2 gap-2.5">
       {% for k in popular_classes %}
@@ -222,7 +222,7 @@
   <div>
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-base font-semibold m-0">✨ Kelas Baru</h2>
-      <a href="{% url 'academics:class_browse' %}?sort=newest" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Lihat →</a>
+      <a href="{% url 'academics:class_browse' %}?sort=newest" class="text-xs text-primary-600 hover:text-primary-700 font-semibold">Lihat →</a>
     </div>
     <div class="grid grid-cols-2 gap-2.5">
       {% for k in new_classes %}
@@ -234,7 +234,7 @@
           {{ k.teacher_profile.user.get_full_name|default:k.teacher_profile.user.username }}
         </p>
         <div class="flex justify-between items-center text-[10px]">
-          <span class="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-semibold">BARU</span>
+          <span class="bg-primary-100 text-primary-800 px-1.5 py-0.5 rounded font-semibold">BARU</span>
           <span class="text-gray-500">Mulai {{ k.start_date|date:"d M" }}</span>
         </div>
       </a>
@@ -251,12 +251,12 @@
   <div>
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-base font-semibold m-0">📅 Hari ini ({{ today_sessions_count }} sesi)</h2>
-      <a href="{% url 'academics:student_schedule_sessions' %}" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Jadwal lengkap →</a>
+      <a href="{% url 'academics:student_schedule_sessions' %}" class="text-xs text-primary-600 hover:text-primary-700 font-semibold">Jadwal lengkap →</a>
     </div>
     <div class="bg-white border border-gray-200 rounded-xl p-2">
       {% for s in today_sessions %}
       <div class="flex gap-2 sm:gap-3 px-2 py-2 {% if not forloop.last %}border-b border-gray-100{% endif %} items-center">
-        <div class="bg-emerald-50 text-emerald-700 px-2 sm:px-2.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold min-w-[56px] sm:min-w-[64px] text-center leading-tight shrink-0">
+        <div class="bg-primary-50 text-primary-700 px-2 sm:px-2.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-semibold min-w-[56px] sm:min-w-[64px] text-center leading-tight shrink-0">
           {% if s.start_time %}{{ s.start_time|time:"H:i" }}{% else %}—{% endif %}
           {% if s.end_time %}<br><span class="text-[9px] opacity-70 font-normal">–{{ s.end_time|time:"H:i" }}</span>{% endif %}
         </div>
@@ -270,7 +270,7 @@
           </p>
         </div>
         <a href="{% url 'sessions_app:session_detail' s.id %}"
-           class="hidden sm:inline text-xs text-emerald-600 hover:text-emerald-700 font-semibold whitespace-nowrap">Buka →</a>
+           class="hidden sm:inline text-xs text-primary-600 hover:text-primary-700 font-semibold whitespace-nowrap">Buka →</a>
       </div>
       {% empty %}
       <p class="text-xs text-gray-500 text-center py-6 m-0">Tidak ada sesi hari ini 🌴</p>
@@ -282,26 +282,26 @@
   <div>
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-base font-semibold m-0">📝 Jurnal Terbaru</h2>
-      <a href="{% url 'journals:my_journals' %}" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Semua →</a>
+      <a href="{% url 'journals:my_journals' %}" class="text-xs text-primary-600 hover:text-primary-700 font-semibold">Semua →</a>
     </div>
     {% if latest_journal %}
-    <div class="rounded-2xl p-5 h-full" style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);">
-      <h3 class="text-sm font-semibold text-emerald-900 m-0 mb-1.5 inline-flex items-center gap-1.5">
+    <div class="rounded-2xl p-5 h-full" style="background: linear-gradient(135deg, #f0f9fa 0%, #e0f1f2 100%);">
+      <h3 class="text-sm font-semibold text-primary-900 m-0 mb-1.5 inline-flex items-center gap-1.5">
         <i class="ti ti-quote"></i> Laporan {{ latest_journal.month|month_name }} {{ latest_journal.year }}
       </h3>
-      <p class="text-xs text-emerald-800 m-0 mb-2">
+      <p class="text-xs text-primary-800 m-0 mb-2">
         <b>{{ latest_journal.enrollment.kelas.name }}</b> ·
         {{ latest_journal.written_by_teacher.user.get_full_name|default:latest_journal.written_by_teacher.user.username }}
       </p>
-      <p class="text-xs text-emerald-700 m-0 my-2 leading-relaxed italic">
+      <p class="text-xs text-primary-700 m-0 my-2 leading-relaxed italic">
         "{{ latest_journal.summary|truncatewords:25 }}"
       </p>
-      <div class="flex justify-between text-xs text-emerald-700 mt-3">
+      <div class="flex justify-between text-xs text-primary-700 mt-3">
         <span>
           Skor bulan ini:
           <b>{% if latest_journal.month_score is not None %}{{ latest_journal.month_score }}{% else %}—{% endif %}</b>
         </span>
-        <a href="{% url 'journals:journal_detail' latest_journal.id %}" class="font-semibold hover:text-emerald-900">
+        <a href="{% url 'journals:journal_detail' latest_journal.id %}" class="font-semibold hover:text-primary-900">
           Baca lengkap →
         </a>
       </div>

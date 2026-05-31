@@ -48,8 +48,8 @@
 
 /* Dark spinner for light backgrounds */
 .spinner-dark {
-  border-color: rgba(16, 185, 129, 0.2);
-  border-top-color: #10b981;
+  border-color: rgba(74, 148, 153, 0.2);
+  border-top-color: #4a9499;
 }
 
 /* ── Button states ───────────────────────────────────────────────────── */
@@ -61,7 +61,7 @@
 }
 
 .btn-success {
-  background: #10b981 !important;
+  background: #4a9499 !important;
   background-image: none !important;  /* override gradient */
   transition: background 0.3s ease;
 }
@@ -105,7 +105,7 @@
   transition: border-color 0.2s ease;
 }
 .card-hover-border:hover {
-  border-color: #10b981;
+  border-color: #4a9499;
 }
 
 /* ── Pill press feedback ─────────────────────────────────────────────── */

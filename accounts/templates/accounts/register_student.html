@@ -8,17 +8,17 @@
   <link rel="icon" type="image/png" href="{% static 'images/logo.png' %}">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = { theme: { extend: { colors: { primary: '#10b981' } } } }
+    tailwind.config = { theme: { extend: { colors: { primary: '#4a9499' } } } }
   </script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
   <link rel="stylesheet" href="{% static 'css/animations.css' %}">
   <script defer src="https://unpkg.com/alpinejs@3/dist/cdn.min.js"></script>
   <style>
-    body { background: linear-gradient(180deg, #ecfdf5 0%, #ffffff 60%); min-height:100vh; }
+    body { background: linear-gradient(180deg, #f0f9fa 0%, #ffffff 60%); min-height:100vh; }
     .step-collapse { transition: all 0.3s ease; overflow: hidden; }
     .progress-fill { transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
     .pill-btn { transition: all 0.15s ease; }
-    .pill-btn:hover:not(.active) { border-color: #10b981; }
+    .pill-btn:hover:not(.active) { border-color: #4a9499; }
     [x-cloak] { display: none !important; }
   </style>
 </head>
@@ -28,7 +28,7 @@
 
     <a href="/" class="flex items-center gap-2 mb-5">
       <div class="w-9 h-9 rounded-lg flex items-center justify-center text-white shadow-sm"
-           style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);">
+           style="background:linear-gradient(135deg,#4a9499 0%,#3d7c80 100%);">
         <i class="ti ti-math-symbols text-lg"></i>
       </div>
       <span class="font-bold text-gray-900 text-sm">GlowMath</span>
@@ -63,7 +63,7 @@
         <div class="flex items-center gap-2">
           <div class="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
             <div class="h-full progress-fill rounded-full"
-                 style="background:linear-gradient(90deg,#10b981 0%,#059669 100%);"
+                 style="background:linear-gradient(90deg,#4a9499 0%,#3d7c80 100%);"
                  :style="'width:' + progressPct() + '%'"></div>
           </div>
           <span class="text-xs font-bold text-primary-700 w-8 text-right"
@@ -186,7 +186,7 @@
                 <button type="button" @click="form2.level = '{{ value }}'"
                         class="pill-btn px-2 py-2 rounded-lg text-xs font-semibold border"
                         :class="form2.level === '{{ value }}' ? 'text-white border-transparent shadow-sm' : 'bg-white text-gray-700 border-gray-200'"
-                        :style="form2.level === '{{ value }}' ? 'background:linear-gradient(135deg,#10b981 0%,#059669 100%);' : ''">
+                        :style="form2.level === '{{ value }}' ? 'background:linear-gradient(135deg,#4a9499 0%,#3d7c80 100%);' : ''">
                   {{ label }}
                 </button>
                 {% endfor %}
@@ -252,7 +252,7 @@
           </button>
           <button type="button" x-show="step < 3" @click="next()"
                   class="flex-1 py-2.5 rounded-lg text-white text-sm font-semibold inline-flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition"
-                  style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);">
+                  style="background:linear-gradient(135deg,#4a9499 0%,#3d7c80 100%);">
             <span x-text="'Lanjut ke Langkah ' + (step + 1)"></span>
             <i class="ti ti-arrow-right"></i>
           </button>
@@ -260,7 +260,7 @@
                   :disabled="loading"
                   :class="{ 'btn-loading': loading }"
                   class="flex-1 py-2.5 rounded-lg text-white text-sm font-semibold inline-flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition"
-                  style="background:linear-gradient(135deg,#10b981 0%,#059669 100%);">
+                  style="background:linear-gradient(135deg,#4a9499 0%,#3d7c80 100%);">
             <template x-if="!loading">
               <span class="inline-flex items-center gap-2"><i class="ti ti-rocket"></i> 🎉 Daftar Sekarang</span>
             </template>

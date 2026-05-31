@@ -15,14 +15,14 @@
     </h1>
     <p class="text-xs md:text-sm text-gray-500 m-0">
       {{ today|date:"l, d F Y" }} ·
-      <b class="text-emerald-700">{{ today_sessions_count }} sesi</b> hari ini
+      <b class="text-primary-700">{{ today_sessions_count }} sesi</b> hari ini
       {% if sessions_needing_attendance_count %}
         · <b class="text-amber-600">{{ sessions_needing_attendance_count }} sesi</b> butuh absen
       {% endif %}
     </p>
   </div>
   <a href="{% url 'academics:teacher_classes' %}"
-     class="self-start sm:self-auto card-hover-border bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-colors whitespace-nowrap">
+     class="self-start sm:self-auto card-hover-border bg-primary-500 hover:bg-primary-600 text-white px-4 py-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-colors whitespace-nowrap">
     <i class="ti ti-plus"></i> Tambah Sesi
   </a>
 </div>
@@ -32,7 +32,7 @@
   <a href="{% url 'academics:teacher_classes' %}"
      class="card-hover-border block bg-white border border-gray-200 rounded-xl p-4">
     <div class="flex justify-between items-center mb-2">
-      <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="ti ti-school"></i></div>
+      <div class="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center"><i class="ti ti-school"></i></div>
       <i class="ti ti-arrow-up-right text-gray-300 text-sm"></i>
     </div>
     <div class="text-2xl font-semibold text-gray-900 leading-none">{{ active_classes_count }}</div>
@@ -41,7 +41,7 @@
   <a href="{% url 'academics:teacher_all_students' %}"
      class="card-hover-border block bg-white border border-gray-200 rounded-xl p-4">
     <div class="flex justify-between items-center mb-2">
-      <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="ti ti-users"></i></div>
+      <div class="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center"><i class="ti ti-users"></i></div>
       <i class="ti ti-arrow-up-right text-gray-300 text-sm"></i>
     </div>
     <div class="text-2xl font-semibold text-gray-900 leading-none">{{ total_students }}</div>
@@ -50,9 +50,9 @@
   <a href="{% url 'academics:teacher_all_sessions' %}"
      class="card-hover-border block bg-white border border-gray-200 rounded-xl p-4">
     <div class="flex justify-between items-center mb-2">
-      <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="ti ti-calendar-week"></i></div>
+      <div class="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center"><i class="ti ti-calendar-week"></i></div>
       {% if sessions_trend > 0 %}
-        <span class="text-[10px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded font-semibold">+{{ sessions_trend }}</span>
+        <span class="text-[10px] text-primary-700 bg-primary-100 px-1.5 py-0.5 rounded font-semibold">+{{ sessions_trend }}</span>
       {% elif sessions_trend < 0 %}
         <span class="text-[10px] text-red-700 bg-red-100 px-1.5 py-0.5 rounded font-semibold">{{ sessions_trend }}</span>
       {% else %}
@@ -77,17 +77,17 @@
 <div class="bg-white border border-gray-200 rounded-xl p-4 md:p-5 mb-6">
   <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-4">
     <h2 class="text-base font-semibold text-gray-900 m-0 inline-flex items-center gap-2 flex-wrap">
-      <i class="ti ti-calendar-event text-emerald-600"></i> Sesi Hari Ini
-      <span class="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-semibold">{{ today_sessions_count }} sesi</span>
+      <i class="ti ti-calendar-event text-primary-600"></i> Sesi Hari Ini
+      <span class="bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full text-xs font-semibold">{{ today_sessions_count }} sesi</span>
     </h2>
-    <a href="{% url 'academics:teacher_all_sessions' %}" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Lihat semua sesi →</a>
+    <a href="{% url 'academics:teacher_all_sessions' %}" class="text-xs text-primary-600 hover:text-primary-700 font-semibold">Lihat semua sesi →</a>
   </div>
 
   <div class="flex flex-col gap-2">
     {% for item in today_sessions_data %}
     <div class="card-hover-border flex flex-col md:grid md:items-center gap-3 p-3 rounded-lg border
                 md:[grid-template-columns:72px_1fr_auto_auto]
-                {% if item.is_now %}border-emerald-400 bg-gradient-to-r from-emerald-50 to-white
+                {% if item.is_now %}border-primary-400 bg-gradient-to-r from-primary-50 to-white
                 {% else %}bg-gray-50 border-gray-200{% endif %}">
       <!-- Time block: row on mobile, centered column on desktop -->
       <div class="flex md:block items-baseline gap-2 md:gap-0 md:text-center">
@@ -96,7 +96,7 @@
         </div>
         <div class="text-[10px] text-gray-500 md:mt-1">{{ item.duration_minutes }} min</div>
         {% if item.is_now %}
-          <span class="text-[9px] bg-emerald-500 text-white px-1.5 py-0.5 rounded font-semibold ml-auto md:ml-0 md:mt-1 md:inline-block animate-pulse-glow">BERLANGSUNG</span>
+          <span class="text-[9px] bg-primary-500 text-white px-1.5 py-0.5 rounded font-semibold ml-auto md:ml-0 md:mt-1 md:inline-block animate-pulse-glow">BERLANGSUNG</span>
         {% endif %}
       </div>
       <!-- Title + topic -->
@@ -110,7 +110,7 @@
       <div class="flex gap-3 text-xs text-gray-500 items-center flex-wrap">
         <span class="inline-flex items-center gap-1"><i class="ti ti-users"></i> {{ item.attended_count }}/{{ item.enrolled_count }}</span>
         {% if item.attendance_marked %}
-          <span class="inline-flex items-center gap-1 text-emerald-700"><i class="ti ti-check"></i> Sudah absen</span>
+          <span class="inline-flex items-center gap-1 text-primary-700"><i class="ti ti-check"></i> Sudah absen</span>
         {% else %}
           <span class="inline-flex items-center gap-1 text-amber-600"><i class="ti ti-clipboard"></i> Belum absen</span>
         {% endif %}
@@ -118,8 +118,8 @@
       <!-- CTA: full-width on mobile, auto on desktop -->
       <a href="{% url 'sessions_app:teacher_attendance' item.session.id %}"
          class="block md:inline-block text-center px-3 py-1.5 rounded-md text-xs font-semibold whitespace-nowrap transition
-                {% if item.is_now and not item.attendance_marked %}bg-emerald-500 hover:bg-emerald-600 text-white
-                {% else %}bg-white border border-gray-200 text-gray-700 hover:border-emerald-300{% endif %}">
+                {% if item.is_now and not item.attendance_marked %}bg-primary-500 hover:bg-primary-600 text-white
+                {% else %}bg-white border border-gray-200 text-gray-700 hover:border-primary-300{% endif %}">
         {% if item.is_now and not item.attendance_marked %}Mulai Absen →{% else %}Buka Sesi{% endif %}
       </a>
     </div>
@@ -137,7 +137,7 @@
   <!-- TO DO -->
   <div class="md:col-span-2 bg-white border border-gray-200 rounded-xl p-4">
     <h2 class="text-sm font-semibold text-gray-900 m-0 mb-3 inline-flex items-center gap-2">
-      <i class="ti ti-checklist text-emerald-600"></i> To Do
+      <i class="ti ti-checklist text-primary-600"></i> To Do
     </h2>
     <div class="flex flex-col gap-2">
       {% for item in todo_items %}
@@ -167,9 +167,9 @@
   <div class="md:col-span-3 bg-white border border-gray-200 rounded-xl p-4">
     <div class="flex justify-between items-center mb-3">
       <h2 class="text-sm font-semibold text-gray-900 m-0 inline-flex items-center gap-2">
-        <i class="ti ti-school text-emerald-600"></i> Kelas Saya
+        <i class="ti ti-school text-primary-600"></i> Kelas Saya
       </h2>
-      <a href="{% url 'academics:teacher_classes' %}" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Semua →</a>
+      <a href="{% url 'academics:teacher_classes' %}" class="text-xs text-primary-600 hover:text-primary-700 font-semibold">Semua →</a>
     </div>
     <!-- DESKTOP: table layout -->
     <div class="hidden md:block text-xs">
@@ -188,17 +188,17 @@
           <p class="text-xs font-semibold text-gray-900 m-0 truncate" title="{{ c.kelas.name }}">{{ c.kelas.name }}</p>
           <p class="text-[10px] text-gray-500 m-0 mt-0.5">Sesi {{ c.completed_sessions }}/{{ c.total_sessions }}</p>
         </div>
-        <span class="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded font-semibold text-center">{{ c.kelas.level }}</span>
+        <span class="text-[10px] bg-primary-50 text-primary-700 px-1.5 py-0.5 rounded font-semibold text-center">{{ c.kelas.level }}</span>
         <span class="text-xs text-gray-900 text-center">{{ c.student_count }}</span>
         <div class="flex items-center gap-1.5">
           <div class="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
-            <div class="h-full bg-emerald-500 rounded-full progress-bar-anim" style="width: {{ c.progress_pct }}%"></div>
+            <div class="h-full bg-primary-500 rounded-full progress-bar-anim" style="width: {{ c.progress_pct }}%"></div>
           </div>
           <span class="text-[10px] text-gray-500 w-7 text-right">{{ c.progress_pct }}%</span>
         </div>
         <div class="flex justify-center">
           <a href="{% url 'academics:class_detail' c.kelas.id %}"
-             class="w-6 h-6 rounded border border-gray-200 bg-white text-gray-500 hover:text-emerald-600 hover:border-emerald-300 inline-flex items-center justify-center"
+             class="w-6 h-6 rounded border border-gray-200 bg-white text-gray-500 hover:text-primary-600 hover:border-primary-300 inline-flex items-center justify-center"
              title="Buka detail">
             <i class="ti ti-eye text-xs"></i>
           </a>
@@ -207,7 +207,7 @@
       {% empty %}
       <div class="text-center py-6 text-xs text-gray-500">
         Belum ada kelas.
-        <a href="{% url 'academics:teacher_class_create' %}" class="text-emerald-600 hover:text-emerald-700 font-semibold">Buat kelas →</a>
+        <a href="{% url 'academics:teacher_class_create' %}" class="text-primary-600 hover:text-primary-700 font-semibold">Buat kelas →</a>
       </div>
       {% endfor %}
     </div>
@@ -216,17 +216,17 @@
     <div class="md:hidden space-y-2">
       {% for c in my_classes_list %}
       <a href="{% url 'academics:class_detail' c.kelas.id %}"
-         class="block bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-emerald-300 transition-colors">
+         class="block bg-gray-50 rounded-lg p-3 border border-gray-200 hover:border-primary-300 transition-colors">
         <div class="flex justify-between items-start gap-2 mb-2">
           <div class="flex-1 min-w-0">
             <p class="text-sm font-semibold text-gray-900 m-0 truncate">{{ c.kelas.name }}</p>
             <p class="text-[11px] text-gray-500 m-0 mt-0.5">Sesi {{ c.completed_sessions }}/{{ c.total_sessions }} · {{ c.student_count }} siswa</p>
           </div>
-          <span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-semibold shrink-0">{{ c.kelas.level }}</span>
+          <span class="text-[10px] bg-primary-50 text-primary-700 px-2 py-0.5 rounded font-semibold shrink-0">{{ c.kelas.level }}</span>
         </div>
         <div class="flex items-center gap-2">
           <div class="flex-1 h-1 bg-gray-200 rounded-full overflow-hidden">
-            <div class="h-full bg-emerald-500 rounded-full" style="width: {{ c.progress_pct }}%"></div>
+            <div class="h-full bg-primary-500 rounded-full" style="width: {{ c.progress_pct }}%"></div>
           </div>
           <span class="text-[11px] text-gray-500 font-medium">{{ c.progress_pct }}%</span>
         </div>
@@ -234,7 +234,7 @@
       {% empty %}
       <div class="text-center py-6 text-xs text-gray-500">
         Belum ada kelas.
-        <a href="{% url 'academics:teacher_class_create' %}" class="text-emerald-600 hover:text-emerald-700 font-semibold">Buat kelas →</a>
+        <a href="{% url 'academics:teacher_class_create' %}" class="text-primary-600 hover:text-primary-700 font-semibold">Buat kelas →</a>
       </div>
       {% endfor %}
     </div>
@@ -248,7 +248,7 @@
     <h2 class="text-sm font-semibold text-gray-900 m-0 inline-flex items-center gap-2">
       <i class="ti ti-alert-triangle text-amber-500"></i> Siswa Perlu Perhatian
     </h2>
-    <a href="{% url 'academics:teacher_classes' %}" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Lihat semua →</a>
+    <a href="{% url 'academics:teacher_classes' %}" class="text-xs text-primary-600 hover:text-primary-700 font-semibold">Lihat semua →</a>
   </div>
   <div class="flex flex-col gap-2">
     {% for s in students_attention %}

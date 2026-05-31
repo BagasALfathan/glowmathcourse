@@ -13,7 +13,7 @@
     <p class="text-xs md:text-sm text-gray-500 m-0 mt-1">{{ total_count }} kelas total · klik kartu untuk detail</p>
   </div>
   <a href="{% url 'academics:class_browse' %}"
-     class="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-colors">
+     class="px-3 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 transition-colors">
     <i class="ti ti-plus"></i> Cari Kelas Baru
   </a>
 </div>
@@ -24,7 +24,7 @@
     <label class="text-[11px] text-gray-500 mb-1 block">Cari kelas</label>
     <input type="text" name="search" value="{{ search }}"
            placeholder="Nama kelas, mapel, atau guru…"
-           class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-emerald-400 focus:outline-none focus:ring-2 focus:ring-emerald-100">
+           class="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100">
   </div>
   <div>
     <label class="text-[11px] text-gray-500 mb-1 block">Status</label>
@@ -35,7 +35,7 @@
       <option value="DROPPED"   {% if status_filter == 'DROPPED'   %}selected{% endif %}>Keluar</option>
     </select>
   </div>
-  <button type="submit" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-sm font-semibold inline-flex items-center gap-1.5">
+  <button type="submit" class="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg text-sm font-semibold inline-flex items-center gap-1.5">
     <i class="ti ti-search"></i> Cari
   </button>
 </form>
@@ -47,7 +47,7 @@
   <a href="{% url 'ratings:rate_teacher' enr.pk %}"
      class="card-hover-lift block bg-white border border-gray-200 rounded-xl p-4 relative ring-2 ring-amber-300 ring-offset-2 ring-offset-gray-50">
     <span class="absolute -top-2 -right-2 z-10 animate-pulse-slow pointer-events-none">
-      <span class="inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg border-2 border-white whitespace-nowrap">
+      <span class="inline-flex items-center gap-1 bg-gradient-to-r from-amber-400 to-primary-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-lg border-2 border-white whitespace-nowrap">
         ⭐ Beri Rating
       </span>
     </span>
@@ -56,7 +56,7 @@
      class="card-hover-lift block bg-white border border-gray-200 rounded-xl p-4">
   {% endif %}
     <div class="flex items-start gap-3 mb-3">
-      <div class="w-11 h-11 rounded-lg bg-emerald-50 flex items-center justify-center text-2xl shrink-0">
+      <div class="w-11 h-11 rounded-lg bg-primary-50 flex items-center justify-center text-2xl shrink-0">
         {{ enr.kelas.subject.name|subject_emoji }}
       </div>
       <div class="min-w-0 flex-1">
@@ -65,14 +65,14 @@
           {{ enr.kelas.teacher_profile.user.get_full_name|default:enr.kelas.teacher_profile.user.username }}
         </p>
       </div>
-      <span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-semibold shrink-0">{{ enr.kelas.level }}</span>
+      <span class="text-[10px] bg-primary-50 text-primary-700 px-2 py-0.5 rounded font-semibold shrink-0">{{ enr.kelas.level }}</span>
     </div>
 
     <div class="flex items-center gap-2 mb-3">
       <div class="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-        <div class="h-full bg-emerald-500 rounded-full progress-bar-anim" style="width: {{ enr.progress_pct }}%"></div>
+        <div class="h-full bg-primary-500 rounded-full progress-bar-anim" style="width: {{ enr.progress_pct }}%"></div>
       </div>
-      <span class="text-[11px] font-semibold text-emerald-700 w-9 text-right">{{ enr.progress_pct }}%</span>
+      <span class="text-[11px] font-semibold text-primary-700 w-9 text-right">{{ enr.progress_pct }}%</span>
     </div>
 
     <div class="flex items-center justify-between text-[11px]">
@@ -88,7 +88,7 @@
           ⭐ Bagikan pengalamanmu <i class="ti ti-arrow-right"></i>
         </span>
       {% else %}
-        <span class="text-emerald-600 font-semibold inline-flex items-center gap-0.5">
+        <span class="text-primary-600 font-semibold inline-flex items-center gap-0.5">
           Lihat detail <i class="ti ti-arrow-right"></i>
         </span>
       {% endif %}
@@ -100,7 +100,7 @@
       Tidak ada kelas cocok dengan filter.
     {% else %}
       Kamu belum terdaftar di kelas apapun.
-      <a href="{% url 'academics:class_browse' %}" class="text-emerald-600 hover:text-emerald-700 font-semibold">Cari kelas →</a>
+      <a href="{% url 'academics:class_browse' %}" class="text-primary-600 hover:text-primary-700 font-semibold">Cari kelas →</a>
     {% endif %}
   </div>
   {% endfor %}
@@ -117,7 +117,7 @@
     <a href="?page={{ page_obj.previous_page_number }}&{{ qs_preserve }}"
        class="px-3 py-1.5 border border-gray-200 rounded-md hover:bg-gray-50 text-gray-600">‹</a>
     {% endif %}
-    <span class="px-3 py-1.5 bg-emerald-500 text-white rounded-md font-semibold">{{ page_obj.number }}</span>
+    <span class="px-3 py-1.5 bg-primary-500 text-white rounded-md font-semibold">{{ page_obj.number }}</span>
     <span class="px-2 py-1.5 text-gray-500">/ {{ page_obj.paginator.num_pages }}</span>
     {% if page_obj.has_next %}
     <a href="?page={{ page_obj.next_page_number }}&{{ qs_preserve }}"

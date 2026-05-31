@@ -8,7 +8,7 @@
 
   {# Breadcrumb #}
   <nav class="text-xs flex gap-1.5 items-center flex-wrap">
-    <a href="{% url 'academics:teacher_classes' %}" class="text-emerald-700 hover:underline no-underline">Kelas Saya</a>
+    <a href="{% url 'academics:teacher_classes' %}" class="text-primary-700 hover:underline no-underline">Kelas Saya</a>
     <span class="text-gray-400">›</span>
     <span class="text-gray-700 truncate max-w-[200px]">{{ kelas.name }}</span>
     <span class="text-gray-400">›</span>
@@ -27,11 +27,11 @@
   <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
     {% for enr in enrollments %}
     {% with u=enr.student_profile.user %}
-    <div class="bg-white border border-gray-200 rounded-xl p-4 hover:border-emerald-600 transition-colors">
+    <div class="bg-white border border-gray-200 rounded-xl p-4 hover:border-primary-600 transition-colors">
 
       {# Top row: avatar + name + status #}
       <div class="flex items-start gap-3 mb-3">
-        <div class="w-11 h-11 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
+        <div class="w-11 h-11 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-white flex items-center justify-center text-sm font-bold shrink-0">
           {{ u.first_name|first|upper }}{{ u.last_name|first|upper }}
         </div>
         <div class="min-w-0 flex-1">
@@ -41,7 +41,7 @@
           <p class="text-[11px] text-gray-400 m-0 truncate">@{{ u.username }}</p>
         </div>
         {% if enr.status == 'ACTIVE' %}
-          <span class="shrink-0 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">Aktif</span>
+          <span class="shrink-0 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-100 text-primary-700">Aktif</span>
         {% elif enr.status == 'COMPLETED' %}
           <span class="shrink-0 inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700">Selesai</span>
         {% endif %}
@@ -53,7 +53,7 @@
           <span class="text-gray-400 shrink-0">📱</span>
           {% if enr.wa_link %}
           <a href="{{ enr.wa_link }}" target="_blank" rel="noopener"
-             class="text-emerald-700 hover:underline no-underline truncate">{{ u.phone }}</a>
+             class="text-primary-700 hover:underline no-underline truncate">{{ u.phone }}</a>
           {% else %}
           <span class="text-gray-400">–</span>
           {% endif %}
@@ -71,7 +71,7 @@
       {# Action buttons #}
       <div class="flex gap-2 pt-3 border-t border-gray-100">
         <a href="{% url 'grades:teacher_student_progress' kelas.pk enr.pk %}"
-           class="flex-1 inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg hover:bg-emerald-100 transition-colors no-underline">
+           class="flex-1 inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-semibold text-primary-700 bg-primary-50 border border-primary-100 rounded-lg hover:bg-primary-100 transition-colors no-underline">
           📊 Nilai
         </a>
         <a href="{% url 'sessions_app:teacher_sessions' kelas.pk %}"

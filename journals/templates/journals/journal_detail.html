@@ -10,7 +10,7 @@
 
   <div class="bg-white border border-gray-200 rounded-xl p-5">
     <div class="flex items-center gap-2 mb-2">
-      <i class="ti ti-book-2 text-emerald-600 text-lg"></i>
+      <i class="ti ti-book-2 text-primary-600 text-lg"></i>
       <h2 class="text-base font-semibold text-gray-900 m-0">
         {{ journal.month|month_name }} {{ journal.year }}
       </h2>
@@ -34,7 +34,7 @@
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
     <div class="bg-white border border-gray-200 rounded-xl p-5">
-      <h3 class="text-xs font-semibold uppercase tracking-wider text-emerald-700 mb-2">Kekuatan</h3>
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-primary-700 mb-2">Kekuatan</h3>
       <p class="text-sm text-gray-700 leading-relaxed whitespace-pre-line m-0">{{ journal.strengths }}</p>
     </div>
     <div class="bg-white border border-gray-200 rounded-xl p-5">
@@ -44,7 +44,7 @@
   </div>
 
   <a href="{% url 'journals:my_journals' %}"
-     class="inline-flex items-center gap-1.5 text-sm text-emerald-600 font-semibold">
+     class="inline-flex items-center gap-1.5 text-sm text-primary-600 font-semibold">
     <i class="ti ti-arrow-left"></i> Kembali ke daftar jurnal
   </a>
 </div>

@@ -14,7 +14,7 @@
 .bc-page-h p { font-size: 13px; color: #3d7c80; margin: 0 0 14px; }
 
 /* ── Search hero ─────────────────────────────────────────────────────────── */
-.bc-search { background: #ffffff; border-radius: 14px; padding: 6px; box-shadow: 0 4px 16px rgba(16,185,129,0.08); margin-bottom: 12px; display: flex; align-items: center; gap: 2px; }
+.bc-search { background: #ffffff; border-radius: 14px; padding: 6px; box-shadow: 0 4px 16px rgba(74,148,153,0.08); margin-bottom: 12px; display: flex; align-items: center; gap: 2px; }
 .bc-search-input { flex: 1; position: relative; padding: 0 12px; }
 .bc-search-input i.ti-search { position: absolute; left: 22px; top: 50%; transform: translateY(-50%); color: #4a9499; font-size: 16px; }
 .bc-search-input input { width: 100%; padding: 10px 10px 10px 32px; border: none; font-size: 13px; outline: none; background: transparent; color: #111827; font-family: inherit; }
@@ -99,7 +99,7 @@
 /* ── Price ───────────────────────────────────────────────────────────────── */
 .dd-price-inputs { display: flex; gap: 6px; align-items: center; }
 .dd-price-inputs input { flex: 1; padding: 7px 10px; border: 1px solid #e5e7eb; border-radius: 6px; font-size: 11px; font-family: inherit; color: #111827; outline: none; background: #ffffff; }
-.dd-price-inputs input:focus { border-color: #4a9499; box-shadow: 0 0 0 3px rgba(16,185,129,0.12); }
+.dd-price-inputs input:focus { border-color: #4a9499; box-shadow: 0 0 0 3px rgba(74,148,153,0.12); }
 .dd-price-inputs span { color: #6b7280; font-size: 10px; }
 
 /* ── Status rows ─────────────────────────────────────────────────────────── */
@@ -141,7 +141,7 @@
 .card-badge { position: absolute; top: 12px; right: 12px; font-size: 9px; padding: 2px 7px; border-radius: 4px; font-weight: 600; z-index: 1; }
 .card-badge.hot { background: linear-gradient(90deg, #ef4444, #dc2626); color: #ffffff; }
 .card-badge.popular { background: #fef3c7; color: #92400e; }
-.card-badge.new { background: #d1fae5; color: #326568; }
+.card-badge.new { background: #e0f1f2; color: #326568; }
 
 /* ════════════════════════════════════════════════════════════════════════════
    9 UNIQUE CARD STATES — all hardcoded hex. Border / bg / badge per state.
@@ -149,7 +149,7 @@
 
 /* STATE 1: ENROLLED */
 .class-card.enrolled { border: 2px solid #4a9499; background: linear-gradient(180deg, #f0f9fa 0%, #ffffff 60px); }
-.enrolled-badge { position: absolute; top: -8px; right: 14px; background: linear-gradient(135deg, #4a9499, #4a9499); color: #ffffff; padding: 3px 10px; border-radius: 999px; font-size: 9px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(16,185,129,0.3); z-index: 2; }
+.enrolled-badge { position: absolute; top: -8px; right: 14px; background: linear-gradient(135deg, #4a9499, #4a9499); color: #ffffff; padding: 3px 10px; border-radius: 999px; font-size: 9px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(74,148,153,0.3); z-index: 2; }
 
 /* STATE 2: IN WAITLIST */
 .class-card.in-waitlist { border: 1px dashed #6366f1; background: linear-gradient(180deg, #eef2ff 0%, #ffffff 60px); }
@@ -191,11 +191,11 @@
 
 /* STATE 8: RECOMMENDED */
 .class-card.recommended { border: 2px solid #4a9499; }
-.recommended-badge { position: absolute; top: -8px; right: 14px; background: linear-gradient(135deg, #4a9499, #4a9499); color: #ffffff; padding: 3px 10px; border-radius: 999px; font-size: 9px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(16,185,129,0.3); z-index: 2; }
+.recommended-badge { position: absolute; top: -8px; right: 14px; background: linear-gradient(135deg, #4a9499, #4a9499); color: #ffffff; padding: 3px 10px; border-radius: 999px; font-size: 9px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(74,148,153,0.3); z-index: 2; }
 
 /* STATE 9: NEW (ribbon) */
 .class-card.new-ribbon { border-color: #4a9499; }
-.ribbon { position: absolute; top: 10px; left: -6px; background: linear-gradient(90deg, #4a9499, #4a9499); color: #ffffff; padding: 3px 10px 3px 12px; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; box-shadow: 0 2px 6px rgba(16,185,129,0.2); z-index: 2; }
+.ribbon { position: absolute; top: 10px; left: -6px; background: linear-gradient(90deg, #4a9499, #4a9499); color: #ffffff; padding: 3px 10px 3px 12px; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; box-shadow: 0 2px 6px rgba(74,148,153,0.2); z-index: 2; }
 .ribbon::after { content: ''; position: absolute; right: -6px; top: 0; bottom: 0; width: 6px; background: linear-gradient(90deg, #4a9499, #3d7c80); clip-path: polygon(0 0, 100% 50%, 0 100%); }
 
 /* WAITLIST AVAILABLE (FULL but waitlist open) */
@@ -210,7 +210,7 @@
   .urgent-badge, .class-card.urgent .cap-fill.amber, .starting-badge .dot { animation: none; }
 }
 .card-top { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; }
-.subj-emoji { width: 42px; height: 42px; border-radius: 10px; background: #d1fae5; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+.subj-emoji { width: 42px; height: 42px; border-radius: 10px; background: #e0f1f2; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
 .card-title { min-width: 0; flex: 1; }
 .card-title h3 { font-size: 13px; font-weight: 500; color: #111827; margin: 0 0 2px; line-height: 1.3; }
 .card-title p { font-size: 10px; color: #6b7280; margin: 0; }

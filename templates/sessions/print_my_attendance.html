@@ -23,7 +23,7 @@
         <h2 class="text-sm font-bold text-gray-900">{{ item.enrollment.kelas.name }}</h2>
         <p class="text-xs text-gray-500">
           {{ item.enrollment.kelas.subject.name }}
-          {% if item.enrollment.kelas.level == 'SD' %}&nbsp;·&nbsp;<span class="text-teal-700">SD</span>
+          {% if item.enrollment.kelas.level == 'SD' %}&nbsp;·&nbsp;<span class="text-primary-700">SD</span>
           {% elif item.enrollment.kelas.level == 'SMP' %}&nbsp;·&nbsp;<span class="text-blue-700">SMP</span>
           {% else %}&nbsp;·&nbsp;<span class="text-primary-700">SMA</span>{% endif %}
         </p>

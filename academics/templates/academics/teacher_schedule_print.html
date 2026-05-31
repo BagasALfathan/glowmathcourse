@@ -1,27 +1,96 @@
 {% extends "base_print.html" %}
 
-{% block title %}Jadwal Mengajar — {{ user.get_full_name }}{% endblock %}
+{% block title %}Jadwal Mengajar — {{ teacher_name }} ({{ month_name }} {{ year }}){% endblock %}
 
 {% block content %}
 <style>
-  @page { size: landscape; margin: 1.5cm; }
+  /* Print-friendly: high-contrast borders, no shadows, tight padding.
+     Colors retained (legend stays meaningful when printed in color)
+     but cells use thicker borders so monochrome printers still parse them. */
+  .print-page { padding: 16px 24px; color: #111827; font-family: Inter, system-ui, sans-serif; }
+  .print-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #111827; }
+  .print-header h1 { margin: 0; font-size: 16pt; font-weight: 700; }
+  .print-header .meta { font-size: 9pt; color: #4b5563; }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; font-size: 8.5pt; }
+  .legend .dot { width: 9px; height: 9px; border-radius: 99px; display: inline-block; vertical-align: middle; margin-right: 4px; }
+  table.cal { width: 100%; border-collapse: collapse; }
+  table.cal th { background: #f3f4f6; font-size: 8pt; font-weight: 700; text-transform: uppercase; padding: 4px 6px; border: 1px solid #111827; color: #374151; letter-spacing: 0.05em; }
+  table.cal td { vertical-align: top; padding: 4px 6px; border: 1px solid #111827; height: 80px; width: 14.28%; font-size: 8pt; line-height: 1.25; }
+  table.cal td.padding { background: #f9fafb; }
+  td .day-num { font-weight: 700; font-size: 9pt; color: #111827; }
+  td .day-num.today { background: #111827; color: #fff; border-radius: 9px; padding: 1px 5px; }
+  td .session { padding: 1px 4px; margin-top: 2px; border-radius: 2px; font-size: 7.5pt; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-left: 2px solid #111827; }
+  td .session.color-emerald  { background: #d1fae5; border-left-color: #047857; }
+  td .session.color-blue     { background: #dbeafe; border-left-color: #1d4ed8; }
+  td .session.color-amber    { background: #fef3c7; border-left-color: #b45309; }
+  td .session.color-purple   { background: #ede9fe; border-left-color: #6d28d9; }
+  td .session.color-pink     { background: #fce7f3; border-left-color: #be185d; }
+  td .session.color-teal     { background: #ccfbf1; border-left-color: #0d9488; }
+  td .overflow { font-size: 7pt; color: #6b7280; font-style: italic; margin-top: 1px; }
+  .legend .dot.color-emerald { background: #047857; }
+  .legend .dot.color-blue    { background: #1d4ed8; }
+  .legend .dot.color-amber   { background: #b45309; }
+  .legend .dot.color-purple  { background: #6d28d9; }
+  .legend .dot.color-pink    { background: #be185d; }
+  .legend .dot.color-teal    { background: #0d9488; }
+  .print-footer { margin-top: 16px; padding-top: 8px; border-top: 1px solid #d1d5db; font-size: 8pt; color: #6b7280; display: flex; justify-content: space-between; }
+
+  @media print { .print-page { padding: 0; } }
 </style>
 
-<div class="mb-6 pb-4 border-b border-gray-200">
-  <h1 class="text-xl font-bold text-gray-900 mb-1">Jadwal Mengajar</h1>
-  <p class="text-sm text-gray-600">
-    <span class="font-medium">{{ user.get_full_name }}</span>
-    &nbsp;·&nbsp; Guru
-    &nbsp;·&nbsp; Dicetak: {% now "d F Y" %}
-  </p>
-  {% if total_classes %}
-  <p class="text-xs text-gray-400 mt-1">{{ total_classes }} kelas aktif</p>
+<div class="print-page">
+
+  <div class="print-header">
+    <h1>🗓️ Jadwal Mengajar — {{ month_name }} {{ year }}</h1>
+    <span class="meta">{{ teacher_name }} · {{ session_count }} sesi · {{ distinct_kelas_count }} kelas</span>
+  </div>
+
+  {% if legend %}
+  <div class="legend">
+    {% for entry in legend %}
+    <span><span class="dot color-{{ entry.color_name }}"></span>{{ entry.kelas.name }}</span>
+    {% endfor %}
+  </div>
   {% endif %}
+
+  <table class="cal">
+    <thead>
+      <tr>
+        <th>Sen</th><th>Sel</th><th>Rab</th><th>Kam</th><th>Jum</th><th>Sab</th><th>Min</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for week in weeks %}
+      <tr>
+        {% for cell in week %}
+        <td {% if cell.is_padding %}class="padding"{% endif %}>
+          {% if not cell.is_padding %}
+            <span class="day-num {% if cell.is_today %}today{% endif %}">{{ cell.day }}</span>
+            {% for s in cell.sessions %}
+            <div class="session color-{{ s.color_name }}">
+              {% if s.start_time %}{{ s.start_time|time:'H:i' }} {% endif %}{{ s.kelas.name|truncatechars:18 }}
+            </div>
+            {% endfor %}
+            {% if cell.overflow %}
+            <div class="overflow">+{{ cell.overflow }} lagi</div>
+            {% endif %}
+          {% endif %}
+        </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="print-footer">
+    <span>{{ teacher_name }} · GlowMath Course</span>
+    <span>Dicetak: {% now "d M Y, H:i" %}</span>
+  </div>
+
 </div>
 
-{% if total_classes %}
-{% include "components/_schedule_grid.html" with grid_rows=grid_rows days=days days_list=days_list view_role=view_role is_print=True %}
-{% else %}
-<p class="text-sm text-gray-400 text-center py-12">Tidak ada kelas aktif saat ini.</p>
-{% endif %}
+<script>
+  // Auto-open print dialog when the page loads (small delay for fonts).
+  window.addEventListener('load', () => setTimeout(() => window.print(), 300));
+</script>
 {% endblock %}
