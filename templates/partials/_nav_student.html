@@ -164,10 +164,14 @@
   {# ── Divider ──────────────────────────────────────────────────────── #}
   <div class="student-divider"></div>
 
-  {# ── Utility (4: Pengumuman / Jurnal / Bantuan / Logout) ──────────── #}
+  {# ── Utility: Pengumuman / Notifikasi / Jurnal / Bantuan / Logout ── #}
   <a href="{% url 'announcements:list' %}" data-label="Pengumuman"
      class="sidebar-item utility {% if '/announcements/' in path %}active{% endif %}">
     <span class="ico">📢</span><span class="label">Pengumuman</span>
+  </a>
+  <a href="{% url 'notifications:list' %}" data-label="Notifikasi"
+     class="sidebar-item utility {% if '/notifications/' in path %}active{% endif %}">
+    <span class="ico">🔔</span><span class="label">Notifikasi</span>
   </a>
   <a href="{% url 'journals:my_journals' %}" data-label="Jurnal Bulanan"
      class="sidebar-item utility {% if '/journals/' in path %}active{% endif %}">

@@ -32,6 +32,7 @@ urlpatterns = [
     path('', include('ratings.urls')),
     path('', include('announcements.urls')),
     path('', include('journals.urls')),
+    path('', include('notifications.urls')),
 ]
 
 if settings.DEBUG:

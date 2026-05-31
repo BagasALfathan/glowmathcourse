@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}Notifikasi{% endblock %}
+{% block page_title %}Notifikasi{% endblock %}
+
+{% block extra_css %}
+<style>
+.nt-page { max-width: 820px; margin: 0 auto; }
+.nt-crumb { display: inline-flex; align-items: center; gap: 6px; color: #6b7280; font-size: 13px; text-decoration: none; margin-bottom: 12px; }
+.nt-crumb:hover { color: #326568; }
+
+.nt-hero {
+  background: linear-gradient(135deg, #a5dadc 0%, #7fcacd 55%, #4a9499 100%);
+  border-radius: 18px;
+  padding: 22px 24px;
+  margin-bottom: 18px;
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(74,148,153,0.18);
+  position: relative;
+  overflow: hidden;
+}
+.nt-hero::after {
+  content: ""; position: absolute; right: -30px; top: -30px;
+  width: 160px; height: 160px; border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+}
+.nt-hero h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+.nt-hero p  { font-size: 13px; opacity: 0.92; margin: 4px 0 0; }
+.nt-hero .row { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.nt-hero .stat {
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.28);
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 1;
+}
+.nt-hero .stat .n { font-size: 18px; font-weight: 700; margin-right: 4px; }
+
+.nt-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+.nt-btn-all {
+  background: #ffffff;
+  color: #326568;
+  border: 1px solid #c2e4e6;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 9px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.nt-btn-all:hover { background: #f0f9fa; border-color: #7fcacd; }
+.nt-btn-all:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.nt-list {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.nt-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #f1f5f9;
+  text-decoration: none;
+  color: inherit;
+  position: relative;
+  transition: background 0.15s;
+  min-width: 0;
+}
+.nt-row:last-child { border-bottom: none; }
+.nt-row:hover { background: #f8fafc; }
+.nt-row.unread { background: #f0f9fa; }
+.nt-row.unread:hover { background: #e0f1f2; }
+.nt-row.unread::before {
+  content: ""; position: absolute; left: 6px; top: 50%;
+  width: 5px; height: 5px; border-radius: 999px;
+  background: #4a9499; transform: translateY(-50%);
+}
+
+.nt-icon {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  background: #e0f1f2;
+  color: #326568;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.nt-row.unread .nt-icon { background: #7fcacd; color: #ffffff; }
+
+.nt-body { flex: 1; min-width: 0; }
+.nt-body .ttl {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.nt-row.unread .nt-body .ttl { color: #1f3d3f; }
+.nt-body .msg {
+  font-size: 12px;
+  color: #475569;
+  margin: 3px 0 0;
+  line-height: 1.45;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.nt-body .meta {
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.nt-body .pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.nt-body .time {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.nt-mark-form { flex-shrink: 0; }
+.nt-mark-btn {
+  background: transparent;
+  border: 1px solid #c2e4e6;
+  color: #326568;
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.nt-mark-btn:hover { background: #4a9499; color: #ffffff; border-color: #4a9499; }
+
+.nt-empty {
+  background: #ffffff;
+  border: 1px dashed #c2e4e6;
+  border-radius: 14px;
+  padding: 60px 20px;
+  text-align: center;
+}
+.nt-empty .em {
+  font-size: 48px;
+  margin-bottom: 10px;
+  filter: grayscale(0.2);
+}
+.nt-empty h3 { font-size: 15px; font-weight: 700; color: #326568; margin: 0; }
+.nt-empty p  { font-size: 13px; color: #6b7280; margin: 6px 0 0; }
+
+.nt-pager {
+  margin-top: 14px;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.nt-pager a, .nt-pager span {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  color: #475569;
+  text-decoration: none;
+}
+.nt-pager a:hover { border-color: #7fcacd; color: #326568; }
+.nt-pager .cur { background: #4a9499; color: #ffffff; border-color: #4a9499; font-weight: 600; }
+
+@media (max-width: 640px) {
+  .nt-hero { padding: 18px 16px; }
+  .nt-hero h1 { font-size: 18px; }
+  .nt-row { padding: 12px 14px; gap: 10px; }
+  .nt-icon { width: 34px; height: 34px; font-size: 16px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+{% comment %}
+  Student-facing notifications list. Khan Playful teal hero + soft card list.
+  Each row links via a POST form to mark-read (and redirects to link_url if set);
+  rows WITHOUT a link_url still POST to mark-read and reload the page.
+{% endcomment %}
+
+<div class="nt-page">
+
+  <a href="{% url 'dashboard:student' %}" class="nt-crumb">
+    <i class="ti ti-arrow-left"></i> Kembali ke dashboard
+  </a>
+
+  <div class="nt-hero">
+    <div class="row">
+      <div style="z-index:1;">
+        <h1>🔔 Notifikasi</h1>
+        <p>Update terbaru tentang kelas, nilai, dan pengumuman untuk kamu.</p>
+      </div>
+      {% if total_count %}
+      <div class="stat">
+        <span class="n">{{ unread_count }}</span>belum dibaca
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if total_count %}
+  <div class="nt-actions">
+    <form method="post" action="{% url 'notifications:mark_all_read' %}">
+      {% csrf_token %}
+      <button type="submit" class="nt-btn-all" {% if unread_count == 0 %}disabled{% endif %}>
+        <i class="ti ti-checks"></i> Tandai semua dibaca
+      </button>
+    </form>
+  </div>
+  {% endif %}
+
+  {% if notifications %}
+  <div class="nt-list">
+    {% for n in notifications %}
+    {% comment %} Map type → emoji. Default OTHER → 🔔. {% endcomment %}
+    {% if n.type == 'GRADE' %}{% with em='📝' %}{% endwith %}{% endif %}
+    <form method="post"
+          action="{% url 'notifications:mark_read' pk=n.pk %}"
+          class="block"
+          style="margin:0;">
+      {% csrf_token %}
+      {% if n.link_url %}<input type="hidden" name="next" value="{{ n.link_url }}">{% endif %}
+      <button type="submit"
+              class="nt-row {% if not n.is_read %}unread{% endif %}"
+              style="width:100%; text-align:left; background:none; border:none; border-bottom:1px solid #f1f5f9; cursor:pointer; font-family:inherit;">
+        <span class="nt-icon">
+          {% if n.type == 'GRADE' %}📝
+          {% elif n.type == 'SESSION' %}📅
+          {% elif n.type == 'ANNOUNCEMENT' %}📢
+          {% elif n.type == 'ENROLLMENT' %}🎒
+          {% elif n.type == 'RATING' %}⭐
+          {% elif n.type == 'PAYMENT' %}💳
+          {% else %}🔔{% endif %}
+        </span>
+        <div class="nt-body">
+          <p class="ttl">{{ n.title }}</p>
+          <p class="msg">{{ n.message }}</p>
+          <div class="meta">
+            <span class="pill">{{ n.get_type_display }}</span>
+            <span class="time">{{ n.created_at|timesince }} yang lalu</span>
+          </div>
+        </div>
+      </button>
+    </form>
+    {% endfor %}
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <div class="nt-pager">
+    {% if page_obj.has_previous %}
+    <a href="?page={{ page_obj.previous_page_number }}">‹ Sebelumnya</a>
+    {% endif %}
+    <span class="cur">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+    <a href="?page={{ page_obj.next_page_number }}">Berikutnya ›</a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="nt-empty">
+    <div class="em">🔔</div>
+    <h3>Belum ada notifikasi.</h3>
+    <p>Update tentang kelas, nilai, dan pengumuman kamu akan muncul di sini.</p>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
