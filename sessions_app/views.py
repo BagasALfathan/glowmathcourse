@@ -436,12 +436,17 @@ def teacher_session_update_status(request, pk):
 
 @role_required('TEACHER')
 def teacher_attendance(request, pk):
-    """Phase 3B — Per-session attendance marking.
+    """Phase 3R — Per-session attendance marking.
 
-    Single POST with `status_<enrollment_id>` fields, 3-state toggle per
-    student (PRESENT/PERMITTED/ABSENT). All active enrollments are listed
-    (DROPPED + soft-deleted excluded). Future sessions emit a warning but
-    still allow pre-marking (locked decision).
+    Roster source: BOOKED, non-deleted SessionBookings for THIS session.
+    For REGULAR sessions this matches the auto-booked class roster; for
+    MAKEUP/OPTIONAL sessions this lists only students who actually booked
+    the slot (fixes the prior over-listing where all ACTIVE enrollments
+    were shown regardless of session type).
+
+    Attendance anchor is unchanged: still keyed on (enrollment, session)
+    via the booking's enrollment. POST fields remain
+    `status_<enrollment_id>` so existing form muscle-memory holds.
     """
     teacher_profile = request.user.teacher_profile
     session = get_object_or_404(
@@ -452,12 +457,14 @@ def teacher_attendance(request, pk):
     )
     kelas = session.kelas
 
-    enrollments = list(
-        Enrollment.objects
-        .filter(kelas=kelas, is_deleted=False)
-        .exclude(status=EnrollmentStatus.DROPPED)
-        .select_related('student_profile__user')
-        .order_by('student_profile__user__first_name', 'student_profile__user__last_name')
+    bookings = list(
+        SessionBooking.objects
+        .filter(session=session, status=BookingStatus.BOOKED, is_deleted=False)
+        .select_related('enrollment__student_profile__user')
+        .order_by(
+            'enrollment__student_profile__user__first_name',
+            'enrollment__student_profile__user__last_name',
+        )
     )
 
     valid_statuses = {v for v, _ in AttendanceStatus.choices}
@@ -467,13 +474,13 @@ def teacher_attendance(request, pk):
     if request.method == 'POST':
         try:
             with transaction.atomic():
-                for enr in enrollments:
-                    status = (request.POST.get(f'status_{enr.id}') or '').strip()
+                for b in bookings:
+                    status = (request.POST.get(f'status_{b.enrollment_id}') or '').strip()
                     if status not in valid_statuses:
                         # Empty / invalid → skip (allows partial marking)
                         continue
                     Attendance.objects.update_or_create(
-                        enrollment=enr,
+                        enrollment=b.enrollment,
                         session=session,
                         defaults={
                             'status': status,
@@ -489,24 +496,24 @@ def teacher_attendance(request, pk):
         except Exception as e:
             messages.error(request, f'Gagal menyimpan: {e}')
 
-    # Existing attendance → prefill the toggle per enrollment
+    # Existing attendance → prefill the toggle per booking (keyed by enrollment_id)
     existing = {
         a.enrollment_id: a.status
         for a in Attendance.objects.filter(session=session)
     }
     marked_count = 0
-    for enr in enrollments:
-        enr.current_status = existing.get(enr.id, '')
-        if enr.current_status:
+    for b in bookings:
+        b.current_status = existing.get(b.enrollment_id, '')
+        if b.current_status:
             marked_count += 1
 
     return render(request, 'sessions_app/teacher_attendance.html', {
         'session': session,
         'kelas': kelas,
-        'enrollments': enrollments,
+        'bookings': bookings,
         'statuses': AttendanceStatus.choices,
         'marked_count': marked_count,
-        'total_students': len(enrollments),
+        'total_students': len(bookings),
         'is_future': is_future,
     })
 

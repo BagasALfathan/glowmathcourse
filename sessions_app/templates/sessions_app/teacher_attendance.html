@@ -8,11 +8,11 @@
 
   {# Breadcrumb #}
   <nav class="text-xs flex gap-1.5 items-center flex-wrap">
-    <a href="{% url 'academics:teacher_classes' %}" class="text-emerald-700 hover:underline no-underline">Kelas Saya</a>
+    <a href="{% url 'academics:teacher_classes' %}" class="text-primary-700 hover:underline no-underline">Kelas Saya</a>
     <span class="text-gray-400">›</span>
     <span class="text-gray-700 truncate max-w-[180px]">{{ kelas.name }}</span>
     <span class="text-gray-400">›</span>
-    <a href="{% url 'sessions_app:teacher_sessions' kelas.pk %}" class="text-emerald-700 hover:underline no-underline">Pertemuan</a>
+    <a href="{% url 'sessions_app:teacher_sessions' kelas.pk %}" class="text-primary-700 hover:underline no-underline">Pertemuan</a>
     <span class="text-gray-400">›</span>
     <span class="text-gray-700 font-medium">Sesi #{{ session.session_number }}</span>
   </nav>
@@ -42,7 +42,7 @@
     {% for msg in messages %}
       <div class="rounded-lg border px-3 py-2 text-xs
         {% if msg.tags == 'error' %}bg-red-50 border-red-200 text-red-700
-        {% elif msg.tags == 'success' %}bg-emerald-50 border-emerald-200 text-emerald-700
+        {% elif msg.tags == 'success' %}bg-primary-50 border-primary-200 text-primary-700
         {% else %}bg-blue-50 border-blue-200 text-blue-700{% endif %}">
         {{ msg }}
       </div>
@@ -52,42 +52,57 @@
 
   {# Legend #}
   <div class="flex items-center gap-3 text-[11px] text-gray-600 flex-wrap">
-    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Hadir</span>
+    <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary-500"></span> Hadir</span>
     <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Izin</span>
     <span class="inline-flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span> Alpha</span>
   </div>
 
   {# Form #}
   <form method="post" action="{% url 'sessions_app:teacher_attendance' session.pk %}"
-        class="bg-white border border-gray-200 rounded-xl p-4 md:p-5 hover:border-emerald-600 transition-colors space-y-3">
+        class="bg-white border border-gray-200 rounded-xl p-4 md:p-5 hover:border-primary-600 transition-colors space-y-3">
     {% csrf_token %}
 
     <div class="flex items-center justify-between gap-2 text-[11px] uppercase tracking-wider font-bold">
-      <span class="text-emerald-700">Daftar Siswa</span>
+      <span class="text-primary-700">Daftar Siswa</span>
       <span class="text-gray-500">{{ marked_count }}/{{ total_students }} sudah diabsen</span>
     </div>
 
     <div class="border border-gray-100 rounded-lg divide-y divide-gray-100">
-      {% for enr in enrollments %}
-      {% with u=enr.student_profile.user %}
-      <div class="flex items-center gap-3 px-3 py-2.5 hover:bg-emerald-50/30">
-        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
+      {% for booking in bookings %}
+      {% with u=booking.enrollment.student_profile.user %}
+      <div class="flex items-center gap-3 px-3 py-2.5 hover:bg-primary-50/30">
+        <div class="w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-white flex items-center justify-center text-xs font-bold shrink-0">
           {{ u.first_name|first|upper }}{{ u.last_name|first|upper }}
         </div>
         <div class="flex-1 min-w-0">
-          <p class="text-xs font-semibold text-gray-900 m-0 truncate">{{ u.get_full_name|default:u.username }}</p>
+          <p class="text-xs font-semibold text-gray-900 m-0 truncate inline-flex items-center gap-1.5">
+            {{ u.get_full_name|default:u.username }}
+            {% comment %}
+              Booking-kind tag — show only for non-AUTO so the default
+              "auto-booked from class enrollment" rows stay visually quiet.
+              PICKED  = student deliberately picked this session
+              MAKEUP  = legacy makeup/optional booking
+            {% endcomment %}
+            {% if booking.kind == 'PICKED' %}
+              <span class="inline-flex items-center px-1.5 py-px rounded text-[9px] font-bold tracking-wide bg-primary-100 text-primary-700">DIPILIH</span>
+            {% elif booking.kind == 'MAKEUP' %}
+              <span class="inline-flex items-center px-1.5 py-px rounded text-[9px] font-bold tracking-wide bg-amber-100 text-amber-700">SUSULAN</span>
+            {% endif %}
+          </p>
           <p class="text-[10px] text-gray-400 m-0 truncate">@{{ u.username }}</p>
         </div>
 
-        {# 3-state toggle (radio chips) — zero JS #}
+        {% comment %} 3-state toggle (radio chips) — zero JS. Field name keeps
+        the enrollment_id key so Attendance.update_or_create stays anchored on
+        (enrollment, session). {% endcomment %}
         <div class="inline-flex rounded-lg border border-gray-200 overflow-hidden text-[11px] shrink-0">
           {% for value, label in statuses %}
           <label class="cursor-pointer">
-            <input type="radio" name="status_{{ enr.id }}" value="{{ value }}"
-                   {% if enr.current_status == value %}checked{% endif %}
+            <input type="radio" name="status_{{ booking.enrollment_id }}" value="{{ value }}"
+                   {% if booking.current_status == value %}checked{% endif %}
                    class="peer sr-only">
             <span class="block px-2.5 py-1.5 text-gray-500 border-r border-gray-200 last:border-r-0 transition-colors
-                         {% if value == 'PRESENT' %}peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-600
+                         {% if value == 'PRESENT' %}peer-checked:bg-primary-600 peer-checked:text-white peer-checked:border-primary-600
                          {% elif value == 'PERMITTED' %}peer-checked:bg-amber-500 peer-checked:text-white peer-checked:border-amber-500
                          {% else %}peer-checked:bg-red-600 peer-checked:text-white peer-checked:border-red-600{% endif %}
                          peer-checked:font-semibold hover:bg-gray-50">
@@ -103,19 +118,19 @@
       {% endwith %}
       {% empty %}
       <div class="px-3 py-8 text-center text-xs text-gray-500">
-        Belum ada siswa terdaftar di kelas ini.
+        Belum ada siswa terdaftar di sesi ini.
       </div>
       {% endfor %}
     </div>
 
-    {% if enrollments %}
+    {% if bookings %}
     <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
       <a href="{% url 'sessions_app:teacher_sessions' kelas.pk %}"
          class="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors no-underline">
         Batal
       </a>
       <button type="submit"
-              class="px-5 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors">
+              class="px-5 py-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors">
         Simpan Semua
       </button>
     </div>
