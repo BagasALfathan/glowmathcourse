@@ -22,11 +22,11 @@
 ✅ Animations on auth pages: page fade-in, step slide/fade, error shake, loading spinner, success pop, card-hover lift/border
 ✅ Responsive design on both dashboards (mobile/tablet/desktop)
 
-🟡 **Admin Dashboard** (V4 Data Pro) — NOT yet built
-🟡 ~50 student/teacher/admin feature pages still on the legacy design — to be redesigned next
-🟡 Deployment paused (Hostinger VPS ready, waiting for redesign to complete)
+✅ **Admin Dashboard** (V4 Data Pro) — built. ~30 admin_panel templates (lists, forms, partials) plus dashboard, all under the `.dp-*` CSS convention.
+✅ Student / teacher / admin redesign effectively complete. 0 templates still use legacy `emerald-NNN` or stray Tailwind `teal-NNN` tokens; remaining feature pages use the `primary-NNN` palette, Data Pro `.dp-*` classes, or inline teal hex codes per DESIGN_SYSTEM.md.
+🟡 Deployment paused (Hostinger VPS ready; deploy artifacts staged under `deploy/` — see DEPLOYMENT.md)
 
-**Theme:** Emerald (`#10b981` family) replaced the old teal. Tabler icons loaded in [base.html](templates/base.html) and [base_auth.html](templates/base_auth.html). See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for the full palette and per-role styling rules.
+**Theme:** Teal anchored on `#7fcacd` (rebrand 2026-05-29, replacing the previous emerald `#10b981` primary). Tabler icons loaded in [base.html](templates/base.html) and [base_auth.html](templates/base_auth.html). See [DESIGN_SYSTEM.md](DESIGN_SYSTEM.md) for the full palette and per-role styling rules.
 
 **Dev server runs on port 8765** (not 8000 — port 8000 was held by a stale PHP process). Use `python manage.py runserver 8765`.
 
