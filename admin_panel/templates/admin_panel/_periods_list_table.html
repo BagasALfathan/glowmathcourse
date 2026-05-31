@@ -1,0 +1,142 @@
+{# Data Pro periods table — swap target: #periods-table-wrapper #}
+{% if page_obj.object_list %}
+<style>
+.dp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dp-table thead th { background: #f8fafc; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; font-weight: 700; color: #64748b; padding: 10px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+.dp-table tbody td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.dp-table tbody tr:last-child td { border-bottom: none; }
+.dp-table tbody tr:hover { background: #f8fafc; }
+.dp-table tbody tr.active { background: #f0f9fa; }
+.dp-table .name { font-weight: 600; color: #0f172a; }
+.dp-table .name-active { color: #326568; }
+.dp-table .dates { font-size: 12px; color: #64748b; white-space: nowrap; }
+.dp-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+.dp-pill.year       { background: #e0f1f2; color: #326568; font-variant-numeric: tabular-nums; }
+.dp-pill.type-q     { background: #dbeafe; color: #1d4ed8; }
+.dp-pill.type-s     { background: #ede9fe; color: #6d28d9; }
+.dp-pill.sub        { background: #f1f5f9; color: #475569; }
+.dp-pill.st-active  { background: #d1fae5; color: #065f46; }
+.dp-pill.st-inactive{ background: #e2e8f0; color: #64748b; }
+.dp-act { display: inline-flex; gap: 4px; }
+.dp-act a, .dp-act button { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color: #64748b; background: transparent; border: 1px solid transparent; transition: all 0.15s; cursor: pointer; }
+.dp-act a:hover { background: #f1f5f9; color: #326568; border-color: #e2e8f0; }
+.dp-act .activate { color: #15803d; }
+.dp-act .activate:hover { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+.dp-act .delete:hover { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+.dp-pg { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f8fafc; border-top: 1px solid #e2e8f0; }
+.dp-pg p { font-size: 12px; color: #64748b; margin: 0; }
+.dp-pg .pages { display: inline-flex; gap: 4px; }
+.dp-pg .pages a, .dp-pg .pages span { padding: 5px 10px; font-size: 12px; border-radius: 6px; color: #334155; text-decoration: none; background: #ffffff; border: 1px solid #e2e8f0; min-width: 28px; text-align: center; }
+.dp-pg .pages a:hover { background: #e0f1f2; color: #326568; border-color: #7fcacd; }
+.dp-pg .pages .here { background: #4a9499; color: #ffffff; border-color: #4a9499; font-weight: 700; }
+.dp-pg .pages .disabled { color: #cbd5e1; cursor: not-allowed; }
+</style>
+
+<table class="dp-table">
+  <thead>
+    <tr>
+      <th>Nama Periode</th>
+      <th>Tahun</th>
+      <th>Tipe</th>
+      <th>Sub-Periode</th>
+      <th class="hidden md:table-cell">Tanggal</th>
+      <th>Status</th>
+      <th style="text-align:right;">Aksi</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for p in page_obj %}
+    <tr {% if p.is_active %}class="active"{% endif %}>
+      <td class="name {% if p.is_active %}name-active{% endif %}">{{ p.name }}</td>
+      <td><span class="dp-pill year">{{ p.year }}</span></td>
+      <td>
+        {% if p.period_type == 'QUARTER' %}
+          <span class="dp-pill type-q">Kuartal</span>
+        {% else %}
+          <span class="dp-pill type-s">Semester</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if p.period_type == 'QUARTER' %}
+          <span class="dp-pill sub">{{ p.get_quarter_display|default:"—" }}</span>
+        {% else %}
+          <span class="dp-pill sub">{{ p.get_semester_display|default:"—" }}</span>
+        {% endif %}
+      </td>
+      <td class="dates hidden md:table-cell">
+        {{ p.start_date|date:"d M Y" }} – {{ p.end_date|date:"d M Y" }}
+      </td>
+      <td>
+        {% if p.is_active %}
+          <span class="dp-pill st-active">Aktif</span>
+        {% else %}
+          <span class="dp-pill st-inactive">Tidak Aktif</span>
+        {% endif %}
+      </td>
+      <td style="text-align:right;">
+        <div class="dp-act">
+          {% if not p.is_active %}
+          <form method="post" action="{% url 'admin_panel:period_set_active' p.pk %}" style="display:inline;"
+                onsubmit="return confirm('Jadikan periode {{ p.name|escapejs }} sebagai periode aktif? Periode lain akan dinonaktifkan.');">
+            {% csrf_token %}
+            <button type="submit" class="activate" title="Aktifkan">
+              <i class="ti ti-circle-check"></i>
+            </button>
+          </form>
+          {% endif %}
+          <a href="{% url 'admin_panel:period_edit' p.pk %}" title="Edit">
+            <i class="ti ti-pencil"></i>
+          </a>
+          <form method="post" action="{% url 'admin_panel:period_delete' p.pk %}" style="display:inline;"
+                onsubmit="return confirm('Hapus periode {{ p.name|escapejs }}?');">
+            {% csrf_token %}
+            <button type="submit" class="delete" title="Hapus" {% if p.is_active %}disabled{% endif %}>
+              <i class="ti ti-trash"></i>
+            </button>
+          </form>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="dp-pg">
+  <p>
+    Menampilkan <b>{{ page_obj.start_index }}-{{ page_obj.end_index }}</b>
+    dari <b>{{ page_obj.paginator.count }}</b> periode
+  </p>
+  <div class="pages">
+    {% if page_obj.has_previous %}
+    <a href="#"
+       hx-get="{% url 'admin_panel:periods_list_partial' %}?q={{ q|urlencode }}&year={{ year_filter }}&type={{ type_filter }}&page={{ page_obj.previous_page_number }}"
+       hx-target="#periods-table-wrapper" hx-swap="innerHTML">‹</a>
+    {% else %}
+    <span class="disabled">‹</span>
+    {% endif %}
+    {% for n in page_obj.paginator.page_range %}
+      {% if n == page_obj.number %}
+        <span class="here">{{ n }}</span>
+      {% else %}
+        <a href="#"
+           hx-get="{% url 'admin_panel:periods_list_partial' %}?q={{ q|urlencode }}&year={{ year_filter }}&type={{ type_filter }}&page={{ n }}"
+           hx-target="#periods-table-wrapper" hx-swap="innerHTML">{{ n }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if page_obj.has_next %}
+    <a href="#"
+       hx-get="{% url 'admin_panel:periods_list_partial' %}?q={{ q|urlencode }}&year={{ year_filter }}&type={{ type_filter }}&page={{ page_obj.next_page_number }}"
+       hx-target="#periods-table-wrapper" hx-swap="innerHTML">›</a>
+    {% else %}
+    <span class="disabled">›</span>
+    {% endif %}
+  </div>
+</div>
+
+{% else %}
+<div style="padding:48px 20px;text-align:center;color:#94a3b8;font-size:13px;">
+  <div style="font-size:32px;margin-bottom:6px;">📅</div>
+  <p style="margin:0;font-weight:600;color:#475569;">Belum ada periode akademik</p>
+  <p style="margin:4px 0 0;font-size:12px;">Tambah periode pertama untuk mulai membuat kelas.</p>
+</div>
+{% endif %}

@@ -757,6 +757,85 @@ def admin_dashboard(request):
         .order_by('-created_at')[:8]
     )
 
+    # ── Foundation KPIs (Data Pro v5) ──────────────────────────────────────
+    # The redesigned dashboard surfaces four canonical counters.
+    total_students = User.objects.filter(role=Role.STUDENT, is_deleted=False).count()
+    total_teachers = User.objects.filter(role=Role.TEACHER, is_deleted=False).count()
+    active_classes_count = Kelas.objects.filter(
+        is_deleted=False, status=KelasStatus.OPEN
+    ).count()
+    pending_count = kpi['pending_users']
+
+    # ── Enrollment trend (last 6 calendar months, oldest → newest) ─────────
+    # Group by (year, month) of enrolled_at. Build six buckets so months with
+    # zero enrollments still render as a 0-height bar.
+    from collections import OrderedDict
+    today_d = today
+    months = []
+    for i in range(5, -1, -1):
+        year = today_d.year
+        month = today_d.month - i
+        while month <= 0:
+            month += 12
+            year -= 1
+        months.append((year, month))
+    enroll_rows = (
+        Enrollment.objects
+        .filter(is_deleted=False,
+                enrolled_at__date__gte=date(months[0][0], months[0][1], 1))
+        .values_list('enrolled_at', flat=True)
+    )
+    counts = {(y, m): 0 for y, m in months}
+    for ts in enroll_rows:
+        key = (ts.year, ts.month)
+        if key in counts:
+            counts[key] += 1
+    _MONTH_ID = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+                 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+    enrollment_chart_6mo = []
+    max_count = max(counts.values()) if counts else 0
+    for (y, m) in months:
+        c = counts[(y, m)]
+        pct = int(c * 100 / max_count) if max_count else 0
+        enrollment_chart_6mo.append({
+            'label': _MONTH_ID[m],
+            'count': c,
+            'pct': pct,
+        })
+
+    # ── Jenjang distribution (students only, by level) ─────────────────────
+    jenjang_rows = (
+        StudentProfile.objects
+        .filter(user__is_deleted=False, user__role=Role.STUDENT)
+        .values('level')
+        .annotate(n=Count('id'))
+    )
+    jenjang_distribution_map = {r['level'] or 'Lainnya': r['n'] for r in jenjang_rows}
+    jenjang_order = ['TK', 'SD', 'SMP', 'SMA', 'UMUM']
+    jenjang_total = sum(jenjang_distribution_map.values()) or 0
+    # Teal shade per slice — light → dark to match the donut spec.
+    _JENJANG_COLORS = {
+        'TK':   '#c2e4e6',
+        'SD':   '#7fcacd',
+        'SMP':  '#5fb3b7',
+        'SMA':  '#4a9499',
+        'UMUM': '#326568',
+    }
+    jenjang_distribution = []
+    cumulative_pct = 0.0
+    for lvl in jenjang_order:
+        n = jenjang_distribution_map.get(lvl, 0)
+        pct = (n * 100.0 / jenjang_total) if jenjang_total else 0.0
+        jenjang_distribution.append({
+            'level': lvl,
+            'count': n,
+            'pct': round(pct, 1),
+            'pct_start': round(cumulative_pct, 2),
+            'pct_end': round(cumulative_pct + pct, 2),
+            'color': _JENJANG_COLORS[lvl],
+        })
+        cumulative_pct += pct
+
     return render(request, 'dashboard/admin.html', {
         'today': today,
         'now_dt': now_dt,
@@ -770,4 +849,12 @@ def admin_dashboard(request):
         'popular_classes': popular_classes,
         'sepi_classes': sepi_classes,
         'activity_logs': activity_logs,
+        # Data Pro v5 foundation
+        'total_students': total_students,
+        'total_teachers': total_teachers,
+        'active_classes_count': active_classes_count,
+        'pending_count': pending_count,
+        'enrollment_chart_6mo': enrollment_chart_6mo,
+        'jenjang_distribution': jenjang_distribution,
+        'jenjang_total': jenjang_total,
     })

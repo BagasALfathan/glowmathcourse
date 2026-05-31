@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}{% if mode == 'edit' %}Edit{% else %}Tambah{% endif %} Kategori — Admin{% endblock %}
+{% block page_title %}{% if mode == 'edit' %}Edit Kategori{% else %}Tambah Kategori{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.dp-page { max-width: 720px; margin: 0 auto; }
+.dp-crumb { display: inline-flex; align-items: center; gap: 6px; color: #64748b; font-size: 13px; text-decoration: none; margin-bottom: 14px; }
+.dp-crumb:hover { color: #326568; }
+
+.dp-form-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 14px; }
+.dp-form-card .head { padding: 14px 18px; border-bottom: 1px solid #f1f5f9; }
+.dp-form-card .head h3 { margin: 0; font-size: 13px; font-weight: 700; color: #0f172a; }
+.dp-form-card .head p { margin: 2px 0 0; font-size: 11px; color: #94a3b8; }
+.dp-form-card .body { padding: 18px; }
+
+.dp-field { margin-bottom: 14px; }
+.dp-field:last-child { margin-bottom: 0; }
+.dp-field label { display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px; }
+.dp-field input, .dp-field textarea, .dp-field select { width: 100%; padding: 9px 11px; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff; color: #0f172a; font-family: inherit; }
+.dp-field input:focus, .dp-field textarea:focus, .dp-field select:focus { outline: none; border-color: #7fcacd; box-shadow: 0 0 0 3px rgba(127,202,205,0.18); }
+.dp-field .hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+.dp-field .req { color: #ef4444; }
+
+.dp-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.dp-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; font-size: 13px; font-weight: 700; border-radius: 8px; cursor: pointer; border: 1px solid transparent; text-decoration: none; transition: all 0.15s; font-family: inherit; }
+.dp-btn-cancel { background: #ffffff; color: #475569; border-color: #e2e8f0; }
+.dp-btn-cancel:hover { background: #f1f5f9; color: #0f172a; }
+.dp-btn-save { background: #4a9499; color: #ffffff; }
+.dp-btn-save:hover { background: #3d7c80; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dp-page">
+
+  <a href="{% url 'admin_panel:categories_list' %}" class="dp-crumb">
+    <i class="ti ti-arrow-left"></i>
+    Kembali ke daftar kategori
+  </a>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="dp-form-card">
+      <div class="head">
+        <h3>{% if mode == 'edit' %}Ubah Kategori{% else %}Kategori Baru{% endif %}</h3>
+        <p>Kelompokkan mata pelajaran berdasarkan rumpun ilmu.</p>
+      </div>
+      <div class="body">
+        <div class="dp-field">
+          <label>Nama Kategori <span class="req">*</span></label>
+          <input type="text" name="name" required maxlength="100"
+                 value="{% if form_data %}{{ form_data.name }}{% elif category %}{{ category.name }}{% endif %}"
+                 placeholder="contoh: Sains, Bahasa, Sosial">
+        </div>
+
+        <div class="dp-field">
+          <label>Deskripsi <span style="font-weight:400;color:#94a3b8;">(opsional)</span></label>
+          <textarea name="description" rows="3"
+                    placeholder="Jelaskan rumpun mata pelajaran dalam kategori ini.">{% if form_data %}{{ form_data.description }}{% elif category %}{{ category.description }}{% endif %}</textarea>
+        </div>
+
+        <div class="dp-field">
+          <label>Status</label>
+          <select name="is_active">
+            {% if mode == 'edit' %}
+              <option value="1" {% if category.is_active %}selected{% endif %}>Aktif</option>
+              <option value="0" {% if not category.is_active %}selected{% endif %}>Nonaktif</option>
+            {% else %}
+              <option value="1" selected>Aktif</option>
+              <option value="0">Nonaktif</option>
+            {% endif %}
+          </select>
+          <p class="hint">Kategori nonaktif tidak muncul di dropdown saat membuat mata pelajaran.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="dp-actions">
+      <a href="{% url 'admin_panel:categories_list' %}" class="dp-btn dp-btn-cancel">
+        <i class="ti ti-x"></i> Batal
+      </a>
+      <button type="submit" class="dp-btn dp-btn-save">
+        <i class="ti ti-device-floppy"></i>
+        {% if mode == 'edit' %}Simpan Perubahan{% else %}Tambah Kategori{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

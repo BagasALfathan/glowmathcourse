@@ -1,330 +1,184 @@
 {% extends "base.html" %}
-{% load static %}
-{% load dashboard_filters %}
+{% load humanize %}
 
-{% block title %}Admin Console{% endblock %}
-{% block page_title %}Admin Console{% endblock %}
+{% block title %}Admin Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block extra_css %}
+<style>
+.dp-page { padding: 4px 0; }
+
+.dp-h { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 16px; }
+.dp-h h1 { font-size: 20px; font-weight: 700; color: #0f172a; margin: 0; }
+.dp-h p { font-size: 12px; color: #64748b; margin: 2px 0 0; }
+.dp-h .meta { font-size: 11px; color: #94a3b8; text-align: right; }
+
+/* Pending banner */
+.dp-banner { background: #fef3c7; border: 1px solid #fde68a; border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+.dp-banner .ic { width: 40px; height: 40px; border-radius: 10px; background: #fbbf24; color: #92400e; display: inline-flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+.dp-banner .msg { flex: 1; min-width: 0; }
+.dp-banner .msg b { color: #92400e; }
+.dp-banner .msg p { font-size: 12px; color: #78350f; margin: 0; }
+.dp-banner .msg .sub { font-size: 11px; color: #b45309; margin-top: 2px; }
+.dp-banner a.cta { background: #f59e0b; color: #ffffff; font-size: 12px; font-weight: 700; padding: 8px 14px; border-radius: 8px; text-decoration: none; white-space: nowrap; }
+.dp-banner a.cta:hover { background: #d97706; }
+
+/* KPI grid */
+.dp-kpi-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 18px; }
+@media (min-width: 640px) { .dp-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .dp-kpi-grid { grid-template-columns: repeat(4, 1fr); } }
+
+.dp-kpi { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 18px; display: flex; gap: 12px; align-items: flex-start; }
+.dp-kpi .ic { width: 38px; height: 38px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.dp-kpi .ic.teal   { background: #e0f1f2; color: #326568; }
+.dp-kpi .ic.violet { background: #ede9fe; color: #6d28d9; }
+.dp-kpi .ic.blue   { background: #dbeafe; color: #1d4ed8; }
+.dp-kpi .ic.amber  { background: #fef3c7; color: #92400e; }
+.dp-kpi .lbl { font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.dp-kpi .val { font-size: 26px; font-weight: 800; color: #0f172a; line-height: 1.1; margin-top: 2px; }
+.dp-kpi .meta { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+
+/* Charts row */
+.dp-charts { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 18px; }
+@media (min-width: 1024px) { .dp-charts { grid-template-columns: 2fr 1fr; } }
+
+.dp-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 18px; }
+.dp-card h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0; }
+.dp-card .sub { font-size: 11px; color: #64748b; margin: 2px 0 14px; }
+
+/* Bar chart */
+.dp-bars { display: flex; align-items: flex-end; gap: 12px; height: 180px; padding-top: 18px; border-bottom: 1px solid #f1f5f9; }
+.dp-bar { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.dp-bar .col { width: 100%; max-width: 48px; background: linear-gradient(180deg, #7fcacd 0%, #4a9499 100%); border-radius: 6px 6px 0 0; transition: filter 0.18s; position: relative; min-height: 4px; }
+.dp-bar .col:hover { filter: brightness(1.08); }
+.dp-bar .col .count { position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 11px; font-weight: 700; color: #326568; white-space: nowrap; }
+.dp-bar .lab { font-size: 11px; color: #64748b; font-weight: 600; }
+
+/* Donut chart */
+.dp-donut-wrap { display: flex; gap: 14px; align-items: center; padding-top: 4px; }
+.dp-donut { width: 130px; height: 130px; border-radius: 50%; flex-shrink: 0; position: relative; background: conic-gradient(var(--donut-stops, #e2e8f0 0% 100%)); }
+.dp-donut::after { content: ""; position: absolute; inset: 18px; background: #ffffff; border-radius: 50%; }
+.dp-donut .total { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1; }
+.dp-donut .total .n { font-size: 22px; font-weight: 800; color: #0f172a; line-height: 1; }
+.dp-donut .total .l { font-size: 10px; color: #64748b; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.06em; }
+.dp-donut-legend { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.dp-leg { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.dp-leg .sw { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+.dp-leg .lvl { font-weight: 600; color: #334155; min-width: 40px; }
+.dp-leg .n { color: #64748b; font-variant-numeric: tabular-nums; }
+.dp-leg .pct { color: #94a3b8; font-size: 11px; }
+
+.dp-empty { text-align: center; padding: 40px 12px; color: #94a3b8; font-size: 12px; }
+</style>
+{% endblock %}
 
 {% block content %}
+<div class="dp-page">
 
-<!-- TOP BAR ────────────────────────────────────────────────────────────── -->
-<div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-5">
-  <div class="min-w-0">
-    <h1 class="text-xl md:text-2xl font-semibold text-gray-900 m-0 mb-1">Admin Console</h1>
-    <p class="text-xs md:text-sm text-gray-500 m-0">
-      {{ today|date:"l, d F Y" }} · {{ now_dt|time:"H:i" }} WIB
-      <span class="inline-flex items-center gap-1 ml-1 text-emerald-700">· <i class="ti ti-circle-check"></i> System healthy</span>
-    </p>
-  </div>
-  <div class="flex flex-wrap gap-2">
-    <a href="{% url 'announcements:create' %}"
-       class="px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 hover:border-emerald-300">
-      <i class="ti ti-speakerphone"></i> Pengumuman
-    </a>
-    <a href="{% url 'admin_panel:classes_list' %}"
-       class="px-3 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 hover:border-emerald-300">
-      <i class="ti ti-school"></i> Kelola Kelas
-    </a>
-    <a href="{% url 'admin_panel:pending_users' %}"
-       class="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-semibold inline-flex items-center gap-1.5">
-      <i class="ti ti-user-check"></i> Approve User ({{ pending_total }})
-    </a>
-  </div>
-</div>
-
-<!-- 6 KPI CARDS ───────────────────────────────────────────────────────── -->
-<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 mb-5">
-  <a href="{% url 'admin_panel:users_list' %}"
-     class="card-hover-border block bg-white border border-gray-200 rounded-xl p-3">
-    <div class="flex justify-between items-center mb-1.5">
-      <div class="w-7 h-7 rounded-md bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="ti ti-users text-sm"></i></div>
-    </div>
-    <div class="text-xl font-semibold text-gray-900 leading-none">{{ kpi.total_users }}</div>
-    <div class="text-[10px] text-gray-500 mt-1 uppercase tracking-wide">Total Users</div>
-  </a>
-  <a href="{% url 'admin_panel:classes_list' %}"
-     class="card-hover-border block bg-white border border-gray-200 rounded-xl p-3">
-    <div class="flex justify-between items-center mb-1.5">
-      <div class="w-7 h-7 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center"><i class="ti ti-school text-sm"></i></div>
-    </div>
-    <div class="text-xl font-semibold text-gray-900 leading-none">{{ kpi.total_classes }}</div>
-    <div class="text-[10px] text-gray-500 mt-1 uppercase tracking-wide">Kelas Aktif</div>
-  </a>
-  <a href="{% url 'admin_panel:admin_schedule' %}"
-     class="card-hover-border block bg-white border border-gray-200 rounded-xl p-3">
-    <div class="flex justify-between items-center mb-1.5">
-      <div class="w-7 h-7 rounded-md bg-purple-50 text-purple-600 flex items-center justify-center"><i class="ti ti-calendar text-sm"></i></div>
-    </div>
-    <div class="text-xl font-semibold text-gray-900 leading-none">{{ kpi.sessions_today }}</div>
-    <div class="text-[10px] text-gray-500 mt-1 uppercase tracking-wide">Sesi Hari Ini</div>
-  </a>
-  <a href="{% url 'admin_panel:pending_users' %}"
-     class="card-hover-border block bg-white border border-gray-200 rounded-xl p-3">
-    <div class="flex justify-between items-center mb-1.5">
-      <div class="w-7 h-7 rounded-md bg-amber-50 text-amber-600 flex items-center justify-center"><i class="ti ti-user-question text-sm"></i></div>
-      {% if kpi.pending_users > 0 %}<span class="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-bold">!</span>{% endif %}
-    </div>
-    <div class="text-xl font-semibold text-gray-900 leading-none">{{ kpi.pending_users }}</div>
-    <div class="text-[10px] text-gray-500 mt-1 uppercase tracking-wide">Pending Approve</div>
-  </a>
-  <a href="{% url 'admin_panel:logs_list' %}"
-     class="card-hover-border block bg-white border border-gray-200 rounded-xl p-3">
-    <div class="flex justify-between items-center mb-1.5">
-      <div class="w-7 h-7 rounded-md bg-gray-100 text-gray-600 flex items-center justify-center"><i class="ti ti-activity text-sm"></i></div>
-    </div>
-    <div class="text-xl font-semibold text-gray-900 leading-none">{{ kpi.activity_today }}</div>
-    <div class="text-[10px] text-gray-500 mt-1 uppercase tracking-wide">Aktivitas Hari Ini</div>
-  </a>
-  <div class="bg-white border border-gray-200 rounded-xl p-3">
-    <div class="flex justify-between items-center mb-1.5">
-      <div class="w-7 h-7 rounded-md bg-red-50 text-red-600 flex items-center justify-center"><i class="ti ti-alert-triangle text-sm"></i></div>
-    </div>
-    <div class="text-xl font-semibold text-gray-900 leading-none">{{ kpi.alerts_count }}</div>
-    <div class="text-[10px] text-gray-500 mt-1 uppercase tracking-wide">Alert</div>
-  </div>
-</div>
-
-<!-- PENDING APPROVALS ───────────────────────────────────────────────── -->
-{% if pending_users_data %}
-<div class="rounded-xl p-4 md:p-5 mb-5 border border-amber-300"
-     style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);">
-  <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3">
-    <h2 class="text-sm font-semibold text-amber-900 m-0 inline-flex items-center gap-2 flex-wrap">
-      <i class="ti ti-user-question"></i> Pending Approvals
-      <span class="bg-amber-600 text-white text-xs px-2 py-0.5 rounded-full font-semibold">{{ pending_total }} menunggu</span>
-    </h2>
-    <a href="{% url 'admin_panel:pending_users' %}" class="text-xs text-amber-800 hover:text-amber-900 font-semibold">Lihat semua →</a>
-  </div>
-  <div class="flex flex-col gap-2">
-    {% for item in pending_users_data %}
-    <div class="bg-white border border-amber-200 rounded-lg p-3 grid items-center gap-2 sm:gap-3
-                grid-cols-[28px_1fr_auto] sm:[grid-template-columns:28px_1fr_56px_auto]">
-      <div class="w-7 h-7 rounded-full bg-emerald-500 text-white inline-flex items-center justify-center text-xs font-semibold">
-        {{ item.user.first_name|first|default:item.user.username|first|upper }}
-      </div>
-      <div class="min-w-0">
-        <p class="text-xs font-semibold text-gray-900 m-0 truncate">{{ item.user.get_full_name|default:item.user.username }}</p>
-        <p class="text-[10px] text-gray-500 m-0 mt-0.5 truncate">{{ item.info }} · {{ item.time_ago }}</p>
-      </div>
-      {% if item.user.role == 'STUDENT' %}
-        <span class="hidden sm:inline text-[10px] bg-emerald-50 text-emerald-700 px-2 py-1 rounded font-semibold text-center">Siswa</span>
-      {% else %}
-        <span class="hidden sm:inline text-[10px] bg-blue-50 text-blue-700 px-2 py-1 rounded font-semibold text-center">Guru</span>
-      {% endif %}
-      <div class="flex gap-1.5 shrink-0">
-        <form method="POST" action="{% url 'admin_panel:change_status' item.user.id %}" class="inline">
-          {% csrf_token %}
-          <input type="hidden" name="new_status" value="APPROVED">
-          <button type="submit"
-                  class="bg-emerald-500 hover:bg-emerald-600 text-white px-2.5 py-1 rounded text-[10px] font-semibold inline-flex items-center gap-1">
-            <i class="ti ti-check"></i> Approve
-          </button>
-        </form>
-        <form method="POST" action="{% url 'admin_panel:change_status' item.user.id %}" class="inline">
-          {% csrf_token %}
-          <input type="hidden" name="new_status" value="REJECTED">
-          <button type="submit"
-                  class="bg-white border border-red-300 hover:bg-red-50 text-red-600 px-2 py-1 rounded text-[10px] font-semibold">
-            <i class="ti ti-x"></i>
-          </button>
-        </form>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-</div>
-{% endif %}
-
-<!-- TOP + WORST 2×2 ─────────────────────────────────────────────────── -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
-
-  <!-- Top Students -->
-  <div class="bg-white border border-gray-200 rounded-xl p-4">
-    <div class="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-      <h3 class="text-sm font-semibold text-gray-900 m-0 inline-flex items-center gap-2"><i class="ti ti-trophy text-emerald-600"></i> Top Siswa Bulan Ini</h3>
-      <a href="{% url 'admin_panel:users_list' %}?role=STUDENT" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Lihat →</a>
-    </div>
-    {% for s in top_students %}
-    <div class="grid grid-cols-[24px_1fr_auto] gap-2 py-2 border-b border-gray-50 last:border-0 items-center">
-      <span class="text-center text-[12px]">
-        {% if forloop.counter == 1 %}🥇{% elif forloop.counter == 2 %}🥈{% elif forloop.counter == 3 %}🥉{% else %}<span class="text-[10px] text-gray-400 font-semibold">#{{ forloop.counter }}</span>{% endif %}
-      </span>
-      <div class="min-w-0">
-        <p class="text-xs font-semibold text-gray-900 m-0 truncate">{{ s.profile.user.get_full_name|default:s.profile.user.username }}</p>
-        <p class="text-[10px] text-gray-500 m-0 mt-0.5">{{ s.profile.level|default:"—" }} · {{ s.active_classes }} kelas</p>
-      </div>
-      <span class="text-xs font-bold text-emerald-700">{{ s.avg_score }}</span>
-    </div>
-    {% empty %}
-    <p class="text-xs text-gray-500 text-center py-4 m-0">Belum ada data (butuh ≥ 5 nilai per siswa)</p>
-    {% endfor %}
-  </div>
-
-  <!-- Worst Students -->
-  <div class="bg-white border border-gray-200 rounded-xl p-4">
-    <div class="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-      <h3 class="text-sm font-semibold text-gray-900 m-0 inline-flex items-center gap-2"><i class="ti ti-trending-down text-red-500"></i> Siswa Butuh Perhatian</h3>
-      <a href="{% url 'admin_panel:users_list' %}?role=STUDENT" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Lihat →</a>
-    </div>
-    {% for s in worst_students %}
-    <div class="grid grid-cols-[24px_1fr_auto] gap-2 py-2 border-b border-gray-50 last:border-0 items-center">
-      <span class="text-center text-red-600 text-sm">{% if s.avg_score < 60 %}⚠{% else %}!{% endif %}</span>
-      <div class="min-w-0">
-        <p class="text-xs font-semibold text-gray-900 m-0 truncate">{{ s.profile.user.get_full_name|default:s.profile.user.username }}</p>
-        <p class="text-[10px] text-gray-500 m-0 mt-0.5 truncate">
-          {{ s.profile.level|default:"—" }} · Kehadiran {{ s.attendance_rate }}% · {{ s.active_classes }} kelas
-        </p>
-      </div>
-      <span class="text-xs font-bold text-red-700">{{ s.avg_score }}</span>
-    </div>
-    {% empty %}
-    <p class="text-xs text-gray-500 text-center py-4 m-0">Tidak ada siswa flagged</p>
-    {% endfor %}
-  </div>
-
-  <!-- Top Teachers -->
-  <div class="bg-white border border-gray-200 rounded-xl p-4">
-    <div class="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-      <h3 class="text-sm font-semibold text-gray-900 m-0 inline-flex items-center gap-2"><i class="ti ti-star text-emerald-600"></i> Top Guru</h3>
-      <a href="{% url 'admin_panel:users_list' %}?role=TEACHER" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Lihat →</a>
-    </div>
-    {% for t in top_teachers %}
-    <div class="grid grid-cols-[24px_1fr_auto] gap-2 py-2 border-b border-gray-50 last:border-0 items-center">
-      <span class="text-center text-[12px]">
-        {% if forloop.counter == 1 %}🥇{% elif forloop.counter == 2 %}🥈{% elif forloop.counter == 3 %}🥉{% else %}<span class="text-[10px] text-gray-400 font-semibold">#{{ forloop.counter }}</span>{% endif %}
-      </span>
-      <div class="min-w-0">
-        <p class="text-xs font-semibold text-gray-900 m-0 truncate">{{ t.profile.user.get_full_name|default:t.profile.user.username }}</p>
-        <p class="text-[10px] text-gray-500 m-0 mt-0.5 truncate">{{ t.profile.specialization|default:"—" }} · {{ t.student_count }} siswa · {{ t.rating_count }} ulasan</p>
-      </div>
-      <span class="text-xs font-bold text-emerald-700 inline-flex items-center gap-0.5">{% star_rating t.avg_rating size=11 show_number=True %}</span>
-    </div>
-    {% empty %}
-    <p class="text-xs text-gray-500 text-center py-4 m-0">Belum ada data (butuh ≥ 3 ulasan per guru)</p>
-    {% endfor %}
-  </div>
-
-  <!-- Worst Teachers -->
-  <div class="bg-white border border-gray-200 rounded-xl p-4">
-    <div class="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-      <h3 class="text-sm font-semibold text-gray-900 m-0 inline-flex items-center gap-2"><i class="ti ti-trending-down text-red-500"></i> Guru Perlu Evaluasi</h3>
-      <a href="{% url 'admin_panel:users_list' %}?role=TEACHER" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Lihat →</a>
-    </div>
-    {% for t in worst_teachers %}
-    <div class="grid grid-cols-[24px_1fr_auto] gap-2 py-2 border-b border-gray-50 last:border-0 items-center">
-      <span class="text-center text-red-600 text-sm">{% if t.avg_rating and t.avg_rating < 3 %}⚠{% else %}!{% endif %}</span>
-      <div class="min-w-0">
-        <p class="text-xs font-semibold text-gray-900 m-0 truncate">{{ t.profile.user.get_full_name|default:t.profile.user.username }}</p>
-        <p class="text-[10px] text-gray-500 m-0 mt-0.5 truncate">
-          {{ t.profile.specialization|default:"—" }} · {{ t.student_count }} siswa{% if t.active_classes == 0 %} · jarang aktif{% endif %}
-        </p>
-      </div>
-      <span class="text-xs font-bold text-red-700 whitespace-nowrap">
-        {% if t.avg_rating %}{% star_rating t.avg_rating size=11 show_number=True %}{% else %}Tdk ada{% endif %}
-      </span>
-    </div>
-    {% empty %}
-    <p class="text-xs text-gray-500 text-center py-4 m-0">Tidak ada guru flagged</p>
-    {% endfor %}
-  </div>
-</div>
-
-<!-- POPULAR + SEPI CLASSES ─────────────────────────────────────────── -->
-<div class="bg-white border border-gray-200 rounded-xl p-4 mb-5">
-  <div class="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-    <h3 class="text-sm font-semibold text-gray-900 m-0 inline-flex items-center gap-2">
-      <i class="ti ti-school text-emerald-600"></i> Kelas Populer &amp; Sepi
-    </h3>
-    <a href="{% url 'admin_panel:classes_list' %}" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Lihat semua →</a>
-  </div>
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+  <div class="dp-h">
     <div>
-      <p class="text-[11px] text-emerald-700 font-semibold m-0 mb-2 inline-flex items-center gap-1">🔥 Paling populer</p>
-      {% for k in popular_classes %}
-      <div class="grid grid-cols-[24px_1fr_auto] gap-2 py-2 border-b border-gray-50 last:border-0 items-center">
-        <span class="text-[12px] text-center">{% if forloop.counter == 1 %}🥇{% elif forloop.counter == 2 %}🥈{% else %}🥉{% endif %}</span>
-        <div class="min-w-0">
-          <p class="text-xs font-semibold text-gray-900 m-0 truncate">{{ k.name }}</p>
-          <p class="text-[10px] text-gray-500 m-0 mt-0.5 truncate">
-            {{ k.teacher_profile.user.get_full_name|default:k.teacher_profile.user.username }} · {{ k.level }}
-          </p>
-        </div>
-        <span class="text-xs font-bold text-emerald-700 whitespace-nowrap">{{ k.active_count }} siswa</span>
-      </div>
-      {% empty %}
-      <p class="text-xs text-gray-500 m-0 py-3">Belum ada kelas terbuka.</p>
-      {% endfor %}
+      <h1>Selamat datang, {{ user.first_name|default:user.username }} 👋</h1>
+      <p>Ringkasan operasional GlowMath Course</p>
     </div>
-    <div>
-      <p class="text-[11px] text-red-700 font-semibold m-0 mb-2 inline-flex items-center gap-1">⚠ Kelas sepi</p>
-      {% for k in sepi_classes %}
-      <div class="grid grid-cols-[24px_1fr_auto] gap-2 py-2 border-b border-gray-50 last:border-0 items-center">
-        <span class="text-red-500 text-sm text-center">!</span>
-        <div class="min-w-0">
-          <p class="text-xs font-semibold text-gray-900 m-0 truncate">{{ k.name }}</p>
-          <p class="text-[10px] text-gray-500 m-0 mt-0.5 truncate">
-            {{ k.teacher_profile.user.get_full_name|default:k.teacher_profile.user.username }} · {{ k.level }}
-          </p>
-        </div>
-        <span class="text-xs font-bold text-red-700 whitespace-nowrap">{{ k.active_count }} siswa</span>
-      </div>
-      {% empty %}
-      <p class="text-xs text-gray-500 m-0 py-3">Tidak ada kelas sepi.</p>
-      {% endfor %}
+    <div class="meta">
+      {{ today|date:"l, j F Y" }}
     </div>
   </div>
-</div>
 
-<!-- ACTIVITY LOG ────────────────────────────────────────────────────── -->
-<div class="bg-white border border-gray-200 rounded-xl p-4 mb-6">
-  <div class="flex justify-between items-center mb-3">
-    <h2 class="text-sm font-semibold text-gray-900 m-0 inline-flex items-center gap-2">
-      <i class="ti ti-clock text-gray-500"></i> Activity Log Terbaru
-    </h2>
-    <a href="{% url 'admin_panel:logs_list' %}" class="text-xs text-emerald-600 hover:text-emerald-700 font-semibold">Lihat log lengkap →</a>
+  {% if pending_count > 0 %}
+  <div class="dp-banner">
+    <div class="ic"><i class="ti ti-user-exclamation"></i></div>
+    <div class="msg">
+      <p><b>{{ pending_count }} pengguna</b> menunggu persetujuan</p>
+      <p class="sub">Tinjau registrasi siswa &amp; guru baru untuk mengaktifkan akun mereka.</p>
+    </div>
+    <a href="{% url 'admin_panel:pending_users' %}" class="cta">Tinjau →</a>
   </div>
-  <div class="overflow-x-auto">
-    <table class="w-full">
-      <tbody>
-        {% for log in activity_logs %}
-        <tr class="border-b border-gray-50 last:border-0">
-          <td class="py-2 px-1 text-[10px] text-gray-400 whitespace-nowrap w-[80px]">{{ log.created_at|timesince }} lalu</td>
-          <td class="py-2 px-1 w-[28px]">
-            <div class="w-5 h-5 rounded-md inline-flex items-center justify-center text-[11px]
-                        {% if 'LOGIN' in log.action %}bg-emerald-50 text-emerald-600
-                        {% elif 'create' in log.action or 'CREATE' in log.action or 'add' in log.action %}bg-blue-50 text-blue-600
-                        {% elif 'approve' in log.action or 'APPROVE' in log.action %}bg-purple-50 text-purple-600
-                        {% elif 'delete' in log.action or 'DELETE' in log.action or 'reject' in log.action or 'REJECT' in log.action %}bg-red-50 text-red-600
-                        {% else %}bg-gray-100 text-gray-500{% endif %}">
-              {% if 'LOGIN' in log.action %}<i class="ti ti-login-2"></i>
-              {% elif 'create' in log.action or 'CREATE' in log.action %}<i class="ti ti-plus"></i>
-              {% elif 'approve' in log.action or 'APPROVE' in log.action %}<i class="ti ti-check"></i>
-              {% elif 'delete' in log.action or 'DELETE' in log.action %}<i class="ti ti-trash"></i>
-              {% else %}<i class="ti ti-dots"></i>{% endif %}
-            </div>
-          </td>
-          <td class="py-2 px-2 text-xs min-w-0">
-            <span class="font-semibold text-gray-900">{{ log.user.username|default:"system" }}</span>
-            <span class="text-gray-500">{{ log.action|lower|cut:"_" }}</span>
-            {% if log.target_type %}<span class="text-gray-400">· {{ log.target_type }}</span>{% endif %}
-          </td>
-          <td class="hidden sm:table-cell py-2 px-2 text-[10px] font-mono text-gray-400 whitespace-nowrap">{{ log.ip_address|default:"—" }}</td>
-          <td class="hidden md:table-cell py-2 px-2 text-right">
-            <span class="text-[10px] px-1.5 py-0.5 rounded font-semibold
-                         {% if log.user.role == 'ADMIN' %}bg-red-50 text-red-700
-                         {% elif log.user.role == 'TEACHER' %}bg-blue-50 text-blue-700
-                         {% elif log.user.role == 'STUDENT' %}bg-emerald-50 text-emerald-700
-                         {% else %}bg-gray-100 text-gray-500{% endif %}">
-              {{ log.user.role|default:"?" }}
-            </span>
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="5" class="text-xs text-gray-500 text-center py-6">Belum ada aktivitas.</td></tr>
+  {% endif %}
+
+  <div class="dp-kpi-grid">
+    <div class="dp-kpi">
+      <div class="ic teal"><i class="ti ti-users"></i></div>
+      <div>
+        <div class="lbl">Total Siswa</div>
+        <div class="val">{{ total_students|intcomma }}</div>
+        <div class="meta">Aktif &amp; terdaftar</div>
+      </div>
+    </div>
+    <div class="dp-kpi">
+      <div class="ic violet"><i class="ti ti-chalkboard"></i></div>
+      <div>
+        <div class="lbl">Total Guru</div>
+        <div class="val">{{ total_teachers|intcomma }}</div>
+        <div class="meta">Pengajar aktif</div>
+      </div>
+    </div>
+    <div class="dp-kpi">
+      <div class="ic blue"><i class="ti ti-school"></i></div>
+      <div>
+        <div class="lbl">Kelas Aktif</div>
+        <div class="val">{{ active_classes_count|intcomma }}</div>
+        <div class="meta">Status OPEN</div>
+      </div>
+    </div>
+    <div class="dp-kpi">
+      <div class="ic amber"><i class="ti ti-user-exclamation"></i></div>
+      <div>
+        <div class="lbl">Pending</div>
+        <div class="val">{{ pending_count|intcomma }}</div>
+        <div class="meta">Menunggu persetujuan</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dp-charts">
+    <div class="dp-card">
+      <h3>📈 Pendaftaran 6 Bulan Terakhir</h3>
+      <p class="sub">Jumlah enrollment baru per bulan.</p>
+      {% if enrollment_chart_6mo %}
+      <div class="dp-bars">
+        {% for m in enrollment_chart_6mo %}
+        <div class="dp-bar">
+          <div class="col" style="height: {% if m.pct > 0 %}{{ m.pct }}%{% else %}3px{% endif %};">
+            <span class="count">{{ m.count }}</span>
+          </div>
+          <div class="lab">{{ m.label }}</div>
+        </div>
         {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
+      </div>
+      {% else %}
+      <p class="dp-empty">Belum ada data pendaftaran.</p>
+      {% endif %}
+    </div>
 
+    <div class="dp-card">
+      <h3>🎯 Distribusi Jenjang Siswa</h3>
+      <p class="sub">Komposisi siswa berdasarkan jenjang.</p>
+      {% if jenjang_total > 0 %}
+      <div class="dp-donut-wrap">
+        <div class="dp-donut"
+             style="--donut-stops: {% for s in jenjang_distribution %}{% if s.pct > 0 %}{{ s.color }} {{ s.pct_start }}% {{ s.pct_end }}%{% if not forloop.last %}, {% endif %}{% endif %}{% endfor %};">
+          <div class="total">
+            <span class="n">{{ jenjang_total }}</span>
+            <span class="l">Siswa</span>
+          </div>
+        </div>
+        <div class="dp-donut-legend">
+          {% for s in jenjang_distribution %}
+          <div class="dp-leg">
+            <span class="sw" style="background: {{ s.color }};"></span>
+            <span class="lvl">{{ s.level }}</span>
+            <span class="n">{{ s.count }}</span>
+            <span class="pct">({{ s.pct }}%)</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <p class="dp-empty">Belum ada data siswa.</p>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
 {% endblock %}

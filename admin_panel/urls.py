@@ -20,18 +20,21 @@ urlpatterns = [
 
     # Categories
     path('categories/', views.categories_list, name='categories_list'),
+    path('categories/partial/', views.categories_list_partial, name='categories_list_partial'),
     path('categories/create/', views.category_create, name='category_create'),
     path('categories/<int:category_id>/edit/', views.category_edit, name='category_edit'),
     path('categories/<int:category_id>/delete/', views.category_delete, name='category_delete'),
 
     # Subjects
     path('subjects/', views.subjects_list, name='subjects_list'),
+    path('subjects/partial/', views.subjects_list_partial, name='subjects_list_partial'),
     path('subjects/create/', views.subject_create, name='subject_create'),
     path('subjects/<int:subject_id>/edit/', views.subject_edit, name='subject_edit'),
     path('subjects/<int:subject_id>/delete/', views.subject_delete, name='subject_delete'),
 
     # Academic Periods
     path('periods/', views.periods_list, name='periods_list'),
+    path('periods/partial/', views.periods_list_partial, name='periods_list_partial'),
     path('periods/create/', views.period_create, name='period_create'),
     path('periods/<int:period_id>/edit/', views.period_edit, name='period_edit'),
     path('periods/<int:period_id>/set-active/', views.period_set_active, name='period_set_active'),
@@ -48,8 +51,13 @@ urlpatterns = [
     path('enrollments/', views.enrollments_list, name='enrollments_list'),
     path('enrollments/partial/', views.enrollments_list_partial, name='enrollments_list_partial'),
     path('enrollments/<int:enrollment_id>/change-status/', views.enrollment_change_status, name='enrollment_change_status'),
+    path('enrollments/<int:enrollment_id>/delete/', views.enrollment_soft_delete, name='enrollment_soft_delete'),
+    path('enrollments/<int:enrollment_id>/restore/', views.enrollment_restore, name='enrollment_restore'),
     path('enrollments/<int:enrollment_id>/progress/', views.enrollment_progress, name='enrollment_progress'),
     path('enrollments/<int:enrollment_id>/transfer/', views.enrollment_transfer, name='enrollment_transfer'),
+    path('enrollments/bulk/', views.enrollment_bulk_action, name='enrollment_bulk_action'),
+    # NOTE: `enrollments/bulk-action/` (named bulk_action) is mis-scoped to
+    # PENDING USERS; kept at its existing path for back-compat.
     path('enrollments/bulk-action/', views.bulk_action, name='bulk_action'),
 
     # Grades
@@ -59,6 +67,7 @@ urlpatterns = [
     # Ratings
     path('ratings/', views.ratings_list, name='ratings_list'),
     path('ratings/partial/', views.ratings_list_partial, name='ratings_list_partial'),
+    path('ratings/<str:rating_type>/<int:rating_id>/delete/', views.rating_delete, name='rating_delete'),
 
     # Activity Logs
     path('logs/', views.logs_list, name='logs_list'),
@@ -73,6 +82,8 @@ urlpatterns = [
 
     # Announcements
     path('announcements/', views.announcements_list, name='announcements_list'),
+    path('announcements/partial/', views.announcements_list_partial, name='announcements_list_partial'),
+    path('announcements/create/', views.announcement_create, name='announcement_create'),
     path('announcements/<int:pk>/edit/', views.announcement_edit, name='announcement_edit'),
     path('announcements/<int:pk>/delete/', views.announcement_delete, name='announcement_delete'),
     path('announcements/<int:pk>/toggle/', views.announcement_toggle, name='announcement_toggle'),

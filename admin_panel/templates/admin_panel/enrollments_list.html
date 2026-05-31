@@ -1,44 +1,198 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
-{% block title %}Kelola Pendaftaran{% endblock %}
-{% block page_title %}Kelola Pendaftaran{% endblock %}
+{% block title %}Pendaftaran — Admin{% endblock %}
+{% block page_title %}Pendaftaran{% endblock %}
+
+{% block extra_css %}
+<style>
+.dp-page { padding: 4px 0; }
+.dp-page-h { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+.dp-page-h h1 { font-size: 20px; font-weight: 700; color: #0f172a; margin: 0; }
+.dp-page-h p { font-size: 12px; color: #64748b; margin: 2px 0 0; }
+
+.dp-toolbar { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.dp-search { flex: 1; min-width: 220px; position: relative; }
+.dp-search i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px; }
+.dp-search input { width: 100%; padding: 8px 12px 8px 34px; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; }
+.dp-search input:focus { outline: none; background: #ffffff; border-color: #7fcacd; box-shadow: 0 0 0 3px rgba(127,202,205,0.18); }
+.dp-status-sel { font-size: 12px; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff; color: #334155; font-family: inherit; min-width: 130px; }
+.dp-status-sel:focus { outline: none; border-color: #7fcacd; box-shadow: 0 0 0 3px rgba(127,202,205,0.18); }
+
+.dp-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: #475569; font-weight: 600; cursor: pointer; user-select: none; }
+.dp-toggle input { width: 14px; height: 14px; accent-color: #4a9499; cursor: pointer; }
+
+/* Bulk-action bar: slides in when at least one checkbox is ticked. The
+   selection state lives in window.dpBulkSelection (set by checkbox change
+   handlers in the partial); the bar listens for `dp-bulk-update` events. */
+.dp-bulk-bar { background: #326568; color: #ffffff; border-radius: 10px; padding: 10px 14px; display: none; align-items: center; gap: 12px; margin-bottom: 14px; }
+.dp-bulk-bar.show { display: flex; }
+.dp-bulk-bar .count { font-weight: 700; font-size: 13px; }
+.dp-bulk-bar select { padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: #4a9499; color: #ffffff; font-family: inherit; }
+.dp-bulk-bar select option { color: #0f172a; }
+.dp-bulk-bar .apply { padding: 6px 14px; font-size: 12px; font-weight: 700; border-radius: 6px; border: none; cursor: pointer; background: #ffffff; color: #326568; font-family: inherit; }
+.dp-bulk-bar .apply:hover { background: #e0f1f2; }
+.dp-bulk-bar .clear { background: transparent; border: none; color: rgba(255,255,255,0.7); font-size: 12px; cursor: pointer; padding: 4px 8px; margin-left: auto; font-family: inherit; }
+.dp-bulk-bar .clear:hover { color: #ffffff; }
+
+#enrollments-table-wrapper { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+.dp-loading { padding: 40px; text-align: center; color: #94a3b8; font-size: 13px; }
+</style>
+{% endblock %}
 
 {% block content %}
+<div class="dp-page">
 
-<!-- Controls -->
-<div id="enrollments-controls" class="flex flex-col sm:flex-row gap-3 mb-5">
-  <input type="text" name="q" placeholder="Cari nama siswa atau kelas…"
-         hx-get="/admin-panel/enrollments/partial/"
-         hx-target="#enrollments-table-wrapper"
-         hx-swap="innerHTML"
-         hx-trigger="input changed delay:400ms, search"
-         hx-include="#enrollments-controls"
-         class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm
-                focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
-
-  <select name="status"
-          hx-get="/admin-panel/enrollments/partial/"
-          hx-target="#enrollments-table-wrapper"
-          hx-swap="innerHTML"
-          hx-trigger="change"
-          hx-include="#enrollments-controls"
-          class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white
-                 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
-    <option value="">Semua Status</option>
-    <option value="ACTIVE">Aktif</option>
-    <option value="COMPLETED">Selesai</option>
-    <option value="DROPPED">Keluar</option>
-  </select>
-</div>
-
-<!-- Table -->
-<div id="enrollments-table-wrapper"
-     hx-get="/admin-panel/enrollments/partial/"
-     hx-trigger="load"
-     hx-swap="innerHTML">
-  <div class="flex items-center justify-center py-12 text-gray-400 text-sm">
-    Memuat data…
+  <div class="dp-page-h">
+    <div>
+      <h1>Pendaftaran</h1>
+      <p>Kelola pendaftaran siswa ke kelas — ubah status, transfer, atau hapus.</p>
+    </div>
   </div>
+
+  <form id="enrollments-controls" class="dp-toolbar" onsubmit="return false;">
+    <div class="dp-search">
+      <i class="ti ti-search"></i>
+      <input type="text" name="q" value="{{ q }}" placeholder="Cari siswa, kelas, atau guru…"
+             hx-get="{% url 'admin_panel:enrollments_list_partial' %}"
+             hx-target="#enrollments-table-wrapper"
+             hx-swap="innerHTML"
+             hx-trigger="input changed delay:400ms, search"
+             hx-include="#enrollments-controls"
+             autocomplete="off">
+    </div>
+    <select name="status" class="dp-status-sel"
+            hx-get="{% url 'admin_panel:enrollments_list_partial' %}"
+            hx-target="#enrollments-table-wrapper"
+            hx-swap="innerHTML"
+            hx-trigger="change"
+            hx-include="#enrollments-controls">
+      <option value="">Semua Status</option>
+      <option value="ACTIVE"    {% if status_filter == 'ACTIVE' %}selected{% endif %}>Aktif</option>
+      <option value="COMPLETED" {% if status_filter == 'COMPLETED' %}selected{% endif %}>Selesai</option>
+      <option value="DROPPED"   {% if status_filter == 'DROPPED' %}selected{% endif %}>Keluar</option>
+    </select>
+    <select name="level" class="dp-status-sel"
+            hx-get="{% url 'admin_panel:enrollments_list_partial' %}"
+            hx-target="#enrollments-table-wrapper"
+            hx-swap="innerHTML"
+            hx-trigger="change"
+            hx-include="#enrollments-controls">
+      <option value="">Semua Jenjang</option>
+      <option value="TK"   {% if level_filter == 'TK' %}selected{% endif %}>TK</option>
+      <option value="SD"   {% if level_filter == 'SD' %}selected{% endif %}>SD</option>
+      <option value="SMP"  {% if level_filter == 'SMP' %}selected{% endif %}>SMP</option>
+      <option value="SMA"  {% if level_filter == 'SMA' %}selected{% endif %}>SMA</option>
+      <option value="UMUM" {% if level_filter == 'UMUM' %}selected{% endif %}>UMUM</option>
+    </select>
+    <label class="dp-toggle">
+      <input type="checkbox" name="show_deleted" value="1" {% if show_deleted %}checked{% endif %}
+             hx-get="{% url 'admin_panel:enrollments_list_partial' %}"
+             hx-target="#enrollments-table-wrapper"
+             hx-swap="innerHTML"
+             hx-trigger="change"
+             hx-include="#enrollments-controls">
+      Tampilkan terhapus
+    </label>
+  </form>
+
+  {# Bulk-action bar. Hidden until at least one checkbox is ticked. The
+     form POSTs selected_ids[] + bulk_action; the view wraps the update in
+     transaction.atomic(). #}
+  <form id="dp-bulk-bar" class="dp-bulk-bar"
+        method="post" action="{% url 'admin_panel:enrollment_bulk_action' %}"
+        onsubmit="return dpCollectBulkIds();">
+    {% csrf_token %}
+    <span class="count"><span id="dp-bulk-count">0</span> dipilih</span>
+    <select name="bulk_action" required>
+      <option value="">Pilih aksi…</option>
+      <option value="ACTIVE">Ubah ke Aktif</option>
+      <option value="COMPLETED">Ubah ke Selesai</option>
+      <option value="DROPPED">Ubah ke Keluar</option>
+      <option value="soft_delete">Hapus (soft)</option>
+    </select>
+    <button type="submit" class="apply">Terapkan</button>
+    <button type="button" class="clear" onclick="dpClearBulkSelection();">✕ Batal pilih</button>
+    {# IDs are injected as hidden inputs at submit time #}
+    <span id="dp-bulk-ids-slot"></span>
+  </form>
+
+  <div id="enrollments-table-wrapper"
+       hx-get="{% url 'admin_panel:enrollments_list_partial' %}?q={{ q|urlencode }}&status={{ status_filter }}&level={{ level_filter }}{% if show_deleted %}&show_deleted=1{% endif %}"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <div class="dp-loading">Memuat data…</div>
+  </div>
+
 </div>
 
+{# Bulk selection state — survives HTMX swaps (set lives on window). #}
+<script>
+  window.dpBulkSelection = window.dpBulkSelection || new Set();
+
+  function dpUpdateBulkBar() {
+    const n = window.dpBulkSelection.size;
+    const bar = document.getElementById('dp-bulk-bar');
+    document.getElementById('dp-bulk-count').textContent = n;
+    bar.classList.toggle('show', n > 0);
+  }
+
+  function dpToggleEnrollment(id, checked) {
+    if (checked) window.dpBulkSelection.add(id);
+    else window.dpBulkSelection.delete(id);
+    dpUpdateBulkBar();
+  }
+
+  function dpToggleAll(checkboxEl) {
+    const checked = checkboxEl.checked;
+    document.querySelectorAll('.dp-row-check').forEach(function (cb) {
+      cb.checked = checked;
+      dpToggleEnrollment(cb.value, checked);
+    });
+  }
+
+  function dpClearBulkSelection() {
+    window.dpBulkSelection.clear();
+    document.querySelectorAll('.dp-row-check').forEach(function (cb) { cb.checked = false; });
+    const allCb = document.getElementById('dp-check-all');
+    if (allCb) allCb.checked = false;
+    dpUpdateBulkBar();
+  }
+
+  function dpCollectBulkIds() {
+    const slot = document.getElementById('dp-bulk-ids-slot');
+    slot.innerHTML = '';
+    window.dpBulkSelection.forEach(function (id) {
+      const inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = 'selected_ids';
+      inp.value = id;
+      slot.appendChild(inp);
+    });
+    const sel = document.querySelector('#dp-bulk-bar select[name="bulk_action"]');
+    if (!sel.value) {
+      alert('Pilih tindakan dulu.');
+      return false;
+    }
+    if (window.dpBulkSelection.size === 0) {
+      alert('Tidak ada pendaftaran yang dipilih.');
+      return false;
+    }
+    if (sel.value === 'soft_delete'
+        && !confirm('Hapus (soft delete) ' + window.dpBulkSelection.size + ' pendaftaran?')) {
+      return false;
+    }
+    return true;
+  }
+
+  // After every HTMX swap, rehydrate the row checkboxes against the surviving
+  // selection state so the UI stays consistent across pagination.
+  document.body.addEventListener('htmx:afterSwap', function (e) {
+    if (e.target && e.target.id === 'enrollments-table-wrapper') {
+      document.querySelectorAll('.dp-row-check').forEach(function (cb) {
+        cb.checked = window.dpBulkSelection.has(cb.value);
+      });
+      dpUpdateBulkBar();
+    }
+  });
+</script>
 {% endblock %}

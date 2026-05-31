@@ -1,97 +1,100 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
-{% block title %}Progress — {{ student.get_full_name }}{% endblock %}
-{% block page_title %}Laporan Progress Siswa{% endblock %}
+{% block title %}Progress — {{ student.get_full_name|default:student.username }} — Admin{% endblock %}
+{% block page_title %}Progress Pendaftaran{% endblock %}
+
+{% block extra_css %}
+<style>
+.dp-page { padding: 4px 0; }
+.dp-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.dp-crumb { display: inline-flex; align-items: center; gap: 6px; color: #64748b; font-size: 13px; text-decoration: none; }
+.dp-crumb:hover { color: #326568; }
+
+.dp-pill { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.dp-pill.admin { background: #ede9fe; color: #6d28d9; border: 1px solid #ddd6fe; }
+.dp-btn-transfer { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 12px; font-weight: 700; color: #1d4ed8; background: #dbeafe; border: 1px solid #bfdbfe; border-radius: 8px; cursor: pointer; font-family: inherit; transition: background 0.15s; }
+.dp-btn-transfer:hover { background: #bfdbfe; }
+
+/* Modal */
+.dp-modal-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,0.5); z-index: 50; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.dp-modal { background: #ffffff; border-radius: 12px; padding: 20px; max-width: 420px; width: 100%; box-shadow: 0 24px 48px rgba(0,0,0,0.18); }
+.dp-modal h3 { margin: 0 0 4px; font-size: 15px; font-weight: 700; color: #0f172a; }
+.dp-modal p { margin: 0 0 14px; font-size: 12px; color: #64748b; }
+.dp-modal label { display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px; }
+.dp-modal select { width: 100%; padding: 9px 11px; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff; color: #0f172a; font-family: inherit; margin-bottom: 14px; }
+.dp-modal select:focus { outline: none; border-color: #7fcacd; box-shadow: 0 0 0 3px rgba(127,202,205,0.18); }
+.dp-modal-actions { display: flex; gap: 8px; }
+.dp-modal-actions .dp-btn { flex: 1; padding: 9px 14px; font-size: 13px; font-weight: 700; border-radius: 8px; cursor: pointer; border: 1px solid transparent; font-family: inherit; transition: all 0.15s; text-decoration: none; text-align: center; }
+.dp-modal-actions .dp-btn-cancel { background: #ffffff; color: #475569; border-color: #e2e8f0; }
+.dp-modal-actions .dp-btn-cancel:hover { background: #f1f5f9; }
+.dp-modal-actions .dp-btn-save { background: #4a9499; color: #ffffff; border: none; }
+.dp-modal-actions .dp-btn-save:hover { background: #3d7c80; }
+
+[x-cloak] { display: none !important; }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="space-y-5" x-data="{ moveModal: false }">
+<div class="dp-page" x-data="{ moveModal: false }">
 
-  <!-- Top bar: back -->
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-    <a href="{{ back_url }}"
-       class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-           stroke-width="2" stroke="currentColor" class="w-4 h-4">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-      </svg>
+  <div class="dp-top">
+    <a href="{{ back_url|default:'/admin-panel/enrollments/' }}" class="dp-crumb">
+      <i class="ti ti-arrow-left"></i>
       Kembali ke Pendaftaran
     </a>
-    <div class="flex items-center gap-2">
+    <div style="display:flex;gap:8px;align-items:center;">
       {% if is_admin_view and enrollment and enrollment.status == 'ACTIVE' and target_classes %}
-      <button type="button" @click="moveModal = true"
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold
-                     text-orange-700 bg-orange-50 border border-orange-200 rounded-lg
-                     hover:bg-orange-100 transition-colors">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-             stroke-width="1.75" stroke="currentColor" class="w-3.5 h-3.5">
-          <path stroke-linecap="round" stroke-linejoin="round"
-                d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />
-        </svg>
-        Pindahkan ke Kelas Lain
+      <button type="button" @click="moveModal = true" class="dp-btn-transfer">
+        <i class="ti ti-transfer"></i> Pindahkan ke Kelas Lain
       </button>
       {% endif %}
-      <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-primary-50 text-primary-700 border border-primary-200">
-        Tampilan Admin
-      </span>
+      <span class="dp-pill admin"><i class="ti ti-shield-check" style="font-size:12px;"></i> Tampilan Admin</span>
     </div>
   </div>
 
+  {# Shared progress body (grades, attendance, etc.) — also used by teachers,
+     don't customize it here. #}
   {% include "grades/_progress_report_body.html" %}
 
-  <!-- Move student modal -->
   {% if is_admin_view and enrollment %}
   <div x-show="moveModal" x-cloak
-       x-transition:enter="transition ease-out duration-150"
-       x-transition:enter-start="opacity-0"
-       x-transition:enter-end="opacity-100"
-       class="fixed inset-0 z-50 flex items-center justify-center px-4"
-       @keydown.escape.window="moveModal = false">
-    <div class="absolute inset-0 bg-black/40" @click="moveModal = false"></div>
-    <div class="relative bg-white rounded-2xl shadow-xl w-full max-w-sm p-6"
+       x-transition.opacity
+       class="dp-modal-backdrop"
+       @keydown.escape.window="moveModal = false"
+       @click.self="moveModal = false">
+    <div class="dp-modal"
+         x-show="moveModal"
          x-transition:enter="transition ease-out duration-150"
          x-transition:enter-start="opacity-0 scale-95"
          x-transition:enter-end="opacity-100 scale-100">
-      <h3 class="text-base font-bold text-gray-900 mb-1">Pindahkan Siswa</h3>
-      <p class="text-sm text-gray-500 mb-4">
-        Memindahkan <strong>{{ student.get_full_name }}</strong> dari kelas
-        <strong>{{ enrollment.kelas.name }}</strong>
+      <h3>Pindahkan Siswa</h3>
+      <p>
+        Memindahkan <strong>{{ student.get_full_name|default:student.username }}</strong>
+        dari kelas <strong>{{ enrollment.kelas.name }}</strong>.
       </p>
       {% if target_classes %}
       <form method="post" action="{% url 'admin_panel:enrollment_transfer' enrollment.pk %}">
         {% csrf_token %}
-        <label class="block text-sm font-medium text-gray-700 mb-1">Kelas Tujuan</label>
-        <select name="target_kelas" required
-                class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-4
-                       focus:outline-none focus:ring-2 focus:ring-primary-300">
+        <label>Kelas Tujuan</label>
+        <select name="target_kelas" required>
           <option value="">— Pilih kelas —</option>
           {% for kls in target_classes %}
-          <option value="{{ kls.pk }}">{{ kls.name }} ({{ kls.subject.name }}, {{ kls.level }})</option>
+          <option value="{{ kls.pk }}">{{ kls.name }} · {{ kls.subject.name }} · {{ kls.level }} · {{ kls.active_count }}/{{ kls.capacity }} siswa</option>
           {% endfor %}
         </select>
-        <div class="flex gap-3">
-          <button type="button" @click="moveModal = false"
-                  class="flex-1 px-4 py-2.5 border border-gray-200 text-gray-700 text-sm
-                         font-semibold rounded-xl hover:bg-gray-50 transition-colors">
-            Batal
-          </button>
-          <button type="submit"
-                  class="flex-1 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white
-                         text-sm font-semibold rounded-xl transition-colors">
-            Pindahkan
-          </button>
+        <div class="dp-modal-actions">
+          <button type="button" @click="moveModal = false" class="dp-btn dp-btn-cancel">Batal</button>
+          <button type="submit" class="dp-btn dp-btn-save">Pindahkan</button>
         </div>
       </form>
       {% else %}
-      <p class="text-sm text-gray-500 mb-4">Tidak ada kelas lain yang tersedia untuk jenjang ini.</p>
-      <button type="button" @click="moveModal = false"
-              class="w-full px-4 py-2.5 border border-gray-200 text-gray-700 text-sm
-                     font-semibold rounded-xl hover:bg-gray-50 transition-colors">
-        Tutup
-      </button>
+      <p style="color:#94a3b8;">Tidak ada kelas lain yang tersedia untuk jenjang ini.</p>
+      <div class="dp-modal-actions">
+        <button type="button" @click="moveModal = false" class="dp-btn dp-btn-cancel" style="width:100%;">Tutup</button>
+      </div>
       {% endif %}
     </div>
   </div>
-  <style>[x-cloak] { display: none !important; }</style>
   {% endif %}
 
 </div>

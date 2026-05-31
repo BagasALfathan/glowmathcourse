@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import models
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -50,11 +50,42 @@ def _user_wa_url(user):
 
 @role_required('ADMIN')
 def pending_users_view(request):
+    """Data Pro v5: approval cards. Filter by role + search, no tabs."""
+    q = request.GET.get('q', '').strip()
+    role_filter = request.GET.get('role', '')
+
+    qs = (
+        User.objects
+        .filter(approval_status=ApprovalStatus.PENDING, is_deleted=False)
+        .select_related('student_profile', 'teacher_profile')
+        .order_by('-date_joined')
+    )
+    if q:
+        qs = qs.filter(
+            Q(first_name__icontains=q)
+            | Q(last_name__icontains=q)
+            | Q(email__icontains=q)
+            | Q(username__icontains=q)
+        )
+    if role_filter in [Role.STUDENT, Role.TEACHER]:
+        qs = qs.filter(role=role_filter)
+
+    pending_users = list(qs)
+    for u in pending_users:
+        u.wa_url = _user_wa_url(u)
+
+    # Total pending across all roles (badge in sidebar already uses
+    # the global context processor, but we also surface it here so
+    # the page header counts match the unfiltered universe).
     pending_count = User.objects.filter(
         approval_status=ApprovalStatus.PENDING, is_deleted=False
     ).count()
+
     return render(request, 'admin_panel/pending_users.html', {
+        'pending_users': pending_users,
         'pending_count': pending_count,
+        'q': q,
+        'role_filter': role_filter,
     })
 
 
@@ -361,39 +392,77 @@ def bulk_action(request):
 
 @role_required('ADMIN')
 def categories_list(request):
-    categories = Category.objects.all()
-    return render(request, 'admin_panel/categories_list.html', {'categories': categories})
+    return render(request, 'admin_panel/categories_list.html', {
+        'q': request.GET.get('q', '').strip(),
+        'status_filter': request.GET.get('status', ''),
+    })
 
 
 @role_required('ADMIN')
-@require_POST
+def categories_list_partial(request):
+    """HTMX partial — search by name, filter by status, paginate."""
+    q = request.GET.get('q', '').strip()
+    status_filter = request.GET.get('status', '')
+
+    qs = Category.objects.annotate(
+        subject_count=models.Count('subjects', distinct=True),
+    ).order_by('name')
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(description__icontains=q))
+    if status_filter == 'active':
+        qs = qs.filter(is_active=True)
+    elif status_filter == 'inactive':
+        qs = qs.filter(is_active=False)
+
+    paginator = Paginator(qs, PAGE_SIZE)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+    return render(request, 'admin_panel/_categories_list_table.html', {
+        'page_obj': page_obj,
+        'q': q,
+        'status_filter': status_filter,
+    })
+
+
+@role_required('ADMIN')
 def category_create(request):
-    name = request.POST.get('name', '').strip()
-    description = request.POST.get('description', '').strip()
-    if name:
-        Category.objects.create(name=name, description=description)
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        description = request.POST.get('description', '').strip()
+        is_active = request.POST.get('is_active') == '1'
+        if not name:
+            messages.error(request, 'Nama kategori wajib diisi.')
+            return render(request, 'admin_panel/category_form.html', {
+                'mode': 'create', 'category': None, 'form_data': request.POST,
+            })
+        Category.objects.create(name=name, description=description, is_active=is_active)
         messages.success(request, f'Kategori "{name}" berhasil ditambahkan.')
-    else:
-        messages.error(request, 'Nama kategori tidak boleh kosong.')
-    return redirect('admin_panel:categories_list')
+        return redirect('admin_panel:categories_list')
+    return render(request, 'admin_panel/category_form.html', {
+        'mode': 'create', 'category': None, 'form_data': None,
+    })
 
 
 @role_required('ADMIN')
-@require_POST
 def category_edit(request, category_id):
     category = get_object_or_404(Category, pk=category_id)
-    name = request.POST.get('name', '').strip()
-    description = request.POST.get('description', '').strip()
-    is_active = 'is_active' in request.POST
-    if name:
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        description = request.POST.get('description', '').strip()
+        is_active = request.POST.get('is_active') == '1'
+        if not name:
+            messages.error(request, 'Nama kategori wajib diisi.')
+            return render(request, 'admin_panel/category_form.html', {
+                'mode': 'edit', 'category': category, 'form_data': request.POST,
+            })
         category.name = name
         category.description = description
         category.is_active = is_active
         category.save()
         messages.success(request, f'Kategori "{name}" berhasil diperbarui.')
-    else:
-        messages.error(request, 'Nama kategori tidak boleh kosong.')
-    return redirect('admin_panel:categories_list')
+        return redirect('admin_panel:categories_list')
+    return render(request, 'admin_panel/category_form.html', {
+        'mode': 'edit', 'category': category, 'form_data': None,
+    })
 
 
 @role_required('ADMIN')
@@ -413,47 +482,103 @@ def category_delete(request, category_id):
 
 @role_required('ADMIN')
 def subjects_list(request):
-    subjects = Subject.objects.select_related('category').all()
-    categories = Category.objects.filter(is_active=True).order_by('name')
     return render(request, 'admin_panel/subjects_list.html', {
-        'subjects': subjects,
-        'categories': categories,
+        'q': request.GET.get('q', '').strip(),
+        'category_filter': request.GET.get('category', ''),
+        'status_filter': request.GET.get('status', ''),
+        'categories': Category.objects.filter(is_active=True).order_by('name'),
     })
 
 
 @role_required('ADMIN')
-@require_POST
-def subject_create(request):
-    name = request.POST.get('name', '').strip()
-    description = request.POST.get('description', '').strip()
-    category_id = request.POST.get('category', '')
-    if not name or not category_id:
-        messages.error(request, 'Nama dan kategori wajib diisi.')
-        return redirect('admin_panel:subjects_list')
-    category = get_object_or_404(Category, pk=category_id)
-    Subject.objects.create(name=name, description=description, category=category)
-    messages.success(request, f'Mata pelajaran "{name}" berhasil ditambahkan.')
-    return redirect('admin_panel:subjects_list')
+def subjects_list_partial(request):
+    """HTMX partial — search by name, filter by category + status."""
+    q = request.GET.get('q', '').strip()
+    category_filter = request.GET.get('category', '')
+    status_filter = request.GET.get('status', '')
+
+    qs = (
+        Subject.objects
+        .select_related('category')
+        .annotate(class_count=models.Count(
+            'classes', filter=Q(classes__is_deleted=False), distinct=True,
+        ))
+        .order_by('category__name', 'name')
+    )
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(description__icontains=q))
+    if category_filter.isdigit():
+        qs = qs.filter(category_id=int(category_filter))
+    if status_filter == 'active':
+        qs = qs.filter(is_active=True)
+    elif status_filter == 'inactive':
+        qs = qs.filter(is_active=False)
+
+    paginator = Paginator(qs, PAGE_SIZE)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+    return render(request, 'admin_panel/_subjects_list_table.html', {
+        'page_obj': page_obj,
+        'q': q,
+        'category_filter': category_filter,
+        'status_filter': status_filter,
+    })
+
+
+def _subject_form_context(mode, subject=None, form_data=None):
+    return {
+        'mode': mode,
+        'subject': subject,        # may be None
+        'form_data': form_data,    # may be None
+        'categories': Category.objects.filter(is_active=True).order_by('name'),
+    }
 
 
 @role_required('ADMIN')
-@require_POST
+def subject_create(request):
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        icon = request.POST.get('icon', '').strip()[:10]
+        description = request.POST.get('description', '').strip()
+        category_id = request.POST.get('category', '')
+        is_active = request.POST.get('is_active') == '1'
+        if not name or not category_id:
+            messages.error(request, 'Nama dan kategori wajib diisi.')
+            return render(request, 'admin_panel/subject_form.html',
+                          _subject_form_context('create', form_data=request.POST))
+        category = get_object_or_404(Category, pk=category_id)
+        Subject.objects.create(
+            name=name, icon=icon, description=description,
+            category=category, is_active=is_active,
+        )
+        messages.success(request, f'Mata pelajaran "{name}" berhasil ditambahkan.')
+        return redirect('admin_panel:subjects_list')
+    return render(request, 'admin_panel/subject_form.html',
+                  _subject_form_context('create'))
+
+
+@role_required('ADMIN')
 def subject_edit(request, subject_id):
     subject = get_object_or_404(Subject, pk=subject_id)
-    name = request.POST.get('name', '').strip()
-    description = request.POST.get('description', '').strip()
-    category_id = request.POST.get('category', '')
-    is_active = 'is_active' in request.POST
-    if not name or not category_id:
-        messages.error(request, 'Nama dan kategori wajib diisi.')
+    if request.method == 'POST':
+        name = request.POST.get('name', '').strip()
+        icon = request.POST.get('icon', '').strip()[:10]
+        description = request.POST.get('description', '').strip()
+        category_id = request.POST.get('category', '')
+        is_active = request.POST.get('is_active') == '1'
+        if not name or not category_id:
+            messages.error(request, 'Nama dan kategori wajib diisi.')
+            return render(request, 'admin_panel/subject_form.html',
+                          _subject_form_context('edit', subject=subject, form_data=request.POST))
+        subject.name = name
+        subject.icon = icon
+        subject.description = description
+        subject.category = get_object_or_404(Category, pk=category_id)
+        subject.is_active = is_active
+        subject.save()
+        messages.success(request, f'Mata pelajaran "{name}" berhasil diperbarui.')
         return redirect('admin_panel:subjects_list')
-    subject.name = name
-    subject.description = description
-    subject.category = get_object_or_404(Category, pk=category_id)
-    subject.is_active = is_active
-    subject.save()
-    messages.success(request, f'Mata pelajaran "{name}" berhasil diperbarui.')
-    return redirect('admin_panel:subjects_list')
+    return render(request, 'admin_panel/subject_form.html',
+                  _subject_form_context('edit', subject=subject))
 
 
 @role_required('ADMIN')
@@ -473,68 +598,149 @@ def subject_delete(request, subject_id):
 
 @role_required('ADMIN')
 def periods_list(request):
-    periods = AcademicPeriod.objects.all()
     return render(request, 'admin_panel/periods_list.html', {
-        'periods': periods,
-        'quarter_choices': Quarter.choices,
+        'q': request.GET.get('q', '').strip(),
+        'year_filter': request.GET.get('year', ''),
+        'type_filter': request.GET.get('type', ''),
+        'all_years': list(AcademicPeriod.objects.order_by('-year')
+                          .values_list('year', flat=True).distinct()),
     })
 
 
 @role_required('ADMIN')
-@require_POST
-def period_create(request):
-    year = request.POST.get('year', '').strip()
-    quarter = request.POST.get('quarter', '').strip()
-    name = request.POST.get('name', '').strip()
-    start_date = request.POST.get('start_date', '').strip()
-    end_date = request.POST.get('end_date', '').strip()
-    if not all([year, quarter, name, start_date, end_date]):
-        messages.error(request, 'Semua kolom wajib diisi.')
-        return redirect('admin_panel:periods_list')
-    if AcademicPeriod.objects.filter(year=year, quarter=quarter).exists():
-        messages.error(request, f'Periode {name} sudah ada.')
-        return redirect('admin_panel:periods_list')
-    AcademicPeriod.objects.create(
-        year=year, quarter=quarter, name=name,
-        start_date=start_date, end_date=end_date,
-    )
-    messages.success(request, f'Periode "{name}" berhasil ditambahkan.')
-    return redirect('admin_panel:periods_list')
+def periods_list_partial(request):
+    from academics.models import PeriodType
+    q = request.GET.get('q', '').strip()
+    year_filter = request.GET.get('year', '')
+    type_filter = request.GET.get('type', '')
+
+    qs = AcademicPeriod.objects.order_by('-is_active', '-year', 'quarter', 'semester')
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(year__icontains=q))
+    if year_filter:
+        qs = qs.filter(year=year_filter)
+    if type_filter in [PeriodType.QUARTER, PeriodType.SEMESTER]:
+        qs = qs.filter(period_type=type_filter)
+
+    paginator = Paginator(qs, PAGE_SIZE)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+    return render(request, 'admin_panel/_periods_list_table.html', {
+        'page_obj': page_obj,
+        'q': q,
+        'year_filter': year_filter,
+        'type_filter': type_filter,
+    })
+
+
+def _period_form_context(mode, period=None, form_data=None):
+    from academics.models import PeriodType, Semester
+    return {
+        'mode': mode,
+        'period': period,          # may be None
+        'form_data': form_data,    # may be None
+        'period_type_choices': PeriodType.choices,
+        'quarter_choices': Quarter.choices,
+        'semester_choices': Semester.choices,
+    }
+
+
+def _parse_period_post(post):
+    from academics.models import PeriodType
+    period_type = post.get('period_type', '').strip()
+    data = {
+        'year': post.get('year', '').strip(),
+        'period_type': period_type,
+        'quarter': post.get('quarter', '').strip() if period_type == PeriodType.QUARTER else '',
+        'semester': post.get('semester', '').strip() if period_type == PeriodType.SEMESTER else '',
+        'name': post.get('name', '').strip(),
+        'start_date': post.get('start_date', '').strip(),
+        'end_date': post.get('end_date', '').strip(),
+        'is_active': post.get('is_active') == '1',
+    }
+    errors = []
+    if not data['year']:
+        errors.append('Tahun ajaran wajib diisi (contoh: 2026-2027).')
+    if data['period_type'] not in [PeriodType.QUARTER, PeriodType.SEMESTER]:
+        errors.append('Tipe periode tidak valid.')
+    elif data['period_type'] == PeriodType.QUARTER and not data['quarter']:
+        errors.append('Pilih Kuartal (Q1-Q4) untuk tipe Kuartal.')
+    elif data['period_type'] == PeriodType.SEMESTER and not data['semester']:
+        errors.append('Pilih Semester (Ganjil/Genap) untuk tipe Semester.')
+    if not data['name']:
+        errors.append('Nama periode wajib diisi.')
+    if not data['start_date'] or not data['end_date']:
+        errors.append('Tanggal mulai dan selesai wajib diisi.')
+    return data, errors
 
 
 @role_required('ADMIN')
-@require_POST
+def period_create(request):
+    if request.method == 'POST':
+        data, errors = _parse_period_post(request.POST)
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+            return render(request, 'admin_panel/period_form.html',
+                          _period_form_context('create', form_data=request.POST))
+        dup_q = AcademicPeriod.objects.filter(
+            year=data['year'], period_type=data['period_type'],
+            quarter=data['quarter'], semester=data['semester'],
+        )
+        if dup_q.exists():
+            messages.error(request, 'Kombinasi tahun + tipe + sub-periode sudah ada.')
+            return render(request, 'admin_panel/period_form.html',
+                          _period_form_context('create', form_data=request.POST))
+        from django.db import transaction
+        with transaction.atomic():
+            if data['is_active']:
+                AcademicPeriod.objects.filter(is_active=True).update(is_active=False)
+            AcademicPeriod.objects.create(**data)
+        messages.success(request, f'Periode "{data["name"]}" berhasil ditambahkan.')
+        return redirect('admin_panel:periods_list')
+    return render(request, 'admin_panel/period_form.html',
+                  _period_form_context('create'))
+
+
+@role_required('ADMIN')
 def period_edit(request, period_id):
     period = get_object_or_404(AcademicPeriod, pk=period_id)
-    year = request.POST.get('year', '').strip()
-    quarter = request.POST.get('quarter', '').strip()
-    name = request.POST.get('name', '').strip()
-    start_date = request.POST.get('start_date', '').strip()
-    end_date = request.POST.get('end_date', '').strip()
-    if not all([year, quarter, name, start_date, end_date]):
-        messages.error(request, 'Semua kolom wajib diisi.')
+    if request.method == 'POST':
+        data, errors = _parse_period_post(request.POST)
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+            return render(request, 'admin_panel/period_form.html',
+                          _period_form_context('edit', period=period, form_data=request.POST))
+        dup_q = AcademicPeriod.objects.filter(
+            year=data['year'], period_type=data['period_type'],
+            quarter=data['quarter'], semester=data['semester'],
+        ).exclude(pk=period_id)
+        if dup_q.exists():
+            messages.error(request, 'Kombinasi tahun + tipe + sub-periode sudah digunakan periode lain.')
+            return render(request, 'admin_panel/period_form.html',
+                          _period_form_context('edit', period=period, form_data=request.POST))
+        from django.db import transaction
+        with transaction.atomic():
+            if data['is_active'] and not period.is_active:
+                AcademicPeriod.objects.filter(is_active=True).exclude(pk=period_id).update(is_active=False)
+            for k, v in data.items():
+                setattr(period, k, v)
+            period.save()
+        messages.success(request, f'Periode "{data["name"]}" berhasil diperbarui.')
         return redirect('admin_panel:periods_list')
-    dup = AcademicPeriod.objects.filter(year=year, quarter=quarter).exclude(pk=period_id)
-    if dup.exists():
-        messages.error(request, 'Kombinasi tahun + kuartal sudah digunakan periode lain.')
-        return redirect('admin_panel:periods_list')
-    period.year = year
-    period.quarter = quarter
-    period.name = name
-    period.start_date = start_date
-    period.end_date = end_date
-    period.save()
-    messages.success(request, f'Periode "{name}" berhasil diperbarui.')
-    return redirect('admin_panel:periods_list')
+    return render(request, 'admin_panel/period_form.html',
+                  _period_form_context('edit', period=period))
 
 
 @role_required('ADMIN')
 @require_POST
 def period_set_active(request, period_id):
+    from django.db import transaction
     period = get_object_or_404(AcademicPeriod, pk=period_id)
-    AcademicPeriod.objects.all().update(is_active=False)
-    period.is_active = True
-    period.save()
+    with transaction.atomic():
+        AcademicPeriod.objects.filter(is_active=True).exclude(pk=period_id).update(is_active=False)
+        period.is_active = True
+        period.save(update_fields=['is_active', 'updated_at'])
     messages.success(request, f'Periode "{period.name}" sekarang aktif.')
     return redirect('admin_panel:periods_list')
 
@@ -557,51 +763,71 @@ def period_delete(request, period_id):
 @role_required('ADMIN')
 def classes_list(request):
     periods = AcademicPeriod.objects.order_by('-year', 'quarter')
-    return render(request, 'admin_panel/classes_list.html', {'periods': periods})
+    return render(request, 'admin_panel/classes_list.html', {
+        'periods': periods,
+        'q': request.GET.get('q', '').strip(),
+        'level_filter': request.GET.get('level', ''),
+        'status_filter': request.GET.get('status', ''),
+        'period_filter': request.GET.get('period', ''),
+        'show_deleted': request.GET.get('show_deleted', '') == '1',
+    })
 
 
 @role_required('ADMIN')
 def classes_list_partial(request):
+    """Data Pro v5 — search by name / teacher, filter by level + status +
+    period, explicit show_deleted toggle. Annotates enrolled count so the
+    table can render "12/15" without N+1 queries.
+    """
     q = request.GET.get('q', '').strip()
     level_filter = request.GET.get('level', '')
     status_filter = request.GET.get('status', '')
     period_filter = request.GET.get('period', '')
-    page_num = request.GET.get('page', 1)
+    show_deleted = request.GET.get('show_deleted', '') == '1'
 
-    # Include soft-deleted — show all
     qs = (
         Kelas.objects
         .select_related('subject', 'teacher_profile__user', 'academic_period')
+        .annotate(active_count=Count(
+            'enrollments',
+            filter=Q(enrollments__status=EnrollmentStatus.ACTIVE,
+                     enrollments__is_deleted=False),
+            distinct=True,
+        ))
         .order_by('-created_at')
     )
 
+    if show_deleted:
+        qs = qs.filter(is_deleted=True)
+    else:
+        qs = qs.filter(is_deleted=False)
+
     if q:
+        # Use the real FK path; PITFALLS.md flags @property shims like
+        # Kelas.teacher as unusable in ORM filters.
         qs = qs.filter(
             Q(name__icontains=q)
-            | Q(teacher__first_name__icontains=q)
-            | Q(teacher__last_name__icontains=q)
+            | Q(teacher_profile__user__first_name__icontains=q)
+            | Q(teacher_profile__user__last_name__icontains=q)
+            | Q(teacher_profile__user__username__icontains=q)
+            | Q(subject__name__icontains=q)
         )
-    if level_filter in [Level.SD, Level.SMP, Level.SMA]:
+    if level_filter in Level.values:
         qs = qs.filter(level=level_filter)
-    if status_filter == 'DELETED':
-        qs = qs.filter(is_deleted=True)
-    elif status_filter in ['OPEN', 'FULL', 'CLOSED']:
-        qs = qs.filter(status=status_filter, is_deleted=False)
-    else:
-        # default: show all (including deleted)
-        pass
+    if status_filter in ['OPEN', 'FULL', 'CLOSED']:
+        qs = qs.filter(status=status_filter)
     if period_filter:
         qs = qs.filter(academic_period_id=period_filter)
 
     paginator = Paginator(qs, PAGE_SIZE)
-    page_obj = paginator.get_page(page_num)
-
+    page_obj = paginator.get_page(request.GET.get('page', 1))
     return render(request, 'admin_panel/_classes_list_table.html', {
         'page_obj': page_obj,
         'q': q,
         'level_filter': level_filter,
         'status_filter': status_filter,
         'period_filter': period_filter,
+        'show_deleted': show_deleted,
     })
 
 
@@ -646,21 +872,38 @@ def class_restore(request, kelas_id):
 
 @role_required('ADMIN')
 def enrollments_list(request):
-    return render(request, 'admin_panel/enrollments_list.html')
+    return render(request, 'admin_panel/enrollments_list.html', {
+        'q': request.GET.get('q', '').strip(),
+        'status_filter': request.GET.get('status', ''),
+        'level_filter': request.GET.get('level', ''),
+        'show_deleted': request.GET.get('show_deleted', '') == '1',
+    })
 
 
 @role_required('ADMIN')
 def enrollments_list_partial(request):
+    """Data Pro v5 — search siswa / kelas, filter status + level, explicit
+    show_deleted toggle. select_related kelas__teacher_profile__user so the
+    table can render the teacher column without N+1.
+    """
     q = request.GET.get('q', '').strip()
     status_filter = request.GET.get('status', '')
-    page_num = request.GET.get('page', 1)
+    level_filter = request.GET.get('level', '')
+    show_deleted = request.GET.get('show_deleted', '') == '1'
 
     qs = (
         Enrollment.objects
-        .filter(is_deleted=False)
-        .select_related('student_profile__user', 'kelas__subject')
+        .select_related(
+            'student_profile__user',
+            'kelas__subject',
+            'kelas__teacher_profile__user',
+        )
         .order_by('-enrolled_at')
     )
+    if show_deleted:
+        qs = qs.filter(is_deleted=True)
+    else:
+        qs = qs.filter(is_deleted=False)
 
     if q:
         qs = qs.filter(
@@ -668,17 +911,22 @@ def enrollments_list_partial(request):
             | Q(student_profile__user__last_name__icontains=q)
             | Q(student_profile__user__username__icontains=q)
             | Q(kelas__name__icontains=q)
+            | Q(kelas__teacher_profile__user__first_name__icontains=q)
+            | Q(kelas__teacher_profile__user__last_name__icontains=q)
         )
     if status_filter in [EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED, EnrollmentStatus.DROPPED]:
         qs = qs.filter(status=status_filter)
+    if level_filter in Level.values:
+        qs = qs.filter(kelas__level=level_filter)
 
     paginator = Paginator(qs, PAGE_SIZE)
-    page_obj = paginator.get_page(page_num)
-
+    page_obj = paginator.get_page(request.GET.get('page', 1))
     return render(request, 'admin_panel/_enrollments_list_table.html', {
         'page_obj': page_obj,
         'q': q,
         'status_filter': status_filter,
+        'level_filter': level_filter,
+        'show_deleted': show_deleted,
     })
 
 
@@ -690,6 +938,70 @@ def enrollment_change_status(request, enrollment_id):
     if new_status in [EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED, EnrollmentStatus.DROPPED]:
         enrollment.status = new_status
         enrollment.save()
+        log_activity(request.user, 'updated', 'enrollment', enrollment.pk)
+    return redirect('admin_panel:enrollments_list')
+
+
+@role_required('ADMIN')
+@require_POST
+def enrollment_soft_delete(request, enrollment_id):
+    enrollment = get_object_or_404(Enrollment, pk=enrollment_id, is_deleted=False)
+    enrollment.soft_delete()
+    log_activity(request.user, 'deleted', 'enrollment', enrollment.pk)
+    messages.success(request, 'Pendaftaran berhasil dihapus.')
+    return redirect('admin_panel:enrollments_list')
+
+
+@role_required('ADMIN')
+@require_POST
+def enrollment_restore(request, enrollment_id):
+    enrollment = get_object_or_404(Enrollment, pk=enrollment_id, is_deleted=True)
+    enrollment.is_deleted = False
+    enrollment.deleted_at = None
+    enrollment.save(update_fields=['is_deleted', 'deleted_at', 'updated_at'])
+    log_activity(request.user, 'updated', 'enrollment', enrollment.pk)
+    messages.success(request, 'Pendaftaran berhasil dipulihkan.')
+    return redirect('admin_panel:enrollments_list')
+
+
+@role_required('ADMIN')
+@require_POST
+def enrollment_bulk_action(request):
+    """Atomic bulk action on enrollments (status change OR soft delete).
+
+    Not to be confused with `bulk_action` (URL `enrollments/bulk-action/`),
+    which is scoped to PENDING USERS approve/reject despite the misleading
+    URL prefix. This endpoint is intentionally placed at a distinct path.
+    """
+    from django.db import transaction
+    action = request.POST.get('bulk_action', '')
+    ids_raw = request.POST.getlist('selected_ids')
+    try:
+        ids = [int(x) for x in ids_raw if str(x).strip().isdigit()]
+    except (TypeError, ValueError):
+        ids = []
+    if not ids or not action:
+        messages.error(request, 'Pilih tindakan dan setidaknya satu pendaftaran.')
+        return redirect('admin_panel:enrollments_list')
+
+    qs = Enrollment.objects.filter(pk__in=ids, is_deleted=False)
+    count = qs.count()
+    if count == 0:
+        messages.error(request, 'Tidak ada pendaftaran valid yang dipilih.')
+        return redirect('admin_panel:enrollments_list')
+
+    with transaction.atomic():
+        if action in [EnrollmentStatus.ACTIVE, EnrollmentStatus.COMPLETED, EnrollmentStatus.DROPPED]:
+            qs.update(status=action)
+            log_activity(request.user, 'updated', 'enrollment_bulk_status', None)
+            messages.success(request, f'{count} pendaftaran diubah menjadi {action}.')
+        elif action == 'soft_delete':
+            qs.update(is_deleted=True, deleted_at=timezone.now())
+            log_activity(request.user, 'deleted', 'enrollment_bulk', None)
+            messages.success(request, f'{count} pendaftaran berhasil dihapus.')
+        else:
+            messages.error(request, 'Tindakan tidak valid.')
+
     return redirect('admin_panel:enrollments_list')
 
 
@@ -740,43 +1052,93 @@ def grades_list_partial(request):
 
 @role_required('ADMIN')
 def ratings_list(request):
-    return render(request, 'admin_panel/ratings_list.html')
+    return render(request, 'admin_panel/ratings_list.html', {
+        'q': request.GET.get('q', '').strip(),
+        'type_filter': request.GET.get('type', 'teacher'),
+        'score_filter': request.GET.get('score', ''),
+    })
 
 
 @role_required('ADMIN')
 def ratings_list_partial(request):
+    """Data Pro v5 — type tab (teacher | class), search by comment / student /
+    teacher / kelas name, score filter, paginated. Each row carries a delete
+    form for moderation. Comments truncate in the cell; the modal-less design
+    relies on title=full-text for hover preview."""
+    from ratings.models import ClassRating
     q = request.GET.get('q', '').strip()
+    type_filter = request.GET.get('type', 'teacher')
+    if type_filter not in ('teacher', 'class'):
+        type_filter = 'teacher'
     score_filter = request.GET.get('score', '')
-    page_num = request.GET.get('page', 1)
 
-    qs = (
-        TeacherRating.objects
-        .select_related(
-            'enrollment__student_profile__user',
-            'enrollment__kelas__teacher_profile__user',
-            'enrollment__kelas__subject',
+    if type_filter == 'teacher':
+        qs = (
+            TeacherRating.objects
+            .select_related(
+                'enrollment__student_profile__user',
+                'enrollment__kelas__subject',
+                'teacher_profile__user',
+            )
+            .order_by('-created_at')
         )
-        .order_by('-created_at')
-    )
+        if q:
+            qs = qs.filter(
+                Q(comment__icontains=q)
+                | Q(enrollment__student_profile__user__first_name__icontains=q)
+                | Q(enrollment__student_profile__user__last_name__icontains=q)
+                | Q(teacher_profile__user__first_name__icontains=q)
+                | Q(teacher_profile__user__last_name__icontains=q)
+            )
+    else:
+        qs = (
+            ClassRating.objects
+            .select_related(
+                'enrollment__student_profile__user',
+                'kelas__subject',
+                'kelas__teacher_profile__user',
+            )
+            .order_by('-created_at')
+        )
+        if q:
+            qs = qs.filter(
+                Q(comment__icontains=q)
+                | Q(enrollment__student_profile__user__first_name__icontains=q)
+                | Q(enrollment__student_profile__user__last_name__icontains=q)
+                | Q(kelas__name__icontains=q)
+            )
 
-    if q:
-        qs = qs.filter(
-            Q(enrollment__student_profile__user__first_name__icontains=q)
-            | Q(enrollment__student_profile__user__last_name__icontains=q)
-            | Q(enrollment__kelas__teacher_profile__user__first_name__icontains=q)
-            | Q(enrollment__kelas__teacher_profile__user__last_name__icontains=q)
-        )
     if score_filter in ['1', '2', '3', '4', '5']:
         qs = qs.filter(score=int(score_filter))
 
     paginator = Paginator(qs, PAGE_SIZE)
-    page_obj = paginator.get_page(page_num)
-
+    page_obj = paginator.get_page(request.GET.get('page', 1))
     return render(request, 'admin_panel/_ratings_list_table.html', {
         'page_obj': page_obj,
         'q': q,
+        'type_filter': type_filter,
         'score_filter': score_filter,
     })
+
+
+@role_required('ADMIN')
+@require_POST
+def rating_delete(request, rating_type, rating_id):
+    """Moderation: hard-delete a TeacherRating or ClassRating. Logged."""
+    from ratings.models import ClassRating
+    if rating_type == 'teacher':
+        rating = get_object_or_404(TeacherRating, pk=rating_id)
+        label = 'Penilaian guru'
+    elif rating_type == 'class':
+        rating = get_object_or_404(ClassRating, pk=rating_id)
+        label = 'Penilaian kelas'
+    else:
+        messages.error(request, 'Tipe rating tidak valid.')
+        return redirect('admin_panel:ratings_list')
+    log_activity(request.user, 'deleted', f'{rating_type}_rating', rating.pk)
+    rating.delete()
+    messages.success(request, f'{label} berhasil dihapus.')
+    return redirect('admin_panel:ratings_list')
 
 
 # ── Admin Activity Logs ───────────────────────────────────────────────────────
@@ -784,13 +1146,23 @@ def ratings_list_partial(request):
 LOGS_PAGE_SIZE = 30
 
 LOG_TARGET_TYPES = [
-    'kelas', 'enrollment', 'grade', 'attendance', 'rating', 'user',
+    'kelas', 'enrollment', 'grade', 'attendance', 'rating',
+    'teacher_rating', 'class_rating', 'user', 'announcement',
+]
+
+LOG_ACTIONS = [
+    'created', 'updated', 'deleted', 'approved', 'rejected',
+    'ADMIN_LOGIN', 'LOGIN', 'LOGOUT',
 ]
 
 @role_required('ADMIN')
 def logs_list(request):
     return render(request, 'admin_panel/logs_list.html', {
         'target_types': LOG_TARGET_TYPES,
+        'actions': LOG_ACTIONS,
+        'q': request.GET.get('q', '').strip(),
+        'action_filter': request.GET.get('action', ''),
+        'type_filter': request.GET.get('target_type', ''),
     })
 
 
@@ -799,7 +1171,6 @@ def logs_list_partial(request):
     q = request.GET.get('q', '').strip()
     action_filter = request.GET.get('action', '')
     type_filter = request.GET.get('target_type', '')
-    page_num = request.GET.get('page', 1)
 
     qs = ActivityLog.objects.select_related('user').order_by('-created_at')
 
@@ -808,15 +1179,15 @@ def logs_list_partial(request):
             Q(user__first_name__icontains=q)
             | Q(user__last_name__icontains=q)
             | Q(user__username__icontains=q)
+            | Q(action__icontains=q)
         )
-    if action_filter in ['created', 'updated', 'deleted', 'approved', 'rejected']:
+    if action_filter in LOG_ACTIONS:
         qs = qs.filter(action=action_filter)
     if type_filter in LOG_TARGET_TYPES:
         qs = qs.filter(target_type=type_filter)
 
     paginator = Paginator(qs, LOGS_PAGE_SIZE)
-    page_obj = paginator.get_page(page_num)
-
+    page_obj = paginator.get_page(request.GET.get('page', 1))
     return render(request, 'admin_panel/_logs_list_table.html', {
         'page_obj': page_obj,
         'q': q,
@@ -1157,11 +1528,100 @@ def enrollment_transfer(request, enrollment_id):
 
 # ── Announcements (admin manage) ──────────────────────────────────────────────
 
+def _announcement_form_context(mode, ann=None, form_data=None):
+    from announcements.models import Announcement
+    return {
+        'mode': mode,
+        'ann': ann,            # may be None
+        'form_data': form_data,  # may be None
+        'target_role_choices': Announcement.TargetRole.choices,
+        'level_choices': Announcement.TargetLevel.choices,
+    }
+
+
+def _parse_announcement_post(post):
+    from announcements.models import Announcement
+    title = post.get('title', '').strip()
+    content = post.get('content', '').strip()
+    target_role = post.get('target_role', Announcement.TargetRole.ALL)
+    level = post.get('level', Announcement.TargetLevel.ALL)
+    if target_role not in Announcement.TargetRole.values:
+        target_role = Announcement.TargetRole.ALL
+    if level not in Announcement.TargetLevel.values:
+        level = Announcement.TargetLevel.ALL
+    # Level only meaningful for STUDENT target
+    if target_role != Announcement.TargetRole.STUDENT:
+        level = Announcement.TargetLevel.ALL
+    is_pinned = post.get('is_pinned') == '1'
+    is_active = post.get('is_active') == '1'
+    scheduled_at = post.get('scheduled_at', '').strip() or None
+    expires_at = post.get('expires_at', '').strip() or None
+    errors = []
+    if not title:
+        errors.append('Judul wajib diisi.')
+    if not content:
+        errors.append('Isi pengumuman wajib diisi.')
+    return {
+        'title': title, 'content': content, 'target_role': target_role,
+        'level': level, 'is_pinned': is_pinned, 'is_active': is_active,
+        'scheduled_at': scheduled_at, 'expires_at': expires_at,
+    }, errors
+
+
 @role_required('ADMIN')
 def announcements_list(request):
+    return render(request, 'admin_panel/announcements.html', {
+        'q': request.GET.get('q', '').strip(),
+        'role_filter': request.GET.get('role', ''),
+        'status_filter': request.GET.get('status', ''),
+    })
+
+
+@role_required('ADMIN')
+def announcements_list_partial(request):
     from announcements.models import Announcement
-    anns = Announcement.objects.select_related('author').order_by('-is_pinned', '-created_at')
-    return render(request, 'admin_panel/announcements.html', {'anns': anns})
+    q = request.GET.get('q', '').strip()
+    role_filter = request.GET.get('role', '')
+    status_filter = request.GET.get('status', '')
+
+    qs = Announcement.objects.select_related('author').order_by('-is_pinned', '-created_at')
+    if q:
+        qs = qs.filter(Q(title__icontains=q) | Q(content__icontains=q))
+    if role_filter in Announcement.TargetRole.values:
+        qs = qs.filter(target_role=role_filter)
+    if status_filter == 'active':
+        qs = qs.filter(is_active=True)
+    elif status_filter == 'inactive':
+        qs = qs.filter(is_active=False)
+    elif status_filter == 'pinned':
+        qs = qs.filter(is_pinned=True)
+
+    paginator = Paginator(qs, PAGE_SIZE)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+    return render(request, 'admin_panel/_announcements_list_table.html', {
+        'page_obj': page_obj,
+        'q': q,
+        'role_filter': role_filter,
+        'status_filter': status_filter,
+    })
+
+
+@role_required('ADMIN')
+def announcement_create(request):
+    from announcements.models import Announcement
+    if request.method == 'POST':
+        data, errors = _parse_announcement_post(request.POST)
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+            return render(request, 'admin_panel/announcement_form.html',
+                          _announcement_form_context('create', form_data=request.POST))
+        Announcement.objects.create(author=request.user, **data)
+        log_activity(request.user, 'created', 'announcement')
+        messages.success(request, f'Pengumuman "{data["title"]}" berhasil dipublikasikan.')
+        return redirect('admin_panel:announcements_list')
+    return render(request, 'admin_panel/announcement_form.html',
+                  _announcement_form_context('create'))
 
 
 @role_required('ADMIN')
@@ -1169,31 +1629,20 @@ def announcement_edit(request, pk):
     from announcements.models import Announcement
     ann = get_object_or_404(Announcement, pk=pk)
     if request.method == 'POST':
-        title = request.POST.get('title', '').strip()
-        content = request.POST.get('content', '').strip()
-        target_role = request.POST.get('target_role', ann.target_role)
-        level = request.POST.get('level', ann.level)
-        if target_role != Announcement.TargetRole.STUDENT:
-            level = Announcement.TargetLevel.ALL
-        is_pinned = request.POST.get('is_pinned') == 'on'
-        is_active = request.POST.get('is_active') == 'on'
-        if not title or not content:
-            messages.error(request, 'Judul dan isi pengumuman wajib diisi.')
-        else:
-            ann.title = title
-            ann.content = content
-            ann.target_role = target_role
-            ann.level = level
-            ann.is_pinned = is_pinned
-            ann.is_active = is_active
-            ann.save()
-            messages.success(request, 'Pengumuman berhasil diperbarui!')
-            return redirect('admin_panel:announcements_list')
-    return render(request, 'admin_panel/announcement_form.html', {
-        'ann': ann,
-        'target_role_choices': Announcement.TargetRole.choices,
-        'level_choices': Announcement.TargetLevel.choices,
-    })
+        data, errors = _parse_announcement_post(request.POST)
+        if errors:
+            for e in errors:
+                messages.error(request, e)
+            return render(request, 'admin_panel/announcement_form.html',
+                          _announcement_form_context('edit', ann=ann, form_data=request.POST))
+        for k, v in data.items():
+            setattr(ann, k, v)
+        ann.save()
+        log_activity(request.user, 'updated', 'announcement', ann.pk)
+        messages.success(request, 'Pengumuman berhasil diperbarui!')
+        return redirect('admin_panel:announcements_list')
+    return render(request, 'admin_panel/announcement_form.html',
+                  _announcement_form_context('edit', ann=ann))
 
 
 @role_required('ADMIN')
@@ -1201,7 +1650,9 @@ def announcement_edit(request, pk):
 def announcement_delete(request, pk):
     from announcements.models import Announcement
     ann = get_object_or_404(Announcement, pk=pk)
+    ann_pk = ann.pk
     ann.delete()
+    log_activity(request.user, 'deleted', 'announcement', ann_pk)
     messages.success(request, 'Pengumuman berhasil dihapus.')
     return redirect('admin_panel:announcements_list')
 
@@ -1209,8 +1660,13 @@ def announcement_delete(request, pk):
 @role_required('ADMIN')
 @require_POST
 def announcement_toggle(request, pk):
+    """Toggle either `is_active` (default) or `is_pinned` per ?field=…"""
     from announcements.models import Announcement
     ann = get_object_or_404(Announcement, pk=pk)
-    ann.is_active = not ann.is_active
-    ann.save(update_fields=['is_active'])
+    field = request.POST.get('field') or request.GET.get('field') or 'is_active'
+    if field not in ('is_active', 'is_pinned'):
+        field = 'is_active'
+    setattr(ann, field, not getattr(ann, field))
+    ann.save(update_fields=[field, 'updated_at'])
+    log_activity(request.user, 'updated', 'announcement', ann.pk)
     return redirect('admin_panel:announcements_list')

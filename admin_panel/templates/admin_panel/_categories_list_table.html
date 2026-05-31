@@ -1,0 +1,109 @@
+{# Data Pro categories table — swap target: #categories-table-wrapper #}
+{% if page_obj.object_list %}
+<style>
+.dp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dp-table thead th { background: #f8fafc; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; font-weight: 700; color: #64748b; padding: 10px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+.dp-table tbody td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.dp-table tbody tr:last-child td { border-bottom: none; }
+.dp-table tbody tr:hover { background: #f8fafc; }
+.dp-table .cat-name { font-weight: 600; color: #0f172a; }
+.dp-table .cat-desc { font-size: 12px; color: #64748b; max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+.dp-pill.st-active   { background: #d1fae5; color: #065f46; }
+.dp-pill.st-inactive { background: #e2e8f0; color: #64748b; }
+.dp-pill.count       { background: #e0f1f2; color: #326568; font-variant-numeric: tabular-nums; }
+.dp-act { display: inline-flex; gap: 4px; }
+.dp-act a, .dp-act button { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color: #64748b; background: transparent; border: 1px solid transparent; transition: all 0.15s; cursor: pointer; }
+.dp-act a:hover { background: #f1f5f9; color: #326568; border-color: #e2e8f0; }
+.dp-act .delete:hover { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+.dp-act .delete[disabled] { opacity: 0.4; cursor: not-allowed; }
+.dp-pg { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f8fafc; border-top: 1px solid #e2e8f0; }
+.dp-pg p { font-size: 12px; color: #64748b; margin: 0; }
+.dp-pg .pages { display: inline-flex; gap: 4px; }
+.dp-pg .pages a, .dp-pg .pages span { padding: 5px 10px; font-size: 12px; border-radius: 6px; color: #334155; text-decoration: none; background: #ffffff; border: 1px solid #e2e8f0; min-width: 28px; text-align: center; }
+.dp-pg .pages a:hover { background: #e0f1f2; color: #326568; border-color: #7fcacd; }
+.dp-pg .pages .here { background: #4a9499; color: #ffffff; border-color: #4a9499; font-weight: 700; }
+.dp-pg .pages .disabled { color: #cbd5e1; cursor: not-allowed; }
+</style>
+
+<table class="dp-table">
+  <thead>
+    <tr>
+      <th>Nama</th>
+      <th class="hidden md:table-cell">Deskripsi</th>
+      <th>Mata Pelajaran</th>
+      <th>Status</th>
+      <th style="text-align:right;">Aksi</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for cat in page_obj %}
+    <tr>
+      <td class="cat-name">{{ cat.name }}</td>
+      <td class="cat-desc hidden md:table-cell">{{ cat.description|default:"—" }}</td>
+      <td><span class="dp-pill count">{{ cat.subject_count }}</span></td>
+      <td>
+        {% if cat.is_active %}
+          <span class="dp-pill st-active">Aktif</span>
+        {% else %}
+          <span class="dp-pill st-inactive">Nonaktif</span>
+        {% endif %}
+      </td>
+      <td style="text-align:right;">
+        <div class="dp-act">
+          <a href="{% url 'admin_panel:category_edit' cat.pk %}" title="Edit">
+            <i class="ti ti-pencil"></i>
+          </a>
+          <form method="post" action="{% url 'admin_panel:category_delete' cat.pk %}" style="display:inline;"
+                onsubmit="return confirm('Hapus kategori {{ cat.name|escapejs }}?');">
+            {% csrf_token %}
+            <button type="submit" class="delete" title="Hapus" {% if cat.subject_count %}disabled{% endif %}>
+              <i class="ti ti-trash"></i>
+            </button>
+          </form>
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="dp-pg">
+  <p>
+    Menampilkan <b>{{ page_obj.start_index }}-{{ page_obj.end_index }}</b>
+    dari <b>{{ page_obj.paginator.count }}</b> kategori
+  </p>
+  <div class="pages">
+    {% if page_obj.has_previous %}
+    <a href="#"
+       hx-get="{% url 'admin_panel:categories_list_partial' %}?q={{ q|urlencode }}&status={{ status_filter }}&page={{ page_obj.previous_page_number }}"
+       hx-target="#categories-table-wrapper" hx-swap="innerHTML">‹</a>
+    {% else %}
+    <span class="disabled">‹</span>
+    {% endif %}
+    {% for n in page_obj.paginator.page_range %}
+      {% if n == page_obj.number %}
+        <span class="here">{{ n }}</span>
+      {% else %}
+        <a href="#"
+           hx-get="{% url 'admin_panel:categories_list_partial' %}?q={{ q|urlencode }}&status={{ status_filter }}&page={{ n }}"
+           hx-target="#categories-table-wrapper" hx-swap="innerHTML">{{ n }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if page_obj.has_next %}
+    <a href="#"
+       hx-get="{% url 'admin_panel:categories_list_partial' %}?q={{ q|urlencode }}&status={{ status_filter }}&page={{ page_obj.next_page_number }}"
+       hx-target="#categories-table-wrapper" hx-swap="innerHTML">›</a>
+    {% else %}
+    <span class="disabled">›</span>
+    {% endif %}
+  </div>
+</div>
+
+{% else %}
+<div style="padding:48px 20px;text-align:center;color:#94a3b8;font-size:13px;">
+  <div style="font-size:32px;margin-bottom:6px;">🏷️</div>
+  <p style="margin:0;font-weight:600;color:#475569;">Belum ada kategori</p>
+  <p style="margin:4px 0 0;font-size:12px;">Tambah kategori pertama untuk mulai mengelompokkan mata pelajaran.</p>
+</div>
+{% endif %}

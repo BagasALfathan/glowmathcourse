@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}{% if mode == 'edit' %}Edit{% else %}Tambah{% endif %} Periode — Admin{% endblock %}
+{% block page_title %}{% if mode == 'edit' %}Edit Periode Akademik{% else %}Tambah Periode Akademik{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.dp-page { max-width: 720px; margin: 0 auto; }
+.dp-crumb { display: inline-flex; align-items: center; gap: 6px; color: #64748b; font-size: 13px; text-decoration: none; margin-bottom: 14px; }
+.dp-crumb:hover { color: #326568; }
+
+.dp-form-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 14px; }
+.dp-form-card .head { padding: 14px 18px; border-bottom: 1px solid #f1f5f9; }
+.dp-form-card .head h3 { margin: 0; font-size: 13px; font-weight: 700; color: #0f172a; }
+.dp-form-card .head p { margin: 2px 0 0; font-size: 11px; color: #94a3b8; }
+.dp-form-card .body { padding: 18px; }
+
+.dp-grid-2 { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 640px) { .dp-grid-2 { grid-template-columns: 1fr 1fr; } }
+
+.dp-field { margin-bottom: 14px; }
+.dp-field:last-child { margin-bottom: 0; }
+.dp-field label { display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px; }
+.dp-field input, .dp-field textarea, .dp-field select { width: 100%; padding: 9px 11px; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff; color: #0f172a; font-family: inherit; }
+.dp-field input:focus, .dp-field textarea:focus, .dp-field select:focus { outline: none; border-color: #7fcacd; box-shadow: 0 0 0 3px rgba(127,202,205,0.18); }
+.dp-field .hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+.dp-field .req { color: #ef4444; }
+
+.dp-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.dp-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; font-size: 13px; font-weight: 700; border-radius: 8px; cursor: pointer; border: 1px solid transparent; text-decoration: none; transition: all 0.15s; font-family: inherit; }
+.dp-btn-cancel { background: #ffffff; color: #475569; border-color: #e2e8f0; }
+.dp-btn-cancel:hover { background: #f1f5f9; color: #0f172a; }
+.dp-btn-save { background: #4a9499; color: #ffffff; }
+.dp-btn-save:hover { background: #3d7c80; }
+</style>
+{% endblock %}
+
+{% block content %}
+{# Alpine state: which sub-period (quarter/semester) field is shown
+   depends on period_type. Initial value comes from the form_data round-trip
+   on POST error, or from the persisted period instance on edit. #}
+<div class="dp-page"
+     x-data="{ period_type: '{% if form_data %}{{ form_data.period_type }}{% elif period %}{{ period.period_type }}{% else %}QUARTER{% endif %}' }">
+
+  <a href="{% url 'admin_panel:periods_list' %}" class="dp-crumb">
+    <i class="ti ti-arrow-left"></i>
+    Kembali ke daftar periode
+  </a>
+
+  <form method="post">
+    {% csrf_token %}
+
+    <div class="dp-form-card">
+      <div class="head">
+        <h3>{% if mode == 'edit' %}Ubah Periode{% else %}Periode Baru{% endif %}</h3>
+        <p>Pilih tipe Kuartal untuk pembagian 4 kuartal/tahun, atau Semester untuk Ganjil/Genap.</p>
+      </div>
+      <div class="body">
+
+        <div class="dp-grid-2">
+          <div class="dp-field">
+            <label>Tahun Ajaran <span class="req">*</span></label>
+            <input type="text" name="year" required maxlength="10"
+                   value="{% if form_data %}{{ form_data.year }}{% elif period %}{{ period.year }}{% endif %}"
+                   placeholder="2026-2027">
+            <p class="hint">Format: 2026-2027</p>
+          </div>
+          <div class="dp-field">
+            <label>Tipe Periode <span class="req">*</span></label>
+            <select name="period_type" x-model="period_type" required>
+              {% for code, label in period_type_choices %}
+              <option value="{{ code }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        {# Conditional sub-period field — only ONE active at a time. #}
+        <div class="dp-field" x-show="period_type === 'QUARTER'">
+          <label>Kuartal <span class="req">*</span></label>
+          <select name="quarter">
+            <option value="">— Pilih Kuartal —</option>
+            {% for code, label in quarter_choices %}
+            <option value="{{ code }}"
+              {% if form_data %}{% if form_data.quarter == code %}selected{% endif %}
+              {% elif period and period.quarter == code %}selected{% endif %}>
+              {{ label }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="dp-field" x-show="period_type === 'SEMESTER'">
+          <label>Semester <span class="req">*</span></label>
+          <select name="semester">
+            <option value="">— Pilih Semester —</option>
+            {% for code, label in semester_choices %}
+            <option value="{{ code }}"
+              {% if form_data %}{% if form_data.semester == code %}selected{% endif %}
+              {% elif period and period.semester == code %}selected{% endif %}>
+              {{ label }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="dp-field">
+          <label>Nama Periode <span class="req">*</span></label>
+          <input type="text" name="name" required maxlength="100"
+                 value="{% if form_data %}{{ form_data.name }}{% elif period %}{{ period.name }}{% endif %}"
+                 placeholder="contoh: Kuartal 1 - 2026/2027">
+          <p class="hint">Akan tampil di dropdown saat guru membuat kelas.</p>
+        </div>
+
+        <div class="dp-grid-2">
+          <div class="dp-field">
+            <label>Tanggal Mulai <span class="req">*</span></label>
+            <input type="date" name="start_date" required
+                   value="{% if form_data %}{{ form_data.start_date }}{% elif period %}{{ period.start_date|date:'Y-m-d' }}{% endif %}">
+          </div>
+          <div class="dp-field">
+            <label>Tanggal Selesai <span class="req">*</span></label>
+            <input type="date" name="end_date" required
+                   value="{% if form_data %}{{ form_data.end_date }}{% elif period %}{{ period.end_date|date:'Y-m-d' }}{% endif %}">
+          </div>
+        </div>
+
+        <div class="dp-field">
+          <label>Status Aktif</label>
+          <select name="is_active">
+            {% if mode == 'edit' %}
+              <option value="1" {% if period.is_active %}selected{% endif %}>Aktif</option>
+              <option value="0" {% if not period.is_active %}selected{% endif %}>Tidak Aktif</option>
+            {% else %}
+              <option value="1" {% if form_data and form_data.is_active == '1' %}selected{% endif %}>Aktif</option>
+              <option value="0" {% if not form_data or form_data.is_active != '1' %}selected{% endif %}>Tidak Aktif</option>
+            {% endif %}
+          </select>
+          <p class="hint">Hanya satu periode yang aktif pada satu waktu. Mengaktifkan ini akan menonaktifkan periode aktif lainnya.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="dp-actions">
+      <a href="{% url 'admin_panel:periods_list' %}" class="dp-btn dp-btn-cancel">
+        <i class="ti ti-x"></i> Batal
+      </a>
+      <button type="submit" class="dp-btn dp-btn-save">
+        <i class="ti ti-device-floppy"></i>
+        {% if mode == 'edit' %}Simpan Perubahan{% else %}Tambah Periode{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,73 +1,105 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Kelola Pengguna{% endblock %}
-{% block page_title %}Kelola Pengguna{% endblock %}
+{% block page_title %}Pengguna{% endblock %}
+
+{% block extra_css %}
+<style>
+.dp-page { padding: 4px 0; }
+.dp-page-h { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+.dp-page-h h1 { font-size: 20px; font-weight: 700; color: #0f172a; margin: 0; }
+.dp-page-h p { font-size: 12px; color: #64748b; margin: 2px 0 0; }
+.dp-btn-export { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 12px; font-weight: 600; color: #15803d; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; text-decoration: none; transition: background 0.15s; }
+.dp-btn-export:hover { background: #dcfce7; }
+
+/* Toolbar */
+.dp-toolbar { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.dp-search { flex: 1; min-width: 220px; position: relative; }
+.dp-search i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px; }
+.dp-search input { width: 100%; padding: 8px 12px 8px 34px; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; transition: all 0.15s; }
+.dp-search input:focus { outline: none; background: #ffffff; border-color: #7fcacd; box-shadow: 0 0 0 3px rgba(127,202,205,0.18); }
+
+/* Role chips (admin nav-style) */
+.dp-chips { display: inline-flex; gap: 4px; padding: 3px; background: #f1f5f9; border-radius: 10px; }
+.dp-chip { font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 8px; color: #475569; cursor: pointer; background: transparent; border: none; transition: all 0.15s; font-family: inherit; white-space: nowrap; }
+.dp-chip:hover { color: #0f172a; }
+.dp-chip.active { background: #ffffff; color: #326568; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+
+.dp-status-sel { font-size: 12px; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff; color: #334155; font-family: inherit; min-width: 140px; }
+.dp-status-sel:focus { outline: none; border-color: #7fcacd; box-shadow: 0 0 0 3px rgba(127,202,205,0.18); }
+
+#users-table-wrapper { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+.dp-loading { padding: 40px; text-align: center; color: #94a3b8; font-size: 13px; }
+</style>
+{% endblock %}
 
 {% block content %}
+<div class="dp-page">
 
-<!-- Export bar -->
-<div class="flex justify-end mb-3">
-  <a href="{% url 'admin_panel:export_students_excel' %}"
-     class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-green-700
-            border border-green-300 bg-green-50 rounded-lg hover:bg-green-100 transition-colors">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-         stroke-width="1.75" stroke="currentColor" class="w-4 h-4">
-      <path stroke-linecap="round" stroke-linejoin="round"
-            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-    </svg>
-    Export Siswa (Excel)
-  </a>
-</div>
-
-<!-- Controls -->
-<div id="users-controls" class="flex flex-col sm:flex-row gap-3 mb-5">
-  <input type="text" name="q" placeholder="Cari nama, email, atau username…"
-         hx-get="/admin-panel/users/partial/"
-         hx-target="#users-table-wrapper"
-         hx-swap="innerHTML"
-         hx-trigger="input changed delay:400ms, search"
-         hx-include="#users-controls"
-         class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm
-                focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
-
-  <select name="role"
-          hx-get="/admin-panel/users/partial/"
-          hx-target="#users-table-wrapper"
-          hx-swap="innerHTML"
-          hx-trigger="change"
-          hx-include="#users-controls"
-          class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white
-                 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
-    <option value="">Semua Peran</option>
-    <option value="STUDENT">Siswa</option>
-    <option value="TEACHER">Guru</option>
-    <option value="ADMIN">Admin</option>
-  </select>
-
-  <select name="status"
-          hx-get="/admin-panel/users/partial/"
-          hx-target="#users-table-wrapper"
-          hx-swap="innerHTML"
-          hx-trigger="change"
-          hx-include="#users-controls"
-          class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white
-                 focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
-    <option value="">Semua Status</option>
-    <option value="active">Aktif</option>
-    <option value="inactive">Tidak Aktif</option>
-    <option value="rejected">Ditolak</option>
-    <option value="deleted">Dihapus</option>
-  </select>
-</div>
-
-<!-- Table -->
-<div id="users-table-wrapper"
-     hx-get="/admin-panel/users/partial/"
-     hx-trigger="load"
-     hx-swap="innerHTML">
-  <div class="flex items-center justify-center py-12 text-gray-400 text-sm">
-    Memuat data…
+  <div class="dp-page-h">
+    <div>
+      <h1>Pengguna</h1>
+      <p>Kelola semua akun siswa, guru, dan admin.</p>
+    </div>
+    <a href="{% url 'admin_panel:export_students_excel' %}" class="dp-btn-export">
+      <i class="ti ti-download"></i> Export Siswa (Excel)
+    </a>
   </div>
-</div>
 
+  {# Toolbar: search + role chips + status select. All HTMX-driven; the role
+     chips are rendered as buttons sharing one hidden input so a single
+     "value" travels with every other request via hx-include. #}
+  <div id="users-controls" class="dp-toolbar"
+       x-data="{ role: '' }">
+    <div class="dp-search">
+      <i class="ti ti-search"></i>
+      <input type="text" name="q" placeholder="Cari nama, email, atau username…"
+             hx-get="/admin-panel/users/partial/"
+             hx-target="#users-table-wrapper"
+             hx-swap="innerHTML"
+             hx-trigger="input changed delay:400ms, search"
+             hx-include="#users-controls"
+             autocomplete="off">
+    </div>
+
+    <div class="dp-chips" role="tablist">
+      <button type="button" class="dp-chip" :class="role === '' && 'active'"
+              @click="role = ''; htmx.trigger($refs.role, 'change')">Semua</button>
+      <button type="button" class="dp-chip" :class="role === 'STUDENT' && 'active'"
+              @click="role = 'STUDENT'; htmx.trigger($refs.role, 'change')">Siswa</button>
+      <button type="button" class="dp-chip" :class="role === 'TEACHER' && 'active'"
+              @click="role = 'TEACHER'; htmx.trigger($refs.role, 'change')">Guru</button>
+      <button type="button" class="dp-chip" :class="role === 'ADMIN' && 'active'"
+              @click="role = 'ADMIN'; htmx.trigger($refs.role, 'change')">Admin</button>
+    </div>
+    {# Hidden field carries the role value to HTMX via hx-include #}
+    <input type="hidden" name="role" x-ref="role" x-model="role"
+           hx-get="/admin-panel/users/partial/"
+           hx-target="#users-table-wrapper"
+           hx-swap="innerHTML"
+           hx-trigger="change"
+           hx-include="#users-controls">
+
+    <select name="status" class="dp-status-sel"
+            hx-get="/admin-panel/users/partial/"
+            hx-target="#users-table-wrapper"
+            hx-swap="innerHTML"
+            hx-trigger="change"
+            hx-include="#users-controls">
+      <option value="">Semua Status</option>
+      <option value="active">Aktif</option>
+      <option value="inactive">Tidak Aktif</option>
+      <option value="rejected">Ditolak</option>
+      <option value="deleted">Dihapus</option>
+    </select>
+  </div>
+
+  <div id="users-table-wrapper"
+       hx-get="/admin-panel/users/partial/"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <div class="dp-loading">Memuat data…</div>
+  </div>
+
+</div>
 {% endblock %}

@@ -1,148 +1,171 @@
-﻿{% if page_obj.object_list %}
-<div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
-  <table class="w-full text-sm">
-    <thead class="bg-gray-50 border-b border-gray-100">
-      <tr>
-        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Nama</th>
-        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden md:table-cell">Email</th>
-        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Peran</th>
-        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden sm:table-cell">Jenjang</th>
-        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Status</th>
-        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden lg:table-cell">Bergabung</th>
-        <th class="px-5 py-3"></th>
-      </tr>
-    </thead>
-    <tbody class="divide-y divide-gray-50">
-      {% for u in page_obj %}
-      <tr class="hover:bg-gray-50 transition-colors">
-        <td class="px-5 py-3">
-          <a href="{% url 'admin_panel:user_detail' u.pk %}"
-             class="font-medium text-gray-900 hover:text-primary-600 transition-colors">
-            {{ u.get_full_name|default:u.username }}
-          </a>
-          <p class="text-xs text-gray-400">@{{ u.username }}</p>
-        </td>
-        <td class="px-5 py-3 text-gray-600 hidden md:table-cell text-xs">{{ u.email }}</td>
-        <td class="px-5 py-3">
-          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold
-            bg-primary-100 text-primary-700">
-            {{ u.get_role_display }}
-          </span>
-        </td>
-        <td class="px-5 py-3 hidden sm:table-cell">
-          {% if u.role == 'STUDENT' %}
-            {% if u.student_profile.level %}
-              <span class="text-xs font-medium
-                {% if u.student_profile.level == 'SD' %}text-teal-600
-                {% elif u.student_profile.level == 'SMP' %}text-blue-600
-                {% else %}text-primary-600{% endif %}">
-                {{ u.student_profile.level }}
-              </span>
-            {% else %}
-              <span class="text-xs text-gray-300">—</span>
-            {% endif %}
-          {% else %}
-            <span class="text-xs text-gray-300">—</span>
-          {% endif %}
-        </td>
-        <td class="px-5 py-3">
-          {% if u.is_deleted %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-400">Dihapus</span>
-          {% elif u.approval_status == 'REJECTED' %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-600">Ditolak</span>
-          {% elif u.is_active %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Aktif</span>
-          {% else %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Tidak Aktif</span>
-          {% endif %}
-        </td>
-        <td class="px-5 py-3 text-xs text-gray-500 hidden lg:table-cell whitespace-nowrap">
-          {{ u.date_joined|date:"d M Y" }}
-        </td>
-        <td class="px-5 py-3 text-right">
-          <div class="flex items-center gap-2 justify-end">
-            {% if u.is_deleted %}
-            <form method="post" action="{% url 'admin_panel:user_restore' u.pk %}">
-              {% csrf_token %}
-              <button type="submit"
-                      class="text-xs font-medium text-green-700 hover:text-green-900 px-2.5 py-1.5
-                             rounded-lg border border-green-200 hover:bg-green-50 transition-colors">
-                Pulihkan
-              </button>
-            </form>
-            {% else %}
-            <a href="{% url 'admin_panel:user_detail' u.pk %}"
-               class="text-xs font-medium text-primary-600 hover:text-primary-800 px-2.5 py-1.5
-                      rounded-lg border border-primary-200 hover:bg-primary-50 transition-colors">
-              Detail
-            </a>
-            {% endif %}
-          </div>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
+{# Data Pro users table — HTMX partial swapped into #users-table-wrapper.
+   Sender: admin_panel.views.users_list_partial
+   Inputs in context: page_obj, q, role_filter, status_filter           #}
 
-<!-- Pagination -->
-{% if page_obj.has_other_pages %}
-<div class="flex items-center justify-between mt-4">
-  <p class="text-xs text-gray-500">
-    Menampilkan {{ page_obj.start_index }}–{{ page_obj.end_index }}
-    dari {{ page_obj.paginator.count }} pengguna
+{% if page_obj.object_list %}
+<style>
+.dp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dp-table thead th { background: #f8fafc; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; font-weight: 700; color: #64748b; padding: 10px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+.dp-table tbody td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.dp-table tbody tr:last-child td { border-bottom: none; }
+.dp-table tbody tr:hover { background: #f8fafc; }
+
+.dp-avatar { width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #ffffff; flex-shrink: 0; }
+.dp-avatar.student { background: linear-gradient(135deg,#60a5fa,#2563eb); }
+.dp-avatar.teacher { background: linear-gradient(135deg,#5fb3b7,#326568); }
+.dp-avatar.admin   { background: linear-gradient(135deg,#a78bfa,#6d28d9); }
+
+.dp-user { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.dp-user-meta { min-width: 0; }
+.dp-user-meta a { font-weight: 600; color: #0f172a; text-decoration: none; }
+.dp-user-meta a:hover { color: #326568; }
+.dp-user-meta p { font-size: 11px; color: #94a3b8; margin: 1px 0 0; }
+
+.dp-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; letter-spacing: 0.02em; }
+.dp-pill.role-student { background: #dbeafe; color: #1d4ed8; }
+.dp-pill.role-teacher { background: #ccfbf1; color: #115e59; }
+.dp-pill.role-admin   { background: #ede9fe; color: #6d28d9; }
+.dp-pill.lvl          { background: #e0f1f2; color: #326568; }
+.dp-pill.st-active    { background: #d1fae5; color: #065f46; }
+.dp-pill.st-pending   { background: #fef3c7; color: #92400e; }
+.dp-pill.st-rejected  { background: #fee2e2; color: #b91c1c; }
+.dp-pill.st-inactive  { background: #e2e8f0; color: #64748b; }
+.dp-pill.st-deleted   { background: #f1f5f9; color: #94a3b8; }
+
+.dp-act { display: inline-flex; gap: 4px; }
+.dp-act a, .dp-act button { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color: #64748b; background: transparent; border: 1px solid transparent; transition: all 0.15s; cursor: pointer; }
+.dp-act a:hover { background: #f1f5f9; color: #326568; border-color: #e2e8f0; }
+.dp-act .delete:hover { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+
+.dp-pg { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f8fafc; border-top: 1px solid #e2e8f0; }
+.dp-pg p { font-size: 12px; color: #64748b; margin: 0; }
+.dp-pg .pages { display: inline-flex; gap: 4px; }
+.dp-pg .pages a, .dp-pg .pages span { padding: 5px 10px; font-size: 12px; border-radius: 6px; color: #334155; text-decoration: none; background: #ffffff; border: 1px solid #e2e8f0; min-width: 28px; text-align: center; }
+.dp-pg .pages a:hover { background: #e0f1f2; color: #326568; border-color: #7fcacd; }
+.dp-pg .pages .here { background: #4a9499; color: #ffffff; border-color: #4a9499; font-weight: 700; }
+.dp-pg .pages .disabled { color: #cbd5e1; cursor: not-allowed; }
+</style>
+
+<table class="dp-table">
+  <thead>
+    <tr>
+      <th>Pengguna</th>
+      <th class="hidden md:table-cell">Email</th>
+      <th>Peran</th>
+      <th class="hidden sm:table-cell">Jenjang</th>
+      <th>Status</th>
+      <th class="hidden lg:table-cell">Bergabung</th>
+      <th style="text-align:right;">Aksi</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for u in page_obj %}
+    <tr>
+      <td>
+        <div class="dp-user">
+          <span class="dp-avatar
+            {% if u.role == 'STUDENT' %}student
+            {% elif u.role == 'TEACHER' %}teacher
+            {% else %}admin{% endif %}">
+            {{ u.first_name|first|upper }}{{ u.last_name|first|upper|default:u.username|first|upper }}
+          </span>
+          <div class="dp-user-meta">
+            <a href="{% url 'admin_panel:user_detail' u.pk %}">{{ u.get_full_name|default:u.username }}</a>
+            <p>@{{ u.username }}</p>
+          </div>
+        </div>
+      </td>
+      <td class="hidden md:table-cell" style="color:#64748b;font-size:12px;">{{ u.email|default:"—" }}</td>
+      <td>
+        <span class="dp-pill role-{{ u.role|lower }}">{{ u.get_role_display }}</span>
+      </td>
+      <td class="hidden sm:table-cell">
+        {% if u.role == 'STUDENT' and u.student_profile.level %}
+          <span class="dp-pill lvl">{{ u.student_profile.level }}</span>
+        {% else %}
+          <span style="color:#cbd5e1;font-size:12px;">—</span>
+        {% endif %}
+      </td>
+      <td>
+        {% if u.is_deleted %}
+          <span class="dp-pill st-deleted">Dihapus</span>
+        {% elif u.approval_status == 'REJECTED' %}
+          <span class="dp-pill st-rejected">Ditolak</span>
+        {% elif u.approval_status == 'PENDING' %}
+          <span class="dp-pill st-pending">Pending</span>
+        {% elif u.is_active %}
+          <span class="dp-pill st-active">Aktif</span>
+        {% else %}
+          <span class="dp-pill st-inactive">Nonaktif</span>
+        {% endif %}
+      </td>
+      <td class="hidden lg:table-cell" style="color:#64748b;font-size:12px;white-space:nowrap;">
+        {{ u.date_joined|date:"d M Y" }}
+      </td>
+      <td style="text-align:right;">
+        <div class="dp-act">
+          <a href="{% url 'admin_panel:user_edit' u.pk %}" title="Edit">
+            <i class="ti ti-pencil"></i>
+          </a>
+          <a href="{% url 'admin_panel:user_detail' u.pk %}" title="Detail">
+            <i class="ti ti-eye"></i>
+          </a>
+          {% if not u.is_deleted and u.pk != request.user.pk %}
+          <form method="post" action="{% url 'admin_panel:user_delete' u.pk %}" style="display:inline;"
+                onsubmit="return confirm('Hapus (soft delete) pengguna {{ u.get_full_name|default:u.username|escapejs }}?');">
+            {% csrf_token %}
+            <button type="submit" class="delete" title="Hapus">
+              <i class="ti ti-trash"></i>
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="dp-pg">
+  <p>
+    Menampilkan <b>{{ page_obj.start_index }}-{{ page_obj.end_index }}</b>
+    dari <b>{{ page_obj.paginator.count }}</b> pengguna
   </p>
-  <div class="flex gap-1">
+  <div class="pages">
     {% if page_obj.has_previous %}
-    <button hx-get="/admin-panel/users/partial/?q={{ q|urlencode }}&role={{ role_filter }}&status={{ status_filter }}&page={{ page_obj.previous_page_number }}"
-            hx-target="#users-table-wrapper"
-            hx-swap="innerHTML"
-            class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200
-                   text-gray-600 hover:bg-gray-50 transition-colors">
-      ←
-    </button>
+    <a href="#"
+       hx-get="/admin-panel/users/partial/?q={{ q|urlencode }}&role={{ role_filter }}&status={{ status_filter }}&page={{ page_obj.previous_page_number }}"
+       hx-target="#users-table-wrapper" hx-swap="innerHTML">‹</a>
+    {% else %}
+    <span class="disabled">‹</span>
     {% endif %}
-    {% for num in page_obj.paginator.page_range %}
-      {% if num == page_obj.number %}
-      <span class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary-600 text-white">{{ num }}</span>
-      {% elif num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
-      <button hx-get="/admin-panel/users/partial/?q={{ q|urlencode }}&role={{ role_filter }}&status={{ status_filter }}&page={{ num }}"
-              hx-target="#users-table-wrapper"
-              hx-swap="innerHTML"
-              class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200
-                     text-gray-600 hover:bg-gray-50 transition-colors">
-        {{ num }}
-      </button>
+
+    {% for n in page_obj.paginator.page_range %}
+      {% if n == page_obj.number %}
+        <span class="here">{{ n }}</span>
+      {% elif n == 1 or n == page_obj.paginator.num_pages or n|add:0 >= page_obj.number|add:'-2' and n|add:0 <= page_obj.number|add:'2' %}
+        <a href="#"
+           hx-get="/admin-panel/users/partial/?q={{ q|urlencode }}&role={{ role_filter }}&status={{ status_filter }}&page={{ n }}"
+           hx-target="#users-table-wrapper" hx-swap="innerHTML">{{ n }}</a>
+      {% elif n == 2 or n|add:0 == page_obj.paginator.num_pages|add:'-1' %}
+        <span class="disabled">…</span>
       {% endif %}
     {% endfor %}
+
     {% if page_obj.has_next %}
-    <button hx-get="/admin-panel/users/partial/?q={{ q|urlencode }}&role={{ role_filter }}&status={{ status_filter }}&page={{ page_obj.next_page_number }}"
-            hx-target="#users-table-wrapper"
-            hx-swap="innerHTML"
-            class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200
-                   text-gray-600 hover:bg-gray-50 transition-colors">
-      →
-    </button>
+    <a href="#"
+       hx-get="/admin-panel/users/partial/?q={{ q|urlencode }}&role={{ role_filter }}&status={{ status_filter }}&page={{ page_obj.next_page_number }}"
+       hx-target="#users-table-wrapper" hx-swap="innerHTML">›</a>
+    {% else %}
+    <span class="disabled">›</span>
     {% endif %}
   </div>
 </div>
-{% else %}
-<p class="text-xs text-gray-400 mt-3">{{ page_obj.paginator.count }} pengguna ditemukan</p>
-{% endif %}
 
 {% else %}
-<div class="bg-white rounded-xl border border-gray-100 shadow-sm py-14 text-center">
-  <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-         stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-gray-400">
-      <path stroke-linecap="round" stroke-linejoin="round"
-            d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-    </svg>
-  </div>
-  {% if q or role_filter or status_filter %}
-  <p class="text-sm text-gray-500">Tidak ada hasil untuk pencarian ini.</p>
-  {% else %}
-  <p class="text-sm text-gray-500">Belum ada pengguna terdaftar.</p>
-  {% endif %}
+<div style="padding:48px 20px;text-align:center;color:#94a3b8;font-size:13px;">
+  <div style="font-size:32px;margin-bottom:6px;">🔍</div>
+  <p style="margin:0;font-weight:600;color:#475569;">Tidak ada pengguna ditemukan</p>
+  <p style="margin:4px 0 0;font-size:12px;">Coba ubah filter atau kata kunci pencarian.</p>
 </div>
 {% endif %}

@@ -1,203 +1,194 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 
 {% block title %}Edit Pengguna — {{ target_user.get_full_name|default:target_user.username }}{% endblock %}
 {% block page_title %}Edit Pengguna{% endblock %}
 
-{% block content %}
-<div class="max-w-2xl mx-auto space-y-5">
+{% block extra_css %}
+<style>
+.dp-page { max-width: 960px; margin: 0 auto; }
+.dp-crumb { display: inline-flex; align-items: center; gap: 6px; color: #64748b; font-size: 13px; text-decoration: none; margin-bottom: 14px; }
+.dp-crumb:hover { color: #326568; }
 
-  <!-- Back link -->
-  <a href="{% url 'admin_panel:user_detail' target_user.pk %}"
-     class="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition-colors">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
-         stroke-width="2" stroke="currentColor" class="w-4 h-4">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-    </svg>
-    {{ target_user.get_full_name|default:target_user.username }}
+.dp-form-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-bottom: 14px; }
+.dp-form-card .head { padding: 14px 18px; border-bottom: 1px solid #f1f5f9; }
+.dp-form-card .head h3 { margin: 0; font-size: 13px; font-weight: 700; color: #0f172a; }
+.dp-form-card .head p { margin: 2px 0 0; font-size: 11px; color: #94a3b8; }
+.dp-form-card .body { padding: 18px; }
+
+.dp-grid-2 { display: grid; grid-template-columns: 1fr; gap: 14px; }
+@media (min-width: 640px) { .dp-grid-2 { grid-template-columns: 1fr 1fr; } }
+
+.dp-field label { display: block; font-size: 12px; font-weight: 600; color: #334155; margin-bottom: 4px; }
+.dp-field input, .dp-field select, .dp-field textarea { width: 100%; padding: 9px 11px; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff; color: #0f172a; font-family: inherit; }
+.dp-field input:focus, .dp-field select:focus, .dp-field textarea:focus { outline: none; border-color: #7fcacd; box-shadow: 0 0 0 3px rgba(127,202,205,0.18); }
+.dp-field input[readonly], .dp-field input[disabled], .dp-field select[disabled] { background: #f8fafc; color: #64748b; cursor: not-allowed; }
+.dp-field .hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+
+.dp-actions { display: flex; justify-content: flex-end; gap: 8px; padding-top: 4px; }
+.dp-btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; font-size: 13px; font-weight: 700; border-radius: 8px; cursor: pointer; border: 1px solid transparent; text-decoration: none; transition: all 0.15s; font-family: inherit; }
+.dp-btn-cancel { background: #ffffff; color: #475569; border-color: #e2e8f0; }
+.dp-btn-cancel:hover { background: #f1f5f9; color: #0f172a; }
+.dp-btn-save { background: #4a9499; color: #ffffff; }
+.dp-btn-save:hover { background: #3d7c80; }
+
+.dp-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+.dp-pill.role-student { background: #dbeafe; color: #1d4ed8; }
+.dp-pill.role-teacher { background: #ccfbf1; color: #115e59; }
+.dp-pill.role-admin   { background: #ede9fe; color: #6d28d9; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dp-page">
+
+  <a href="{% url 'admin_panel:user_detail' target_user.pk %}" class="dp-crumb">
+    <i class="ti ti-arrow-left"></i>
+    Kembali ke detail {{ target_user.get_full_name|default:target_user.username }}
   </a>
 
-  <form method="post" class="space-y-5">
+  <form method="post">
     {% csrf_token %}
 
-    <!-- User info -->
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-100">
-        <h3 class="text-sm font-semibold text-gray-900">Informasi Akun</h3>
+    {# Account info #}
+    <div class="dp-form-card">
+      <div class="head">
+        <h3>Informasi Akun</h3>
+        <p>Identitas dasar &amp; kredensial login.</p>
       </div>
-      <div class="px-6 py-5 space-y-4">
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Nama Depan</label>
-            <input type="text" name="first_name" value="{{ target_user.first_name }}"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm
-                          focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
+      <div class="body">
+        <div class="dp-grid-2">
+          <div class="dp-field">
+            <label>Nama Depan</label>
+            <input type="text" name="first_name" value="{{ target_user.first_name }}">
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Nama Belakang</label>
-            <input type="text" name="last_name" value="{{ target_user.last_name }}"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm
-                          focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
+          <div class="dp-field">
+            <label>Nama Belakang</label>
+            <input type="text" name="last_name" value="{{ target_user.last_name }}">
           </div>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-          <input type="email" name="email" value="{{ target_user.email }}"
-                 class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm
-                        focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
+        <div class="dp-grid-2" style="margin-top:14px;">
+          <div class="dp-field">
+            <label>Email</label>
+            <input type="email" name="email" value="{{ target_user.email }}">
+            <p class="hint">Email dipakai untuk login.</p>
+          </div>
+          <div class="dp-field">
+            <label>Username (otomatis dari email)</label>
+            <input type="text" value="{{ target_user.username }}" readonly>
+            <p class="hint">Tidak dapat diubah langsung.</p>
+          </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Status Akun</label>
-            <select name="is_active"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white
-                           focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
-              <option value="1" {% if target_user.is_active %}selected{% endif %}>Aktif</option>
-              <option value="0" {% if not target_user.is_active %}selected{% endif %}>Tidak Aktif</option>
-            </select>
+        <div class="dp-grid-2" style="margin-top:14px;">
+          <div class="dp-field">
+            <label>Peran</label>
+            <input type="text" value="{{ target_user.get_role_display }}" disabled>
+            <p class="hint">
+              <span class="dp-pill role-{{ target_user.role|lower }}">{{ target_user.get_role_display }}</span>
+              Peran tidak dapat diubah pasca-registrasi.
+            </p>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Status Persetujuan</label>
-            <select name="approval_status"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white
-                           focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
-              {% for value, label in approval_choices %}
-              <option value="{{ value }}" {% if target_user.approval_status == value %}selected{% endif %}>
-                {{ label }}
-              </option>
+          <div class="dp-field">
+            <label>Status Persetujuan</label>
+            <select name="approval_status">
+              {% for code, label in approval_choices %}
+              <option value="{{ code }}" {% if target_user.approval_status == code %}selected{% endif %}>{{ label }}</option>
               {% endfor %}
             </select>
           </div>
         </div>
 
-      </div>
-    </div>
-
-    <!-- Role-specific profile -->
-    {% if target_user.role == 'STUDENT' and profile %}
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-100">
-        <h3 class="text-sm font-semibold text-gray-900">Profil Siswa</h3>
-      </div>
-      <div class="px-6 py-5 space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Jenjang</label>
-            <select name="level"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white
-                           focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
-              <option value="">— Pilih —</option>
-              <option value="SD" {% if profile.level == 'SD' %}selected{% endif %}>SD</option>
-              <option value="SMP" {% if profile.level == 'SMP' %}selected{% endif %}>SMP</option>
-              <option value="SMA" {% if profile.level == 'SMA' %}selected{% endif %}>SMA</option>
+        <div class="dp-grid-2" style="margin-top:14px;">
+          <div class="dp-field">
+            <label>Akun Aktif</label>
+            <select name="is_active">
+              <option value="1" {% if target_user.is_active %}selected{% endif %}>Aktif</option>
+              <option value="0" {% if not target_user.is_active %}selected{% endif %}>Nonaktif</option>
             </select>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">No. HP</label>
-            <input type="text" name="phone" value="{{ profile.phone }}"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm
-                          focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
+          <div class="dp-field">
+            <label>WhatsApp / No. HP</label>
+            <input type="text" name="phone" value="{{ target_user.phone|default:'' }}" placeholder="08xxxxxxxxxx">
           </div>
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1.5">Nama Sekolah</label>
-          <input type="text" name="school_name" value="{{ profile.school_name }}"
-                 class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm
-                        focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Nama Orang Tua</label>
-            <input type="text" name="parent_name" value="{{ profile.parent_name }}"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm
-                          focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
+      </div>
+    </div>
+
+    {# Role-specific profile #}
+    {% if target_user.role == 'STUDENT' %}
+    <div class="dp-form-card">
+      <div class="head">
+        <h3>Profil Siswa</h3>
+        <p>Informasi pendidikan &amp; kontak orang tua.</p>
+      </div>
+      <div class="body">
+        <div class="dp-grid-2">
+          <div class="dp-field">
+            <label>Jenjang</label>
+            <select name="level">
+              <option value="">— Pilih —</option>
+              <option value="TK"   {% if profile.level == 'TK' %}selected{% endif %}>TK</option>
+              <option value="SD"   {% if profile.level == 'SD' %}selected{% endif %}>SD</option>
+              <option value="SMP"  {% if profile.level == 'SMP' %}selected{% endif %}>SMP</option>
+              <option value="SMA"  {% if profile.level == 'SMA' %}selected{% endif %}>SMA</option>
+              <option value="UMUM" {% if profile.level == 'UMUM' %}selected{% endif %}>UMUM</option>
+            </select>
           </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">HP Orang Tua</label>
-            <input type="text" name="parent_phone" value="{{ profile.parent_phone }}"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm
-                          focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
+          <div class="dp-field">
+            <label>Asal Sekolah</label>
+            <input type="text" name="school_name" value="{{ profile.school_name|default:'' }}">
           </div>
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1.5">Alamat</label>
-          <textarea name="address" rows="3"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm
-                           focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400
-                           resize-none">{{ profile.address }}</textarea>
+        <div class="dp-grid-2" style="margin-top:14px;">
+          <div class="dp-field">
+            <label>Nama Orang Tua</label>
+            <input type="text" name="parent_name" value="{{ profile.parent_name|default:'' }}">
+          </div>
+          <div class="dp-field">
+            <label>WA Orang Tua</label>
+            <input type="text" name="parent_phone" value="{{ profile.parent_phone|default:'' }}">
+          </div>
+        </div>
+        <div class="dp-field" style="margin-top:14px;">
+          <label>Alamat</label>
+          <textarea name="address" rows="2">{{ profile.address|default:'' }}</textarea>
+        </div>
+      </div>
+    </div>
+    {% elif target_user.role == 'TEACHER' %}
+    <div class="dp-form-card">
+      <div class="head">
+        <h3>Profil Guru</h3>
+        <p>Kualifikasi &amp; pengalaman mengajar.</p>
+      </div>
+      <div class="body">
+        <div class="dp-grid-2">
+          <div class="dp-field">
+            <label>Spesialisasi</label>
+            <input type="text" name="specialization" value="{{ profile.specialization|default:'' }}">
+          </div>
+          <div class="dp-field">
+            <label>Pengalaman (tahun)</label>
+            <input type="number" name="experience_years" value="{{ profile.experience_years|default:0 }}" min="0">
+          </div>
+        </div>
+        <div class="dp-field" style="margin-top:14px;">
+          <label>Bio</label>
+          <textarea name="bio" rows="3" maxlength="500">{{ profile.bio|default:'' }}</textarea>
         </div>
       </div>
     </div>
     {% endif %}
 
-    {% if target_user.role == 'TEACHER' and profile %}
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-100">
-        <h3 class="text-sm font-semibold text-gray-900">Profil Guru</h3>
-      </div>
-      <div class="px-6 py-5 space-y-4">
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Spesialisasi</label>
-            <input type="text" name="specialization" value="{{ profile.specialization }}"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm
-                          focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1.5">Pengalaman (tahun)</label>
-            <input type="number" name="experience_years" value="{{ profile.experience_years }}" min="0"
-                   class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm
-                          focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
-          </div>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1.5">No. HP</label>
-          <input type="text" name="phone" value="{{ profile.phone }}"
-                 class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm
-                        focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1.5">Bio</label>
-          <textarea name="bio" rows="4"
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm
-                           focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400
-                           resize-none">{{ profile.bio }}</textarea>
-        </div>
-      </div>
-    </div>
-    {% endif %}
-
-    {% if target_user.role == 'ADMIN' and profile %}
-    <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-100">
-        <h3 class="text-sm font-semibold text-gray-900">Profil Admin</h3>
-      </div>
-      <div class="px-6 py-5">
-        <label class="block text-sm font-medium text-gray-700 mb-1.5">No. HP</label>
-        <input type="text" name="phone" value="{{ profile.phone }}"
-               class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm
-                      focus:outline-none focus:ring-2 focus:ring-primary-300 focus:border-primary-400">
-      </div>
-    </div>
-    {% endif %}
-
-    <!-- Actions -->
-    <div class="flex gap-3">
-      <a href="{% url 'admin_panel:user_detail' target_user.pk %}"
-         class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300
-                rounded-lg hover:bg-gray-50 transition-colors">
-        Batal
+    <div class="dp-actions">
+      <a href="{% url 'admin_panel:user_detail' target_user.pk %}" class="dp-btn dp-btn-cancel">
+        <i class="ti ti-x"></i> Batal
       </a>
-      <button type="submit"
-              class="px-5 py-2 text-sm font-semibold text-white bg-primary-600 rounded-lg
-                     hover:bg-primary-700 transition-colors">
-        Simpan Perubahan
+      <button type="submit" class="dp-btn dp-btn-save">
+        <i class="ti ti-device-floppy"></i> Simpan Perubahan
       </button>
     </div>
-
   </form>
-
 </div>
 {% endblock %}

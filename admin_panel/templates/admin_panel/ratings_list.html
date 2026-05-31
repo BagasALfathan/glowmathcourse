@@ -1,46 +1,91 @@
 {% extends "base.html" %}
 
-{% block title %}Kelola Rating{% endblock %}
-{% block page_title %}Kelola Rating{% endblock %}
+{% block title %}Rating — Admin{% endblock %}
+{% block page_title %}Rating{% endblock %}
+
+{% block extra_css %}
+<style>
+.dp-page { padding: 4px 0; }
+.dp-page-h { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+.dp-page-h h1 { font-size: 20px; font-weight: 700; color: #0f172a; margin: 0; }
+.dp-page-h p { font-size: 12px; color: #64748b; margin: 2px 0 0; }
+
+.dp-toolbar { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px 14px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.dp-search { flex: 1; min-width: 220px; position: relative; }
+.dp-search i { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #94a3b8; font-size: 14px; }
+.dp-search input { width: 100%; padding: 8px 12px 8px 34px; font-size: 13px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; }
+.dp-search input:focus { outline: none; background: #ffffff; border-color: #7fcacd; box-shadow: 0 0 0 3px rgba(127,202,205,0.18); }
+
+.dp-chips { display: inline-flex; gap: 4px; padding: 3px; background: #f1f5f9; border-radius: 10px; }
+.dp-chip { font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 8px; color: #475569; cursor: pointer; background: transparent; border: none; transition: all 0.15s; font-family: inherit; white-space: nowrap; }
+.dp-chip:hover { color: #0f172a; }
+.dp-chip.active { background: #ffffff; color: #326568; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+
+.dp-status-sel { font-size: 12px; padding: 8px 10px; border: 1px solid #e2e8f0; border-radius: 8px; background: #ffffff; color: #334155; font-family: inherit; min-width: 140px; }
+.dp-status-sel:focus { outline: none; border-color: #7fcacd; box-shadow: 0 0 0 3px rgba(127,202,205,0.18); }
+
+#ratings-table-wrapper { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+.dp-loading { padding: 40px; text-align: center; color: #94a3b8; font-size: 13px; }
+</style>
+{% endblock %}
 
 {% block content %}
+<div class="dp-page">
 
-<!-- Controls -->
-<div id="ratings-controls" class="flex flex-col sm:flex-row gap-3 mb-5">
-  <input type="text" name="q" placeholder="Cari nama siswa atau guru…"
-         hx-get="/admin-panel/ratings/partial/"
-         hx-target="#ratings-table-wrapper"
-         hx-swap="innerHTML"
-         hx-trigger="input changed delay:400ms, search"
-         hx-include="#ratings-controls"
-         class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm
-                focus:outline-none focus:ring-2 focus:ring-yellow-300 focus:border-yellow-400">
-
-  <select name="score"
-          hx-get="/admin-panel/ratings/partial/"
-          hx-target="#ratings-table-wrapper"
-          hx-swap="innerHTML"
-          hx-trigger="change"
-          hx-include="#ratings-controls"
-          class="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white
-                 focus:outline-none focus:ring-2 focus:ring-yellow-300 focus:border-yellow-400">
-    <option value="">Semua Skor</option>
-    <option value="5">★★★★★ (5)</option>
-    <option value="4">★★★★☆ (4)</option>
-    <option value="3">★★★☆☆ (3)</option>
-    <option value="2">★★☆☆☆ (2)</option>
-    <option value="1">★☆☆☆☆ (1)</option>
-  </select>
-</div>
-
-<!-- Table -->
-<div id="ratings-table-wrapper"
-     hx-get="/admin-panel/ratings/partial/"
-     hx-trigger="load"
-     hx-swap="innerHTML">
-  <div class="flex items-center justify-center py-12 text-gray-400 text-sm">
-    Memuat data…
+  <div class="dp-page-h">
+    <div>
+      <h1>Rating</h1>
+      <p>Lihat &amp; moderasi penilaian guru dan kelas dari siswa.</p>
+    </div>
   </div>
-</div>
 
+  <div id="ratings-controls" class="dp-toolbar"
+       x-data="{ type: '{{ type_filter|default:'teacher' }}' }">
+    <div class="dp-search">
+      <i class="ti ti-search"></i>
+      <input type="text" name="q" value="{{ q }}" placeholder="Cari komentar, siswa, guru, atau kelas…"
+             hx-get="{% url 'admin_panel:ratings_list_partial' %}"
+             hx-target="#ratings-table-wrapper"
+             hx-swap="innerHTML"
+             hx-trigger="input changed delay:400ms, search"
+             hx-include="#ratings-controls"
+             autocomplete="off">
+    </div>
+
+    <div class="dp-chips" role="tablist">
+      <button type="button" class="dp-chip" :class="type === 'teacher' && 'active'"
+              @click="type = 'teacher'; htmx.trigger($refs.typeinput, 'change')">Guru</button>
+      <button type="button" class="dp-chip" :class="type === 'class' && 'active'"
+              @click="type = 'class'; htmx.trigger($refs.typeinput, 'change')">Kelas</button>
+    </div>
+    <input type="hidden" name="type" x-ref="typeinput" x-model="type"
+           hx-get="{% url 'admin_panel:ratings_list_partial' %}"
+           hx-target="#ratings-table-wrapper"
+           hx-swap="innerHTML"
+           hx-trigger="change"
+           hx-include="#ratings-controls">
+
+    <select name="score" class="dp-status-sel"
+            hx-get="{% url 'admin_panel:ratings_list_partial' %}"
+            hx-target="#ratings-table-wrapper"
+            hx-swap="innerHTML"
+            hx-trigger="change"
+            hx-include="#ratings-controls">
+      <option value="">Semua Skor</option>
+      <option value="5" {% if score_filter == '5' %}selected{% endif %}>5 bintang</option>
+      <option value="4" {% if score_filter == '4' %}selected{% endif %}>4 bintang</option>
+      <option value="3" {% if score_filter == '3' %}selected{% endif %}>3 bintang</option>
+      <option value="2" {% if score_filter == '2' %}selected{% endif %}>2 bintang</option>
+      <option value="1" {% if score_filter == '1' %}selected{% endif %}>1 bintang</option>
+    </select>
+  </div>
+
+  <div id="ratings-table-wrapper"
+       hx-get="{% url 'admin_panel:ratings_list_partial' %}?q={{ q|urlencode }}&type={{ type_filter|default:'teacher' }}&score={{ score_filter }}"
+       hx-trigger="load"
+       hx-swap="innerHTML">
+    <div class="dp-loading">Memuat data…</div>
+  </div>
+
+</div>
 {% endblock %}

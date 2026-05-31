@@ -1,117 +1,171 @@
-﻿{% if page_obj.object_list %}
-<div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
-  <table class="w-full text-sm">
-    <thead class="bg-gray-50 border-b border-gray-100">
-      <tr>
-        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Siswa</th>
-        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Kelas</th>
-        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden md:table-cell">Mata Pelajaran</th>
-        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider hidden lg:table-cell">Tanggal Daftar</th>
-        <th class="text-left px-5 py-3 font-semibold text-gray-500 text-xs uppercase tracking-wider">Status</th>
-        <th class="px-5 py-3"></th>
-      </tr>
-    </thead>
-    <tbody class="divide-y divide-gray-50">
-      {% for enr in page_obj %}
-      <tr class="hover:bg-gray-50 transition-colors">
-        <td class="px-5 py-3">
-          <a href="{% url 'admin_panel:user_detail' enr.student.pk %}"
-             class="font-medium text-gray-900 hover:text-primary-600 transition-colors">
-            {{ enr.student.get_full_name|default:enr.student.username }}
-          </a>
-          <p class="text-xs text-gray-400">@{{ enr.student.username }}</p>
-        </td>
-        <td class="px-5 py-3">
-          <a href="{% url 'academics:class_detail' enr.kelas.pk %}"
-             class="text-gray-800 hover:text-primary-600 transition-colors">
-            {{ enr.kelas.name }}
-          </a>
-          <p class="text-xs text-gray-400 mt-0.5">{{ enr.kelas.level }}</p>
-        </td>
-        <td class="px-5 py-3 text-xs text-gray-500 hidden md:table-cell">{{ enr.kelas.subject.name }}</td>
-        <td class="px-5 py-3 text-xs text-gray-500 hidden lg:table-cell whitespace-nowrap">
-          {{ enr.enrolled_at|date:"d M Y" }}
-        </td>
-        <td class="px-5 py-3">
-          <form method="post" action="/admin-panel/enrollments/{{ enr.pk }}/change-status/">
+{% comment %}
+  Data Pro enrollments table — swap target: #enrollments-table-wrapper.
+  Context: page_obj (Enrollment), q, status_filter, level_filter, show_deleted.
+  NO price_at_enrollment column (hidden per Phase 3R Grup A).
+{% endcomment %}
+{% if page_obj.object_list %}
+<style>
+.dp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dp-table thead th { background: #f8fafc; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; font-weight: 700; color: #64748b; padding: 10px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+.dp-table thead th.col-check { width: 36px; padding-left: 16px; padding-right: 6px; }
+.dp-table tbody td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.dp-table tbody td.col-check { padding-left: 16px; padding-right: 6px; }
+.dp-table tbody tr:last-child td { border-bottom: none; }
+.dp-table tbody tr:hover { background: #f8fafc; }
+.dp-table tbody tr.deleted { background: #fef2f2; }
+.dp-table tbody tr.deleted:hover { background: #fee2e2; }
+.dp-table tbody tr.selected { background: #e0f1f2; }
+.dp-table input[type="checkbox"] { width: 16px; height: 16px; accent-color: #4a9499; cursor: pointer; }
+
+.dp-student { font-weight: 600; color: #0f172a; line-height: 1.3; }
+.dp-student .sub { display: block; font-size: 11px; color: #94a3b8; font-weight: 400; margin-top: 1px; }
+.dp-class-name { font-size: 12px; color: #0f172a; font-weight: 600; }
+.dp-class-name .teacher { display: block; font-size: 11px; color: #94a3b8; font-weight: 400; margin-top: 1px; }
+
+.dp-pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+.dp-pill.lvl          { background: #e0f1f2; color: #326568; }
+.dp-pill.st-deleted   { background: #fee2e2; color: #b91c1c; }
+.dp-date { font-size: 11px; color: #94a3b8; white-space: nowrap; }
+
+.dp-act { display: inline-flex; gap: 4px; }
+.dp-act button, .dp-act a { width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: 6px; color: #64748b; background: transparent; border: 1px solid transparent; transition: all 0.15s; cursor: pointer; font-family: inherit; }
+.dp-act a:hover { background: #f1f5f9; color: #326568; border-color: #e2e8f0; }
+.dp-act .delete:hover { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+.dp-act .restore { color: #15803d; }
+.dp-act .restore:hover { background: #dcfce7; border-color: #bbf7d0; }
+.dp-act .transfer { color: #1d4ed8; }
+.dp-act .transfer:hover { background: #dbeafe; border-color: #bfdbfe; }
+.dp-act .progress { color: #6d28d9; }
+.dp-act .progress:hover { background: #ede9fe; border-color: #ddd6fe; }
+
+.dp-status-edit { padding: 4px 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 11px; background: #ffffff; cursor: pointer; font-family: inherit; color: #334155; min-width: 90px; }
+.dp-status-edit:focus { outline: none; border-color: #7fcacd; box-shadow: 0 0 0 2px rgba(127,202,205,0.18); }
+
+.dp-pg { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: #f8fafc; border-top: 1px solid #e2e8f0; }
+.dp-pg p { font-size: 12px; color: #64748b; margin: 0; }
+.dp-pg .pages { display: inline-flex; gap: 4px; }
+.dp-pg .pages a, .dp-pg .pages span { padding: 5px 10px; font-size: 12px; border-radius: 6px; color: #334155; text-decoration: none; background: #ffffff; border: 1px solid #e2e8f0; min-width: 28px; text-align: center; }
+.dp-pg .pages a:hover { background: #e0f1f2; color: #326568; border-color: #7fcacd; }
+.dp-pg .pages .here { background: #4a9499; color: #ffffff; border-color: #4a9499; font-weight: 700; }
+.dp-pg .pages .disabled { color: #cbd5e1; cursor: not-allowed; }
+</style>
+
+<table class="dp-table">
+  <thead>
+    <tr>
+      <th class="col-check">
+        <input type="checkbox" id="dp-check-all" onclick="dpToggleAll(this)" title="Pilih semua di halaman ini">
+      </th>
+      <th>Siswa</th>
+      <th>Kelas</th>
+      <th>Jenjang</th>
+      <th>Status</th>
+      <th>Tgl Daftar</th>
+      <th style="text-align:right;">Aksi</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for e in page_obj %}
+    <tr {% if e.is_deleted %}class="deleted"{% endif %}>
+      <td class="col-check">
+        <input type="checkbox" class="dp-row-check" value="{{ e.pk }}"
+               onchange="dpToggleEnrollment(this.value, this.checked); this.closest('tr').classList.toggle('selected', this.checked);"
+               {% if e.is_deleted %}disabled title="Pendaftaran ini terhapus"{% endif %}>
+      </td>
+      <td class="dp-student">
+        {{ e.student_profile.user.get_full_name|default:e.student_profile.user.username }}
+        <span class="sub">@{{ e.student_profile.user.username }}</span>
+      </td>
+      <td class="dp-class-name">
+        {{ e.kelas.name }}
+        <span class="teacher">{{ e.kelas.teacher_profile.user.get_full_name|default:e.kelas.teacher_profile.user.username }}</span>
+      </td>
+      <td><span class="dp-pill lvl">{{ e.kelas.level }}</span></td>
+      <td>
+        {% if e.is_deleted %}
+          <span class="dp-pill st-deleted">Terhapus</span>
+        {% else %}
+          <form method="post" action="{% url 'admin_panel:enrollment_change_status' e.pk %}" style="display:inline;">
             {% csrf_token %}
-            <select name="status" onchange="this.form.submit()"
-                    class="text-xs border rounded-lg px-2 py-1 bg-white focus:outline-none
-                      {% if enr.status == 'ACTIVE' %}text-green-700 border-green-200 bg-green-50
-                      {% elif enr.status == 'COMPLETED' %}text-blue-700 border-blue-200 bg-blue-50
-                      {% else %}text-gray-600 border-gray-200 bg-gray-50{% endif %}">
-              <option value="ACTIVE" {% if enr.status == 'ACTIVE' %}selected{% endif %}>Aktif</option>
-              <option value="COMPLETED" {% if enr.status == 'COMPLETED' %}selected{% endif %}>Selesai</option>
-              <option value="DROPPED" {% if enr.status == 'DROPPED' %}selected{% endif %}>Keluar</option>
+            <select name="status" class="dp-status-edit" onchange="this.form.submit()">
+              <option value="ACTIVE"    {% if e.status == 'ACTIVE' %}selected{% endif %}>Aktif</option>
+              <option value="COMPLETED" {% if e.status == 'COMPLETED' %}selected{% endif %}>Selesai</option>
+              <option value="DROPPED"   {% if e.status == 'DROPPED' %}selected{% endif %}>Keluar</option>
             </select>
           </form>
-        </td>
-        <td class="px-5 py-3 text-right whitespace-nowrap">
-          <a href="{% url 'admin_panel:enrollment_progress' enr.pk %}"
-             class="text-xs font-medium text-primary-600 hover:text-primary-800 px-2.5 py-1.5
-                    rounded-lg border border-primary-200 hover:bg-primary-50 transition-colors">
-            Detail
+        {% endif %}
+      </td>
+      <td class="dp-date">{{ e.enrolled_at|date:"d M Y" }}</td>
+      <td style="text-align:right;">
+        <div class="dp-act">
+          <a href="{% url 'admin_panel:enrollment_progress' e.pk %}" class="progress" title="Progress">
+            <i class="ti ti-chart-line"></i>
           </a>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
+          {% if not e.is_deleted and e.status == 'ACTIVE' %}
+            <a href="{% url 'admin_panel:enrollment_progress' e.pk %}" class="transfer" title="Transfer ke kelas lain">
+              <i class="ti ti-transfer"></i>
+            </a>
+          {% endif %}
+          {% if e.is_deleted %}
+            <form method="post" action="{% url 'admin_panel:enrollment_restore' e.pk %}" style="display:inline;"
+                  onsubmit="return confirm('Pulihkan pendaftaran ini?');">
+              {% csrf_token %}
+              <button type="submit" class="restore" title="Pulihkan">
+                <i class="ti ti-arrow-back-up"></i>
+              </button>
+            </form>
+          {% else %}
+            <form method="post" action="{% url 'admin_panel:enrollment_soft_delete' e.pk %}" style="display:inline;"
+                  onsubmit="return confirm('Hapus (soft delete) pendaftaran ini?');">
+              {% csrf_token %}
+              <button type="submit" class="delete" title="Hapus (soft)">
+                <i class="ti ti-trash"></i>
+              </button>
+            </form>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
 
-<!-- Pagination -->
-{% if page_obj.has_other_pages %}
-<div class="flex items-center justify-between mt-4">
-  <p class="text-xs text-gray-500">
-    Menampilkan {{ page_obj.start_index }}–{{ page_obj.end_index }}
-    dari {{ page_obj.paginator.count }} pendaftaran
+<div class="dp-pg">
+  <p>
+    Menampilkan <b>{{ page_obj.start_index }}-{{ page_obj.end_index }}</b>
+    dari <b>{{ page_obj.paginator.count }}</b> pendaftaran{% if show_deleted %} terhapus{% endif %}
   </p>
-  <div class="flex gap-1">
+  <div class="pages">
     {% if page_obj.has_previous %}
-    <button hx-get="/admin-panel/enrollments/partial/?q={{ q|urlencode }}&status={{ status_filter }}&page={{ page_obj.previous_page_number }}"
-            hx-target="#enrollments-table-wrapper"
-            hx-swap="innerHTML"
-            class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
-      ←
-    </button>
-    {% endif %}
-    {% for num in page_obj.paginator.page_range %}
-      {% if num == page_obj.number %}
-      <span class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-primary-600 text-white">{{ num }}</span>
-      {% elif num >= page_obj.number|add:'-2' and num <= page_obj.number|add:'2' %}
-      <button hx-get="/admin-panel/enrollments/partial/?q={{ q|urlencode }}&status={{ status_filter }}&page={{ num }}"
-              hx-target="#enrollments-table-wrapper"
-              hx-swap="innerHTML"
-              class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
-        {{ num }}
-      </button>
+    <a href="#"
+       hx-get="{% url 'admin_panel:enrollments_list_partial' %}?q={{ q|urlencode }}&status={{ status_filter }}&level={{ level_filter }}{% if show_deleted %}&show_deleted=1{% endif %}&page={{ page_obj.previous_page_number }}"
+       hx-target="#enrollments-table-wrapper" hx-swap="innerHTML">‹</a>
+    {% else %}<span class="disabled">‹</span>{% endif %}
+    {% for n in page_obj.paginator.page_range %}
+      {% if n == page_obj.number %}
+        <span class="here">{{ n }}</span>
+      {% elif n == 1 or n == page_obj.paginator.num_pages or n|add:0 >= page_obj.number|add:'-2' and n|add:0 <= page_obj.number|add:'2' %}
+        <a href="#"
+           hx-get="{% url 'admin_panel:enrollments_list_partial' %}?q={{ q|urlencode }}&status={{ status_filter }}&level={{ level_filter }}{% if show_deleted %}&show_deleted=1{% endif %}&page={{ n }}"
+           hx-target="#enrollments-table-wrapper" hx-swap="innerHTML">{{ n }}</a>
+      {% elif n == 2 or n|add:0 == page_obj.paginator.num_pages|add:'-1' %}
+        <span class="disabled">…</span>
       {% endif %}
     {% endfor %}
     {% if page_obj.has_next %}
-    <button hx-get="/admin-panel/enrollments/partial/?q={{ q|urlencode }}&status={{ status_filter }}&page={{ page_obj.next_page_number }}"
-            hx-target="#enrollments-table-wrapper"
-            hx-swap="innerHTML"
-            class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
-      →
-    </button>
-    {% endif %}
+    <a href="#"
+       hx-get="{% url 'admin_panel:enrollments_list_partial' %}?q={{ q|urlencode }}&status={{ status_filter }}&level={{ level_filter }}{% if show_deleted %}&show_deleted=1{% endif %}&page={{ page_obj.next_page_number }}"
+       hx-target="#enrollments-table-wrapper" hx-swap="innerHTML">›</a>
+    {% else %}<span class="disabled">›</span>{% endif %}
   </div>
 </div>
-{% else %}
-<p class="text-xs text-gray-400 mt-3">{{ page_obj.paginator.count }} pendaftaran ditemukan</p>
-{% endif %}
 
 {% else %}
-<div class="bg-white rounded-xl border border-gray-100 shadow-sm py-14 text-center">
-  <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 text-gray-400">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-    </svg>
-  </div>
-  {% if q or status_filter %}
-  <p class="text-sm text-gray-500">Tidak ada hasil untuk filter ini.</p>
-  {% else %}
-  <p class="text-sm text-gray-500">Belum ada pendaftaran.</p>
-  {% endif %}
+<div style="padding:48px 20px;text-align:center;color:#94a3b8;font-size:13px;">
+  <div style="font-size:32px;margin-bottom:6px;">📝</div>
+  <p style="margin:0;font-weight:600;color:#475569;">
+    {% if show_deleted %}Tidak ada pendaftaran terhapus{% else %}Tidak ada pendaftaran ditemukan{% endif %}
+  </p>
+  <p style="margin:4px 0 0;font-size:12px;">Coba ubah filter atau kata kunci pencarian.</p>
 </div>
 {% endif %}
