@@ -1,0 +1,374 @@
+{% extends "base.html" %}
+
+{% block title %}Materi — {{ kelas.name }}{% endblock %}
+{% block page_title %}Materi Pembelajaran{% endblock %}
+
+{% block extra_css %}
+<style>
+.cm-page { max-width: 1000px; margin: 0 auto; }
+
+.cm-crumb { font-size: 12px; color: #6b7280; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cm-crumb a { color: #326568; text-decoration: none; }
+.cm-crumb a:hover { text-decoration: underline; }
+.cm-crumb .sep { color: #d1d5db; }
+.cm-crumb .cur { color: #111827; font-weight: 500; }
+
+.cm-hdr { margin-bottom: 16px; }
+.cm-hdr h1 { font-size: 20px; font-weight: 700; color: #0f172a; margin: 0; }
+.cm-hdr p  { font-size: 12px; color: #6b7280; margin: 3px 0 0; }
+
+.cm-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 900px) { .cm-grid { grid-template-columns: 360px 1fr; } }
+
+/* Upload card */
+.cm-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.cm-card .head {
+  padding: 13px 18px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.cm-card .head h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.cm-card .head h3 .ic {
+  width: 26px; height: 26px;
+  border-radius: 7px;
+  background: #e0f1f2;
+  color: #326568;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+.cm-card .body { padding: 16px 18px; }
+
+.cm-field { margin-bottom: 12px; }
+.cm-field:last-child { margin-bottom: 0; }
+.cm-field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  margin-bottom: 4px;
+}
+.cm-field label .req { color: #ef4444; }
+.cm-field input[type="text"],
+.cm-field textarea,
+.cm-field select {
+  width: 100%;
+  padding: 9px 11px;
+  font-size: 13px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font-family: inherit;
+}
+.cm-field textarea { resize: vertical; min-height: 60px; }
+.cm-field input:focus,
+.cm-field textarea:focus,
+.cm-field select:focus {
+  outline: none;
+  border-color: #7fcacd;
+  box-shadow: 0 0 0 3px rgba(127,202,205,0.18);
+}
+.cm-field .hint { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+
+.cm-file-drop {
+  border: 1.5px dashed #c2e4e6;
+  border-radius: 10px;
+  background: #f0f9fa;
+  padding: 16px 12px;
+  text-align: center;
+  cursor: pointer;
+  display: block;
+  transition: all 0.15s;
+}
+.cm-file-drop:hover { border-color: #7fcacd; background: #e0f1f2; }
+.cm-file-drop input[type="file"] { display: none; }
+.cm-file-drop .em { font-size: 22px; }
+.cm-file-drop .ttl { font-size: 12px; font-weight: 600; color: #326568; margin-top: 4px; }
+.cm-file-drop .sub { font-size: 11px; color: #94a3b8; margin-top: 2px; }
+.cm-file-drop.has-file { background: #e0f1f2; border-style: solid; border-color: #4a9499; }
+
+.cm-checkbox { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: #334155; cursor: pointer; }
+.cm-checkbox input { accent-color: #4a9499; }
+
+.cm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 9px;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.cm-btn-primary { background: #4a9499; color: #ffffff; }
+.cm-btn-primary:hover { background: #3d7c80; }
+
+/* Materials list (right side) */
+.cm-list { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 14px; overflow: hidden; }
+.cm-list .head { padding: 13px 18px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cm-list .head h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin: 0; }
+.cm-list .head .count { font-size: 11px; color: #6b7280; }
+
+.cm-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.cm-row:last-child { border-bottom: none; }
+.cm-row.hidden-row { background: #fafafa; opacity: 0.78; }
+
+.cm-icon {
+  width: 38px; height: 38px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.cm-icon.PDF { background: #fee2e2; color: #b91c1c; }
+.cm-icon.IMAGE { background: #dbeafe; color: #1d4ed8; }
+.cm-icon.VIDEO { background: #fce7f3; color: #be185d; }
+.cm-icon.DOC { background: #e0f1f2; color: #326568; }
+.cm-icon.OTHER { background: #f1f5f9; color: #475569; }
+
+.cm-row-body { flex: 1; min-width: 0; }
+.cm-row-body .ttl { font-size: 13px; font-weight: 600; color: #0f172a; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cm-row-body .ttl a { color: inherit; text-decoration: none; }
+.cm-row-body .ttl a:hover { color: #326568; text-decoration: underline; }
+.cm-row-body .desc { font-size: 12px; color: #475569; margin: 3px 0 0; line-height: 1.4; }
+.cm-row-body .meta { margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; color: #94a3b8; }
+.cm-row-body .meta .pill { background: #f1f5f9; color: #64748b; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+.cm-row-body .meta .pill.session { background: #e0f1f2; color: #326568; }
+.cm-row-body .meta .pill.hidden { background: #fef3c7; color: #b45309; }
+
+.cm-row-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.cm-action-btn {
+  width: 30px; height: 30px;
+  border-radius: 7px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.cm-action-btn:hover { background: #f1f5f9; color: #0f172a; border-color: #cbd5e1; }
+.cm-action-btn.danger:hover { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+.cm-action-btn.eye-off { color: #94a3b8; }
+.cm-action-btn.eye-on  { color: #4a9499; background: #e0f1f2; border-color: #c2e4e6; }
+
+.cm-empty { padding: 50px 20px; text-align: center; }
+.cm-empty .em { font-size: 40px; }
+.cm-empty p { font-size: 13px; color: #6b7280; margin: 8px 0 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cm-page">
+
+  <nav class="cm-crumb">
+    <a href="{% url 'academics:teacher_classes' %}">Kelas Saya</a>
+    <span class="sep">›</span>
+    <a href="{% url 'academics:teacher_class_students' pk=kelas.pk %}">{{ kelas.name }}</a>
+    <span class="sep">›</span>
+    <span class="cur">Materi</span>
+  </nav>
+
+  <div class="cm-hdr">
+    <h1>📚 Materi Pembelajaran</h1>
+    <p>{{ kelas.name }}{% if kelas.subject %} · {{ kelas.subject.name }}{% endif %} — kelola materi yang bisa diakses siswa.</p>
+  </div>
+
+  {% if messages %}
+    {% for message in messages %}
+    <div style="margin-bottom:12px; padding:10px 14px; border-radius:9px; font-size:13px;
+                {% if 'success' in message.tags %}background:#e0f1f2;color:#326568;border:1px solid #c2e4e6;
+                {% else %}background:#fee2e2;color:#b91c1c;border:1px solid #fecaca;{% endif %}">
+      {{ message }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="cm-grid">
+
+    {# ── Upload card ── #}
+    <div class="cm-card">
+      <div class="head">
+        <h3><span class="ic">⬆️</span> Unggah Materi Baru</h3>
+      </div>
+      <div class="body">
+        <form method="post" enctype="multipart/form-data" id="cm-upload-form"
+              action="{% url 'course_materials:teacher_materials' kelas_id=kelas.pk %}">
+          {% csrf_token %}
+
+          <div class="cm-field">
+            <label>Judul <span class="req">*</span></label>
+            <input type="text" name="title" required maxlength="200"
+                   placeholder="Misal: Modul Bab 3 — Aljabar Linear">
+          </div>
+
+          <div class="cm-field">
+            <label>Deskripsi</label>
+            <textarea name="description" rows="2"
+                      placeholder="Catatan singkat tentang materi ini."></textarea>
+          </div>
+
+          <div class="cm-field">
+            <label>Sesi (opsional)</label>
+            <select name="session">
+              <option value="">— Umum (tidak terikat sesi) —</option>
+              {% for s in sessions %}
+              <option value="{{ s.pk }}">Sesi #{{ s.session_number }} — {{ s.date|date:"d M Y" }}{% if s.topic %} · {{ s.topic|truncatechars:30 }}{% endif %}</option>
+              {% endfor %}
+            </select>
+            <p class="hint">Kosongkan jika materi tidak terkait sesi tertentu.</p>
+          </div>
+
+          <div class="cm-field">
+            <label>File <span class="req">*</span></label>
+            <label class="cm-file-drop" id="cm-drop">
+              <input type="file" name="file" id="cm-file-input" required
+                     accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.webm,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip">
+              <div class="em">📎</div>
+              <div class="ttl" id="cm-file-label">Klik untuk pilih file</div>
+              <div class="sub">PDF, gambar, video, dokumen Office. Maks {{ max_mb }} MB.</div>
+            </label>
+          </div>
+
+          <div class="cm-field">
+            <label class="cm-checkbox">
+              <input type="checkbox" name="is_visible" value="1" checked>
+              Tampilkan ke siswa
+            </label>
+            <p class="hint">Matikan untuk menyimpan tapi tidak terlihat siswa.</p>
+          </div>
+
+          <div style="margin-top:14px;">
+            <button type="submit" class="cm-btn cm-btn-primary" style="width:100%;">
+              <i class="ti ti-upload"></i> Unggah
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {# ── Materials list ── #}
+    <div class="cm-list">
+      <div class="head">
+        <h3>Daftar Materi</h3>
+        <span class="count">{{ materials|length }} materi</span>
+      </div>
+
+      {% if materials %}
+        {% for m in materials %}
+        <div class="cm-row {% if not m.is_visible %}hidden-row{% endif %}">
+          <span class="cm-icon {{ m.file_type }}">
+            {% if m.file_type == 'PDF' %}📕
+            {% elif m.file_type == 'IMAGE' %}🖼️
+            {% elif m.file_type == 'VIDEO' %}🎬
+            {% elif m.file_type == 'DOC' %}📄
+            {% else %}📎{% endif %}
+          </span>
+          <div class="cm-row-body">
+            <p class="ttl">
+              <a href="{{ m.file.url }}" target="_blank" rel="noopener">{{ m.title }}</a>
+            </p>
+            {% if m.description %}
+            <p class="desc">{{ m.description }}</p>
+            {% endif %}
+            <div class="meta">
+              <span class="pill">{{ m.get_file_type_display }}</span>
+              {% if m.session %}
+                <span class="pill session">Sesi #{{ m.session.session_number }}</span>
+              {% else %}
+                <span class="pill">Umum</span>
+              {% endif %}
+              <span>{{ m.file_size|filesizeformat }}</span>
+              <span>· {{ m.created_at|date:"d M Y" }}</span>
+              {% if not m.is_visible %}
+                <span class="pill hidden">Tersembunyi</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="cm-row-actions">
+            <a href="{{ m.file.url }}" download class="cm-action-btn" title="Unduh">
+              <i class="ti ti-download"></i>
+            </a>
+            <form method="post" action="{% url 'course_materials:toggle_visibility' pk=m.pk %}" style="margin:0;">
+              {% csrf_token %}
+              <button type="submit"
+                      class="cm-action-btn {% if m.is_visible %}eye-on{% else %}eye-off{% endif %}"
+                      title="{% if m.is_visible %}Sembunyikan{% else %}Tampilkan{% endif %}">
+                {% if m.is_visible %}
+                  <i class="ti ti-eye"></i>
+                {% else %}
+                  <i class="ti ti-eye-off"></i>
+                {% endif %}
+              </button>
+            </form>
+            <form method="post" action="{% url 'course_materials:delete_material' pk=m.pk %}"
+                  style="margin:0;"
+                  onsubmit="return confirm('Hapus materi &quot;{{ m.title|escapejs }}&quot;? File akan dihapus permanen.');">
+              {% csrf_token %}
+              <button type="submit" class="cm-action-btn danger" title="Hapus">
+                <i class="ti ti-trash"></i>
+              </button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="cm-empty">
+          <div class="em">📚</div>
+          <p>Belum ada materi. Unggah materi pertama di kolom kiri.</p>
+        </div>
+      {% endif %}
+    </div>
+
+  </div>
+
+</div>
+
+<script>
+(function () {
+  var drop = document.getElementById('cm-drop');
+  var input = document.getElementById('cm-file-input');
+  var label = document.getElementById('cm-file-label');
+  if (!drop || !input || !label) return;
+  input.addEventListener('change', function () {
+    if (input.files && input.files[0]) {
+      label.textContent = input.files[0].name;
+      drop.classList.add('has-file');
+    } else {
+      label.textContent = 'Klik untuk pilih file';
+      drop.classList.remove('has-file');
+    }
+  });
+})();
+</script>
+{% endblock %}

@@ -282,6 +282,14 @@
           </div>
           <span class="arr">→</span>
         </a>
+        <a href="{% url 'course_materials:student_materials' enrollment_id=enrollment.pk %}" class="act-row">
+          <span class="ic">📚</span>
+          <div class="body">
+            <p class="ttl">Materi Kelas</p>
+            <p class="sub">Bahan belajar dari guru</p>
+          </div>
+          <span class="arr">→</span>
+        </a>
         {% if can_rate %}
         <a href="{% url 'ratings:rate_teacher' enrollment.pk %}" class="act-row rate">
           <span class="ic">⭐</span>

@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Materi — {{ kelas.name }}{% endblock %}
+{% block page_title %}Materi Kelas{% endblock %}
+
+{% block extra_css %}
+<style>
+.sm-page { max-width: 880px; margin: 0 auto; }
+
+.sm-crumb { display: inline-flex; align-items: center; gap: 6px; color: #6b7280; font-size: 13px; text-decoration: none; margin-bottom: 12px; }
+.sm-crumb:hover { color: #326568; }
+
+.sm-hero {
+  background: linear-gradient(135deg, #a5dadc 0%, #7fcacd 55%, #4a9499 100%);
+  border-radius: 18px;
+  padding: 22px 24px;
+  margin-bottom: 16px;
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(74,148,153,0.18);
+  position: relative;
+  overflow: hidden;
+}
+.sm-hero::after {
+  content: ""; position: absolute; right: -40px; top: -40px;
+  width: 180px; height: 180px; border-radius: 999px;
+  background: rgba(255,255,255,0.12);
+}
+.sm-hero h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+.sm-hero p  { font-size: 13px; opacity: 0.92; margin: 4px 0 0; }
+.sm-hero .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sm-hero .stat {
+  background: rgba(255,255,255,0.18);
+  border: 1px solid rgba(255,255,255,0.28);
+  padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 1;
+}
+.sm-hero .stat .n { font-size: 18px; font-weight: 700; margin-right: 4px; }
+
+.sm-group { margin-bottom: 16px; }
+.sm-group-h {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 10px;
+  padding: 0 4px;
+}
+.sm-group-h .ic {
+  width: 30px; height: 30px;
+  border-radius: 8px;
+  background: #e0f1f2;
+  color: #326568;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+.sm-group-h h3 { font-size: 14px; font-weight: 700; color: #1f3d3f; margin: 0; }
+.sm-group-h .cnt { font-size: 11px; color: #6b7280; }
+
+.sm-list {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  overflow: hidden;
+}
+.sm-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid #f1f5f9;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s;
+  min-width: 0;
+}
+.sm-row:last-child { border-bottom: none; }
+.sm-row:hover { background: #f0f9fa; }
+
+.sm-icon {
+  width: 42px; height: 42px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+.sm-icon.PDF { background: #fee2e2; color: #b91c1c; }
+.sm-icon.IMAGE { background: #dbeafe; color: #1d4ed8; }
+.sm-icon.VIDEO { background: #fce7f3; color: #be185d; }
+.sm-icon.DOC { background: #e0f1f2; color: #326568; }
+.sm-icon.OTHER { background: #f1f5f9; color: #475569; }
+
+.sm-body { flex: 1; min-width: 0; }
+.sm-body .ttl {
+  font-size: 13px; font-weight: 600; color: #0f172a; margin: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.sm-body .desc { font-size: 12px; color: #475569; margin: 4px 0 0; line-height: 1.4; }
+.sm-body .meta { margin-top: 5px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; color: #94a3b8; }
+.sm-body .meta .pill { background: #f1f5f9; color: #64748b; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+
+.sm-dl {
+  flex-shrink: 0;
+  align-self: center;
+  width: 36px; height: 36px;
+  background: #4a9499;
+  color: #ffffff;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+.sm-dl:hover { background: #3d7c80; transform: translateY(-1px); }
+
+.sm-empty {
+  background: #ffffff;
+  border: 1px dashed #c2e4e6;
+  border-radius: 14px;
+  padding: 56px 20px;
+  text-align: center;
+}
+.sm-empty .em { font-size: 48px; }
+.sm-empty h3 { font-size: 15px; font-weight: 700; color: #326568; margin: 8px 0 0; }
+.sm-empty p { font-size: 13px; color: #6b7280; margin: 6px 0 0; }
+
+@media (max-width: 640px) {
+  .sm-hero { padding: 18px 16px; }
+  .sm-hero h1 { font-size: 18px; }
+  .sm-row { padding: 12px 14px; gap: 10px; }
+  .sm-icon { width: 38px; height: 38px; font-size: 18px; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+{% comment %}
+  Student-facing course materials. Khan Playful teal hero + grouped list.
+  Only is_visible=True rows reach this template; teacher controls visibility.
+{% endcomment %}
+
+<div class="sm-page">
+
+  <a href="{% url 'enrollments:my_class_detail' enrollment.pk %}" class="sm-crumb">
+    <i class="ti ti-arrow-left"></i> Kembali ke {{ kelas.name }}
+  </a>
+
+  <div class="sm-hero">
+    <div class="row">
+      <div style="z-index:1;">
+        <h1>📚 Materi Kelas</h1>
+        <p>{{ kelas.name }}{% if kelas.subject %} · {{ kelas.subject.name }}{% endif %} — bahan belajar dari guru.</p>
+      </div>
+      {% if total %}
+      <div class="stat"><span class="n">{{ total }}</span>materi</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if grouped %}
+    {% for g in grouped %}
+    <div class="sm-group">
+      <div class="sm-group-h">
+        <span class="ic">{% if g.session %}📅{% else %}📌{% endif %}</span>
+        <h3>
+          {% if g.session %}
+            Sesi #{{ g.session.session_number }}{% if g.session.topic %} — {{ g.session.topic }}{% endif %}
+          {% else %}
+            Umum
+          {% endif %}
+        </h3>
+        <span class="cnt">· {{ g.materials|length }} materi</span>
+      </div>
+
+      <div class="sm-list">
+        {% for m in g.materials %}
+        <a href="{{ m.file.url }}" target="_blank" rel="noopener" class="sm-row">
+          <span class="sm-icon {{ m.file_type }}">
+            {% if m.file_type == 'PDF' %}📕
+            {% elif m.file_type == 'IMAGE' %}🖼️
+            {% elif m.file_type == 'VIDEO' %}🎬
+            {% elif m.file_type == 'DOC' %}📄
+            {% else %}📎{% endif %}
+          </span>
+          <div class="sm-body">
+            <p class="ttl">{{ m.title }}</p>
+            {% if m.description %}
+            <p class="desc">{{ m.description }}</p>
+            {% endif %}
+            <div class="meta">
+              <span class="pill">{{ m.get_file_type_display }}</span>
+              <span>{{ m.file_size|filesizeformat }}</span>
+              <span>· {{ m.created_at|date:"d M Y" }}</span>
+            </div>
+          </div>
+          <span class="sm-dl" title="Unduh">
+            <i class="ti ti-download"></i>
+          </span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+
+  {% else %}
+    <div class="sm-empty">
+      <div class="em">📚</div>
+      <h3>Belum ada materi.</h3>
+      <p>Guru belum mengunggah materi untuk kelas ini. Cek kembali nanti ya!</p>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

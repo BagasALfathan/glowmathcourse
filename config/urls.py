@@ -33,6 +33,7 @@ urlpatterns = [
     path('', include('announcements.urls')),
     path('', include('journals.urls')),
     path('', include('notifications.urls')),
+    path('', include('course_materials.urls')),
 ]
 
 if settings.DEBUG:

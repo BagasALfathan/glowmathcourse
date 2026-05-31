@@ -16,11 +16,17 @@
   </nav>
 
   {# Header #}
-  <div>
-    <h1 class="text-xl md:text-2xl font-bold text-gray-900 m-0">👥 Siswa Kelas</h1>
-    <p class="text-xs text-gray-500 mt-1 m-0">
-      {{ kelas.name }} · <span class="font-semibold text-gray-700">{{ student_count }} siswa</span> terdaftar
-    </p>
+  <div class="flex items-start justify-between gap-3 flex-wrap">
+    <div>
+      <h1 class="text-xl md:text-2xl font-bold text-gray-900 m-0">👥 Siswa Kelas</h1>
+      <p class="text-xs text-gray-500 mt-1 m-0">
+        {{ kelas.name }} · <span class="font-semibold text-gray-700">{{ student_count }} siswa</span> terdaftar
+      </p>
+    </div>
+    <a href="{% url 'course_materials:teacher_materials' kelas_id=kelas.pk %}"
+       class="inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors no-underline">
+      📚 Materi
+    </a>
   </div>
 
   {% if enrollments %}
