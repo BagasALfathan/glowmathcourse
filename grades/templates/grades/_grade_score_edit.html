@@ -1,4 +1,4 @@
-﻿{# HTMX fragment: inline score edit form #}
+{# HTMX fragment: inline score edit form #}
 <form hx-post="{% url 'grades:teacher_grade_inline_save' grade.pk %}"
       hx-target="#score-cell-{{ grade.pk }}"
       hx-swap="innerHTML"
