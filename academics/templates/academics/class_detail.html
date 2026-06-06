@@ -258,8 +258,13 @@
       <div class="cd-hero-body">
         <div class="cd-hero-badges">
           {% if kelas.status == 'OPEN' %}<span class="hb live">ONLINE</span>{% endif %}
-          {% if kelas.status == 'FULL' %}<span class="hb hot">🔒 PENUH</span>{% endif %}
-          <span class="hb">{{ kelas.level }}</span>
+          {% if kelas.status == 'FULL' %}<span class="hb hot">PENUH</span>{% endif %}
+          {% for lvl in kelas.get_jenjang_list %}
+            <span class="hb">{{ lvl }}</span>
+          {% endfor %}
+          {% if kelas.class_type == 'GANJIL_GENAP' %}
+            <span class="hb" style="background:#fff1f2;color:#9f1239;border:1px solid #fecdd3;">Paket Ganjil Genap</span>
+          {% endif %}
           <span class="hb">{{ kelas.subject.name }}</span>
         </div>
         <h1>{{ kelas.name }}</h1>
@@ -486,11 +491,32 @@
             <div class="enroll-cap-fill {% if capacity_pct >= 95 %}red{% elif capacity_pct >= 80 %}amber{% else %}green{% endif %}" style="width:{{ capacity_pct }}%"></div>
           </div>
           {% if slots_remaining == 0 %}
-          <div class="enroll-cap-warn full">🔒 Kelas penuh</div>
+          <div class="enroll-cap-warn full">Kelas penuh</div>
           {% elif slots_remaining <= 3 %}
-          <div class="enroll-cap-warn urgent">⚡ Sisa {{ slots_remaining }} slot lagi!</div>
+          <div class="enroll-cap-warn urgent">Sisa {{ slots_remaining }} slot lagi.</div>
           {% endif %}
         </div>
+
+        {% if seat_status %}
+        <div style="margin:10px 0 12px 0; padding:12px; background:#fff1f2; border:1px solid #fecdd3; border-radius:10px;">
+          <p style="margin:0 0 8px 0; font-size:11px; font-weight:700; color:#9f1239; text-transform:uppercase; letter-spacing:0.05em;">
+            Paket Ganjil Genap - Status Kursi
+          </p>
+          {% for seat in seat_status %}
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:12px; padding:5px 0; color:#3f1018; {% if not forloop.last %}border-bottom:1px solid #fecdd3;{% endif %}">
+              <span style="font-weight:600;">{{ seat.label }}</span>
+              {% if seat.taken %}
+                <span style="color:#9f1239;">Terisi{% if seat.student_name %} - {{ seat.student_name }}{% endif %}</span>
+              {% else %}
+                <span style="color:#16a34a; font-weight:600;">Kosong</span>
+              {% endif %}
+            </div>
+          {% endfor %}
+          <p style="margin:8px 0 0 0; font-size:10px; color:#7c2d3a;">
+            Siswa pertama yang mendaftar dapat slot ganjil (pertemuan 1, 3, 5, ...). Siswa kedua dapat slot genap (pertemuan 2, 4, 6, ...).
+          </p>
+        </div>
+        {% endif %}
 
         {# Compact 3-col info grid #}
         <div class="enroll-info-grid">
@@ -520,7 +546,7 @@
         {% elif student_profile is None %}
           <div class="enroll-warn">ℹ️ Login sebagai siswa untuk mendaftar.</div>
         {% elif level_mismatch %}
-          <div class="enroll-warn">⚠️ Khusus jenjang <b>{{ kelas.level }}</b></div>
+          <div class="enroll-warn">Khusus jenjang <b>{{ kelas.get_jenjang_display }}</b></div>
         {% else %}
           <form method="post" action="{% url 'enrollments:enroll' kelas.pk %}" class="enroll-form">
             {% csrf_token %}

@@ -65,7 +65,12 @@
           {{ enr.kelas.teacher_profile.user.get_full_name|default:enr.kelas.teacher_profile.user.username }}
         </p>
       </div>
-      <span class="text-[10px] bg-primary-50 text-primary-700 px-2 py-0.5 rounded font-semibold shrink-0">{{ enr.kelas.level }}</span>
+      <div class="flex flex-col items-end gap-1 shrink-0">
+        <span class="text-[10px] bg-primary-50 text-primary-700 px-2 py-0.5 rounded font-semibold">{{ enr.kelas.get_jenjang_display }}</span>
+        {% if enr.kelas.class_type == 'GANJIL_GENAP' %}
+          <span class="text-[9px] bg-rose-50 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded font-semibold">Paket Ganjil Genap</span>
+        {% endif %}
+      </div>
     </div>
 
     <div class="flex items-center gap-2 mb-3">
