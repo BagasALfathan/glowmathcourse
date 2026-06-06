@@ -172,14 +172,26 @@
 
   <div class="border-t border-gray-50 mx-5"></div>
 
-  <!-- Level + enrolled/capacity + sessions -->
-  <div class="px-5 py-3 flex items-center gap-3 flex-wrap">
-    {% if kelas.level == 'SD' %}
-      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-50 text-primary-700">SD</span>
-    {% elif kelas.level == 'SMP' %}
-      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">SMP</span>
-    {% else %}
-      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-50 text-primary-700">SMA</span>
+  <!-- Level (multi-jenjang) + tipe + enrolled/capacity + sessions -->
+  <div class="px-5 py-3 flex items-center gap-2 flex-wrap">
+    {% for lvl in kelas.get_jenjang_list %}
+      {% if lvl == 'SD' %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-50 text-primary-700">SD</span>
+      {% elif lvl == 'SMP' %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700">SMP</span>
+      {% elif lvl == 'SMA' %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-50 text-yellow-700">SMA</span>
+      {% elif lvl == 'TK' %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-pink-50 text-pink-700">TK</span>
+      {% else %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-50 text-indigo-700">Umum</span>
+      {% endif %}
+    {% endfor %}
+
+    {% if kelas.class_type == 'GANJIL_GENAP' %}
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+        Paket Ganjil Genap
+      </span>
     {% endif %}
 
     <span class="flex items-center gap-1 text-xs text-gray-500">

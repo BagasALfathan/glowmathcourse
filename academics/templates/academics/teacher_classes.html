@@ -99,7 +99,12 @@
       <div class="bg-gray-50 border border-gray-200 rounded-xl px-5 py-4 flex items-center justify-between gap-3 opacity-60">
         <div class="min-w-0">
           <p class="text-sm font-semibold text-gray-700 truncate">{{ kelas.name }}</p>
-          <p class="text-xs text-gray-500 mt-0.5">{{ kelas.subject.name }} · {{ kelas.level }}</p>
+          <p class="text-xs text-gray-500 mt-0.5">
+            {{ kelas.subject.name }} · {{ kelas.get_jenjang_display }}
+            {% if kelas.class_type == 'GANJIL_GENAP' %}
+              <span class="ml-1 inline-flex items-center px-1.5 py-0 rounded text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">Paket Ganjil Genap</span>
+            {% endif %}
+          </p>
         </div>
         <div class="shrink-0 flex items-center gap-2">
           <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-600">Dihapus</span>

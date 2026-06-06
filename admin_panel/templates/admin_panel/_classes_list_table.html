@@ -74,7 +74,12 @@
         <span class="uname">@{{ k.teacher_profile.user.username }}</span>
       </td>
       <td>
-        <span class="dp-pill lvl">{{ k.level }}</span>
+        {% for lvl in k.get_jenjang_list %}
+          <span class="dp-pill lvl">{{ lvl }}</span>
+        {% endfor %}
+        {% if k.class_type == 'GANJIL_GENAP' %}
+          <span class="dp-pill lvl" title="Paket Ganjil Genap">GG</span>
+        {% endif %}
       </td>
       <td>
         {% with cap=k.capacity used=k.active_count %}

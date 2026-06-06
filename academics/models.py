@@ -37,6 +37,11 @@ class KelasStatus(models.TextChoices):
     CLOSED = 'CLOSED', 'Tutup'
 
 
+class KelasType(models.TextChoices):
+    REGULAR = 'REGULAR', 'Reguler'
+    GANJIL_GENAP = 'GANJIL_GENAP', 'Paket Ganjil Genap'
+
+
 # ── Category ──────────────────────────────────────────────────────────────────
 
 class Category(models.Model):
@@ -146,6 +151,12 @@ class Kelas(models.Model):
     status = models.CharField(
         max_length=10, choices=KelasStatus.choices, default=KelasStatus.OPEN
     )
+    class_type = models.CharField(
+        max_length=15,
+        choices=KelasType.choices,
+        default=KelasType.REGULAR,
+        help_text='REGULAR (default) atau GANJIL_GENAP (paket dua kursi, satu ganjil, satu genap).',
+    )
     is_deleted = models.BooleanField(default=False)
     deleted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -192,6 +203,41 @@ class Kelas(models.Model):
     @property
     def is_upcoming(self):
         return self.start_date > timezone.localdate()
+
+    # ── Jenjang helpers (read from KelasJenjang relation) ──────────────────
+    def get_jenjang_list(self):
+        """Return the list of level codes this kelas accepts (multi-jenjang).
+
+        Falls back to [self.level] if no KelasJenjang rows exist yet (e.g. in
+        the moment between Kelas.save() and KelasJenjang.objects.create() on a
+        new row that has not finished its create flow). Migrations will
+        backfill one row per existing Kelas.
+        """
+        levels = [j.level for j in self.jenjang_set.all()]
+        if levels:
+            return levels
+        return [self.level] if self.level else []
+
+    def get_jenjang_display(self):
+        labels = [j.get_level_display() for j in self.jenjang_set.all()]
+        if labels:
+            return ', '.join(labels)
+        return self.get_level_display() if self.level else '-'
+
+    def set_jenjang(self, levels):
+        """Replace this kelas's jenjang set with the given iterable of level codes.
+
+        Also syncs Kelas.level to the first selection so the legacy single-level
+        field stays consistent for callers that have not been migrated yet.
+        """
+        normalized = list(dict.fromkeys(levels))
+        KelasJenjang.objects.filter(kelas=self).delete()
+        KelasJenjang.objects.bulk_create(
+            [KelasJenjang(kelas=self, level=lvl) for lvl in normalized]
+        )
+        if normalized and self.level != normalized[0]:
+            self.level = normalized[0]
+            self.save(update_fields=['level', 'updated_at'])
 
     def get_schedule_display(self):
         """Return 'Senin & Rabu, 09:00–10:30' or 'Senin 09:00–10:30, Rabu 14:00–15:30'."""
@@ -242,4 +288,30 @@ class Schedule(models.Model):
         indexes = [models.Index(fields=['kelas'])]
 
     def __str__(self):
-        return f'{self.kelas.name} — {self.get_day_display()} {self.start_time:%H:%M}–{self.end_time:%H:%M}'
+        return f'{self.kelas.name} - {self.get_day_display()} {self.start_time:%H:%M}-{self.end_time:%H:%M}'
+
+
+# ── KelasJenjang ──────────────────────────────────────────────────────────────
+
+class KelasJenjang(models.Model):
+    """One row per (Kelas, level). Mirrors TeacherJenjang.
+
+    A class may accept students from multiple jenjang (e.g., one slot teaches
+    both SD and SMP students). Kelas.level remains as the primary jenjang for
+    backward compatibility; get_jenjang_list() reads this relation.
+    """
+    kelas = models.ForeignKey(
+        Kelas, on_delete=models.CASCADE, related_name='jenjang_set'
+    )
+    level = models.CharField(max_length=5, choices=Level.choices)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
+
+    class Meta:
+        verbose_name = 'Jenjang Kelas'
+        verbose_name_plural = 'Jenjang Kelas'
+        unique_together = [('kelas', 'level')]
+        ordering = ['kelas_id', 'level']
+
+    def __str__(self):
+        return f'{self.kelas.name} - {self.get_level_display()}'

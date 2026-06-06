@@ -157,10 +157,16 @@ def enroll(request, kelas_id):
         messages.error(request, 'Pendaftaran sudah ditutup, kelas sudah dimulai.')
         return redirect('academics:class_detail', pk=kelas_id)
 
-    # Level must match
+    # Level must be in the class's accepted jenjang set (multi-jenjang aware).
     student_profile = request.user.student_profile
-    if student_profile.level != kelas.level:
-        messages.error(request, f'Kelas ini untuk jenjang {kelas.level}, bukan {student_profile.level}.')
+    accepted_levels = kelas.get_jenjang_list()
+    if student_profile.level not in accepted_levels:
+        accepted_display = kelas.get_jenjang_display()
+        messages.error(
+            request,
+            f'Kelas ini untuk jenjang {accepted_display}, '
+            f'bukan {student_profile.level}.',
+        )
         return redirect('academics:class_detail', pk=kelas_id)
 
     # Schedule conflict against student's existing ACTIVE enrollments
@@ -188,11 +194,16 @@ def enroll(request, kelas_id):
     enrollment = payload
     log_activity(request.user, 'created', 'enrollment', enrollment.pk)
 
-    # Phase 3R: fan out session-level AUTO bookings for every REGULAR session
-    # in this kelas. Idempotent via unique (enrollment, session) — re-enroll
-    # after drop, or pre-existing bookings, are tolerated.
-    from sessions_app.views import _auto_book_regular_sessions
-    _auto_book_regular_sessions(enrollment)
+    # Fan out session-level AUTO bookings. For Paket Ganjil Genap, route to
+    # the parity helper so each student only gets bookings on their assigned
+    # parity (capacity-2 invariant is enforced by _try_enroll above).
+    from academics.models import KelasType
+    if kelas.class_type == KelasType.GANJIL_GENAP:
+        from sessions_app.services import auto_book_parity_sessions
+        auto_book_parity_sessions(enrollment)
+    else:
+        from sessions_app.views import _auto_book_regular_sessions
+        _auto_book_regular_sessions(enrollment)
 
     # Invalidate detail-page caches so the next view shows the updated capacity.
     # Sibling related-classes caches also need a refresh since this kelas's active_count changed.
@@ -200,8 +211,9 @@ def enroll(request, kelas_id):
     cache.delete(f'kelas_{kelas.id}_capacity')
     cache.delete(f'kelas_{kelas.id}_related')
     sibling_ids = Kelas.objects.filter(
-        subject=kelas.subject, level=kelas.level
-    ).exclude(pk=kelas.pk).values_list('pk', flat=True)
+        subject=kelas.subject,
+        jenjang_set__level__in=kelas.get_jenjang_list(),
+    ).exclude(pk=kelas.pk).values_list('pk', flat=True).distinct()
     cache.delete_many([f'kelas_{sid}_related' for sid in sibling_ids])
     messages.success(request, f'Berhasil mendaftar di kelas {kelas.name}!')
     return redirect('enrollments:my_classes')
