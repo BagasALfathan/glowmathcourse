@@ -6,24 +6,20 @@
 {% block content %}
 <div class="max-w-3xl mx-auto space-y-4">
 
-  {# Breadcrumb #}
   <nav class="text-xs flex gap-1.5 items-center">
     <a href="{% url 'academics:teacher_classes' %}" class="text-primary-700 hover:underline no-underline">Kelas Saya</a>
-    <span class="text-gray-400">›</span>
+    <span class="text-gray-400">/</span>
     <span class="text-gray-700 font-medium">Buat Kelas</span>
   </nav>
 
-  {# Header #}
   <div>
-    <h1 class="text-xl md:text-2xl font-bold text-gray-900 m-0">➕ Buat Kelas Baru</h1>
+    <h1 class="text-xl md:text-2xl font-bold text-gray-900 m-0">Buat Kelas Baru</h1>
     <p class="text-xs text-gray-500 mt-1 m-0">
-      Field bertanda
-      <span class="inline-block bg-primary-100 text-primary-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">otomatis</span>
-      udah keisi default — tinggal cek atau ubah.
+      Satu kelas = satu slot mingguan. Pilih hari, jam, tanggal mulai, dan jumlah minggu;
+      pertemuan dibuat otomatis tiap minggu.
     </p>
   </div>
 
-  {# Flash messages — success goes to /teacher/classes/, errors land here #}
   {% if messages %}
     <div class="space-y-1.5">
     {% for msg in messages %}
@@ -44,7 +40,7 @@
     {# ── GROUP 1: Detail Kelas ─────────────────────────────────────── #}
     <div class="space-y-4">
       <div class="text-[11px] font-bold text-primary-700 uppercase tracking-wider">
-        📝 Detail Kelas
+        Detail Kelas
       </div>
 
       <div>
@@ -53,14 +49,13 @@
         </label>
         <input id="cls-name" type="text" name="name" required maxlength="200"
                value="{{ form_data.name|default:'' }}"
-               placeholder="contoh: Matematika UTBK Intensif"
+               placeholder="contoh: Matematika SD Senin Sore"
                class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
       </div>
 
       <div>
         <label class="block text-xs font-semibold text-gray-700 mb-1.5">
           Mata Pelajaran <span class="text-red-500">*</span>
-          <span class="text-[10px] text-gray-400 font-normal ml-1">Pilih mata pelajaran kelas ini</span>
         </label>
         <div class="flex gap-1.5 flex-wrap">
           {% for s in subjects %}
@@ -68,7 +63,7 @@
               <input type="radio" name="subject" value="{{ s.id }}" class="peer sr-only"
                      {% if form_data.subject == s.id|stringformat:'s' %}checked{% endif %}>
               <span class="inline-block px-3 py-1.5 rounded-full border border-gray-300 text-xs text-gray-700 hover:border-primary-400 peer-checked:bg-primary-600 peer-checked:text-white peer-checked:border-primary-600 peer-checked:font-semibold transition-colors">
-                {{ s.icon|default:'📖' }} {{ s.name }}
+                {{ s.icon|default:'' }} {{ s.name }}
               </span>
             </label>
           {% empty %}
@@ -80,13 +75,14 @@
       <div>
         <label class="block text-xs font-semibold text-gray-700 mb-1.5">
           Jenjang <span class="text-red-500">*</span>
+          <span class="text-[10px] text-gray-400 font-normal ml-1">(boleh pilih lebih dari satu)</span>
         </label>
         <div class="flex gap-1.5 flex-wrap">
           {% for lvl_value, lvl_label in all_level_choices %}
             {% if not teacher_levels or lvl_value in teacher_levels %}
               <label class="cursor-pointer">
-                <input type="radio" name="level" value="{{ lvl_value }}" class="peer sr-only"
-                       {% if form_data.level == lvl_value %}checked{% endif %}>
+                <input type="checkbox" name="levels" value="{{ lvl_value }}" class="peer sr-only"
+                       {% if lvl_value in selected_levels %}checked{% endif %}>
                 <span class="inline-block px-3 py-1.5 rounded-full border border-gray-300 text-xs text-gray-700 hover:border-primary-400 peer-checked:bg-primary-600 peer-checked:text-white peer-checked:border-primary-600 peer-checked:font-semibold transition-colors">
                   {{ lvl_label }}
                 </span>
@@ -97,9 +93,29 @@
         {% if teacher_levels %}
           <p class="text-[10px] text-gray-400 mt-1.5">
             Daftar terbatas pada jenjang yang Anda ajarkan ({{ teacher_levels|join:", " }}).
-            Tambah jenjang lain di profil dulu untuk membuka opsi.
+            Pilih beberapa jika kelas ini terbuka untuk lebih dari satu jenjang.
           </p>
         {% endif %}
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+          Tipe Kelas <span class="text-red-500">*</span>
+        </label>
+        <div class="flex gap-1.5 flex-wrap">
+          {% for ct_value, ct_label in all_class_types %}
+            <label class="cursor-pointer">
+              <input type="radio" name="class_type" value="{{ ct_value }}" class="peer sr-only"
+                     {% if selected_class_type == ct_value %}checked{% endif %}>
+              <span class="inline-block px-3 py-1.5 rounded-full border border-gray-300 text-xs text-gray-700 hover:border-primary-400 peer-checked:bg-primary-600 peer-checked:text-white peer-checked:border-primary-600 peer-checked:font-semibold transition-colors">
+                {{ ct_label }}
+              </span>
+            </label>
+          {% endfor %}
+        </div>
+        <p class="text-[10px] text-gray-400 mt-1.5">
+          Paket Ganjil Genap memaksa kapasitas jadi 2 (satu kursi pertemuan ganjil, satu kursi pertemuan genap).
+        </p>
       </div>
 
       <div>
@@ -107,7 +123,7 @@
           Kapasitas <span class="text-red-500">*</span>
         </label>
         <input id="cls-cap" type="number" name="capacity" required min="1" max="100"
-               value="{{ form_data.capacity|default:'15' }}"
+               value="{{ form_data.capacity|default:'12' }}"
                class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
       </div>
 
@@ -121,71 +137,102 @@
       </div>
     </div>
 
-    {# ── GROUP 2: Periode & Durasi ─────────────────────────────────── #}
+    {# ── GROUP 2: Slot Mingguan ────────────────────────────────────── #}
     <div class="space-y-4 pt-5 border-t border-gray-100">
       <div class="text-[11px] font-bold text-primary-700 uppercase tracking-wider">
-        📅 Periode &amp; Durasi
+        Slot Mingguan
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-gray-700 mb-1.5">
+          Hari <span class="text-red-500">*</span>
+        </label>
+        <div class="flex gap-1.5 flex-wrap">
+          {% for d_value, d_label in day_choices %}
+            <label class="cursor-pointer">
+              <input type="radio" name="day" value="{{ d_value }}" class="peer sr-only"
+                     {% if form_data.day == d_value %}checked{% endif %}>
+              <span class="inline-block px-3 py-1.5 rounded-full border border-gray-300 text-xs text-gray-700 hover:border-primary-400 peer-checked:bg-primary-600 peer-checked:text-white peer-checked:border-primary-600 peer-checked:font-semibold transition-colors">
+                {{ d_label }}
+              </span>
+            </label>
+          {% endfor %}
+        </div>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
-          <label for="cls-period" class="block text-xs font-semibold text-gray-700 mb-1.5">
-            Periode Akademik <span class="text-red-500">*</span>
-            <span class="inline-block ml-1 bg-primary-100 text-primary-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">otomatis</span>
+          <label for="cls-start-time" class="block text-xs font-semibold text-gray-700 mb-1.5">
+            Jam Mulai <span class="text-red-500">*</span>
           </label>
-          <select id="cls-period" name="academic_period" required
-                  class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none bg-white">
-            {% for p in all_periods %}
-              <option value="{{ p.id }}"
-                      {% if form_data.academic_period == p.id|stringformat:'s' %}selected
-                      {% elif not form_data.academic_period and p.is_active %}selected
-                      {% endif %}>
-                {{ p.name }}{% if p.is_active %} (aktif){% endif %}
-              </option>
-            {% endfor %}
-          </select>
+          <input id="cls-start-time" type="time" name="start_time" required
+                 value="{{ form_data.start_time|default:'15:00' }}"
+                 class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
         </div>
 
         <div>
-          <label for="cls-sessions" class="block text-xs font-semibold text-gray-700 mb-1.5">
-            Total Pertemuan <span class="text-red-500">*</span>
-            <span class="inline-block ml-1 bg-primary-100 text-primary-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">otomatis</span>
+          <label for="cls-end-time" class="block text-xs font-semibold text-gray-700 mb-1.5">
+            Jam Selesai <span class="text-red-500">*</span>
           </label>
-          <input id="cls-sessions" type="number" name="total_sessions" required min="1" max="100"
-                 value="{{ form_data.total_sessions|default:default_total_sessions }}"
+          <input id="cls-end-time" type="time" name="end_time" required
+                 value="{{ form_data.end_time|default:'17:00' }}"
                  class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
         </div>
 
         <div>
           <label for="cls-start" class="block text-xs font-semibold text-gray-700 mb-1.5">
             Tanggal Mulai <span class="text-red-500">*</span>
-            <span class="inline-block ml-1 bg-primary-100 text-primary-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">otomatis</span>
           </label>
           <input id="cls-start" type="date" name="start_date" required
                  value="{{ form_data.start_date|default:start_date_default }}"
                  class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
+          <p class="text-[10px] text-gray-400 mt-1">Pertemuan pertama dimulai pada hari pilihan di atas, pada atau setelah tanggal ini.</p>
         </div>
 
         <div>
-          <label for="cls-end" class="block text-xs font-semibold text-gray-700 mb-1.5">
-            Tanggal Selesai <span class="text-red-500">*</span>
-            <span class="inline-block ml-1 bg-primary-100 text-primary-700 text-[10px] font-semibold px-1.5 py-0.5 rounded">otomatis</span>
+          <label for="cls-weeks" class="block text-xs font-semibold text-gray-700 mb-1.5">
+            Jumlah Minggu <span class="text-red-500">*</span>
           </label>
-          <input id="cls-end" type="date" name="end_date" required
-                 value="{{ form_data.end_date|default:end_date_default }}"
+          <input id="cls-weeks" type="number" name="weeks" required min="1" max="52"
+                 value="{{ form_data.weeks|default:default_weeks }}"
+                 class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
+          <p class="text-[10px] text-gray-400 mt-1">Jumlah pertemuan sama dengan jumlah minggu (1 sesi per minggu).</p>
+        </div>
+
+        <div class="md:col-span-2">
+          <label for="cls-room" class="block text-xs font-semibold text-gray-700 mb-1.5">
+            Ruangan <span class="text-gray-400 font-normal">(opsional)</span>
+          </label>
+          <input id="cls-room" type="text" name="room" maxlength="100"
+                 value="{{ form_data.room|default:'' }}"
+                 placeholder="contoh: Ruang 3 / Online Zoom"
                  class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
         </div>
       </div>
+
+      <div>
+        <label for="cls-period" class="block text-xs font-semibold text-gray-700 mb-1.5">
+          Periode Akademik <span class="text-red-500">*</span>
+        </label>
+        <select id="cls-period" name="academic_period" required
+                class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none bg-white">
+          {% for p in all_periods %}
+            <option value="{{ p.id }}"
+                    {% if form_data.academic_period == p.id|stringformat:'s' %}selected
+                    {% elif not form_data.academic_period and p.is_active %}selected
+                    {% endif %}>
+              {{ p.name }}{% if p.is_active %} (aktif){% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
     </div>
 
-    {# ── Info note ─────────────────────────────────────────────────── #}
     <div class="bg-primary-50 border border-primary-100 rounded-lg p-3 text-xs text-primary-800">
-      <span class="font-semibold">ℹ️ Status default <em>Buka</em>.</span>
-      Setelah dibuat, Anda akan diarahkan ke <strong>Kelas Saya</strong>.
-      Tambahkan jadwal pertemuan (hari + jam + ruang) di halaman <strong>detail kelas</strong>.
+      Pertemuan akan dibuat otomatis: 1 sesi tiap minggu pada hari yang dipilih, selama jumlah
+      minggu yang Anda isi. Tanggal selesai kelas mengikuti pertemuan terakhir.
     </div>
 
-    {# ── Buttons ───────────────────────────────────────────────────── #}
     <div class="flex justify-end gap-2 pt-3 border-t border-gray-100">
       <a href="{% url 'academics:teacher_classes' %}"
          class="px-4 py-2 text-sm font-medium text-gray-600 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors no-underline">
@@ -193,7 +240,7 @@
       </a>
       <button type="submit"
               class="px-5 py-2 text-sm font-semibold text-white bg-primary-600 hover:bg-primary-700 rounded-lg transition-colors">
-        Buat Kelas →
+        Buat Kelas
       </button>
     </div>
   </form>

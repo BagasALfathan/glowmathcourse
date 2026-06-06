@@ -18,7 +18,10 @@ from enrollments.models import Enrollment, EnrollmentStatus
 from ratings.models import TeacherRating
 from sessions_app.models import BookingStatus, Session, SessionBooking, SessionStatus
 from .forms import KelasEditForm, KelasForm
-from .models import AcademicPeriod, Day, Kelas, KelasStatus, Schedule, Subject
+from .models import (
+    AcademicPeriod, Day, Kelas, KelasJenjang, KelasStatus, KelasType,
+    Schedule, Subject,
+)
 from .utils import (
     update_expired_classes,
     build_schedule_grid, build_calendar_grid, _COLOR_PALETTE, _SCHEDULE_DAYS,
@@ -190,13 +193,18 @@ def teacher_classes_list(request):
 
 @role_required('TEACHER')
 def teacher_class_create(request):
-    """Phase 3B — Notion Clean Create Class page.
+    """Create a weekly-slot kelas.
 
-    Single POST, zero JS. Schedule input lives on the class detail page
-    (locked decision — see PHASE_ROADMAP.md). Server-side validation only;
-    on error, falls through to re-render with submitted data preserved.
+    Domain model: a kelas is one recurring weekly slot. The teacher picks Hari,
+    Jam mulai, Jam selesai, Tanggal mulai, Jumlah minggu (= total_sessions),
+    Ruangan (optional), plus the usual identity fields. On save we create the
+    Kelas, the single Schedule row, then call generate_sessions_for_kelas() so
+    end_date and the Session rows are both derived from the slot.
     """
-    from decimal import Decimal, InvalidOperation
+    from decimal import Decimal
+    from sessions_app.services import (
+        generate_sessions_for_kelas, teacher_weekly_slot_conflict,
+    )
 
     teacher_profile = request.user.teacher_profile
 
@@ -214,14 +222,32 @@ def teacher_class_create(request):
         .order_by('level')
     )
 
+    # Day.choices excludes Sunday in this project; honor the same set in the UI.
+    day_choices = [(v, label) for v, label in Day.choices if v != 'SUNDAY']
+    valid_days = {v for v, _ in day_choices}
+
     if request.method == 'POST':
         name = (request.POST.get('name') or '').strip()
         subject_id = request.POST.get('subject')
         period_id = request.POST.get('academic_period')
-        level = request.POST.get('level')
+        # Multi-jenjang: accept either a single `level` or many `levels[]`.
+        levels_raw = (
+            request.POST.getlist('levels')
+            or [v for v in [request.POST.get('level')] if v]
+        )
+        # De-dup while preserving order, drop blanks
+        levels_picked = [
+            v for v in dict.fromkeys(levels_raw) if v
+        ]
+        class_type = (request.POST.get('class_type') or KelasType.REGULAR).strip().upper()
+        if class_type not in {v for v, _ in KelasType.choices}:
+            class_type = KelasType.REGULAR
         description = (request.POST.get('description') or '').strip()
-        start_date = request.POST.get('start_date') or None
-        end_date = request.POST.get('end_date') or None
+        start_date_raw = request.POST.get('start_date') or ''
+        day = (request.POST.get('day') or '').strip().upper()
+        start_time_raw = request.POST.get('start_time') or ''
+        end_time_raw = request.POST.get('end_time') or ''
+        room = (request.POST.get('room') or '').strip()
 
         errors = []
         if not name:
@@ -230,14 +256,44 @@ def teacher_class_create(request):
             errors.append('Pilih mata pelajaran.')
         if not period_id:
             errors.append('Pilih periode akademik.')
-        if not level:
-            errors.append('Pilih jenjang.')
-        elif teacher_levels and level not in teacher_levels:
-            errors.append(f'Jenjang {level} belum terdaftar di profil — tambahkan di Pengaturan dulu.')
-        if not start_date:
+        if not levels_picked:
+            errors.append('Pilih minimal satu jenjang.')
+        else:
+            invalid_levels = [
+                v for v in levels_picked if v not in {lv for lv, _ in Level.choices}
+            ]
+            if invalid_levels:
+                errors.append('Jenjang tidak valid: ' + ', '.join(invalid_levels) + '.')
+            elif teacher_levels:
+                out_of_scope = [v for v in levels_picked if v not in teacher_levels]
+                if out_of_scope:
+                    errors.append(
+                        'Jenjang ' + ', '.join(out_of_scope) + ' belum terdaftar di profil Anda. '
+                        'Tambahkan di Pengaturan dulu.'
+                    )
+
+        # Parse the slot fields
+        start_date_parsed = None
+        try:
+            start_date_parsed = _dt.datetime.strptime(start_date_raw, '%Y-%m-%d').date()
+        except ValueError:
             errors.append('Tanggal mulai wajib diisi.')
-        if not end_date:
-            errors.append('Tanggal selesai wajib diisi.')
+
+        if day not in valid_days:
+            errors.append('Pilih hari pertemuan (Senin sampai Sabtu).')
+
+        start_time_parsed = None
+        end_time_parsed = None
+        try:
+            start_time_parsed = _dt.datetime.strptime(start_time_raw[:5], '%H:%M').time()
+        except ValueError:
+            errors.append('Jam mulai wajib diisi.')
+        try:
+            end_time_parsed = _dt.datetime.strptime(end_time_raw[:5], '%H:%M').time()
+        except ValueError:
+            errors.append('Jam selesai wajib diisi.')
+        if start_time_parsed and end_time_parsed and end_time_parsed <= start_time_parsed:
+            errors.append('Jam selesai harus setelah jam mulai.')
 
         try:
             capacity_int = int(request.POST.get('capacity') or 0)
@@ -247,17 +303,34 @@ def teacher_class_create(request):
             errors.append('Kapasitas tidak valid.')
             capacity_int = 0
 
-        try:
-            total_sessions_int = int(request.POST.get('total_sessions') or 0)
-            if total_sessions_int <= 0:
-                errors.append('Total pertemuan harus lebih dari 0.')
-        except (TypeError, ValueError):
-            errors.append('Total pertemuan tidak valid.')
-            total_sessions_int = 0
+        # GANJIL_GENAP forces capacity = 2 (server-side enforcement).
+        if class_type == KelasType.GANJIL_GENAP:
+            capacity_int = 2
 
-        # Phase 3R: price field removed from the create form. Kelas.price stays
-        # in the schema (billing FK integrity) — default new rows to 0.
-        price_dec = Decimal('0')
+        try:
+            weeks_int = int(request.POST.get('weeks') or 0)
+            if weeks_int <= 0:
+                errors.append('Jumlah minggu harus lebih dari 0.')
+            elif weeks_int > 52:
+                errors.append('Jumlah minggu maksimal 52.')
+        except (TypeError, ValueError):
+            errors.append('Jumlah minggu tidak valid.')
+            weeks_int = 0
+
+        # Teacher slot conflict: same teacher, same day, overlapping time window.
+        if (
+            not errors
+            and day in valid_days
+            and start_time_parsed and end_time_parsed
+        ):
+            clash = teacher_weekly_slot_conflict(
+                teacher_profile, day, start_time_parsed, end_time_parsed,
+            )
+            if clash is not None:
+                errors.append(
+                    f'Slot bentrok dengan kelas Anda yang lain: "{clash.name}" '
+                    f'di hari yang sama. Pilih jam atau hari lain.'
+                )
 
         if errors:
             for e in errors:
@@ -271,19 +344,41 @@ def teacher_class_create(request):
                         academic_period_id=period_id,
                         name=name,
                         description=description,
-                        level=level,
-                        start_date=start_date,
-                        end_date=end_date,
+                        # Primary jenjang stays the FIRST selected for legacy paths.
+                        level=levels_picked[0],
+                        class_type=class_type,
+                        start_date=start_date_parsed,
+                        # Temporary end_date; the generator will reset it to
+                        # the date of the last weekly session.
+                        end_date=start_date_parsed + timedelta(days=7 * (weeks_int - 1)),
                         capacity=capacity_int,
-                        total_sessions=total_sessions_int,
-                        price=price_dec,
+                        total_sessions=weeks_int,
+                        price=Decimal('0'),
                         status=KelasStatus.OPEN,
                     )
+                    # Multi-jenjang relation
+                    kelas.set_jenjang(levels_picked)
+                    Schedule.objects.create(
+                        kelas=kelas,
+                        day=day,
+                        start_time=start_time_parsed,
+                        end_time=end_time_parsed,
+                        room=room,
+                    )
+                    created = generate_sessions_for_kelas(kelas)
                 log_activity(request.user, 'created', 'kelas', kelas.pk)
+                jenjang_label = ', '.join(
+                    dict(Level.choices).get(lv, lv) for lv in levels_picked
+                )
+                paket_note = (
+                    ' Tipe: Paket Ganjil Genap, kapasitas dipaksa 2 (satu kursi ganjil, satu kursi genap).'
+                    if class_type == KelasType.GANJIL_GENAP else ''
+                )
                 messages.success(
                     request,
-                    f'✓ Kelas "{kelas.name}" berhasil dibuat! '
-                    f'Tambahkan jadwal pertemuan di halaman detail.',
+                    f'Kelas "{kelas.name}" berhasil dibuat (jenjang: {jenjang_label}). '
+                    f'{created} pertemuan dijadwalkan otomatis (setiap '
+                    f'{kelas.schedules.first().get_day_display()}).' + paket_note
                 )
                 return redirect('academics:teacher_classes')
             except Exception as e:
@@ -294,18 +389,27 @@ def teacher_class_create(request):
         form_data = {}
 
     start_date_default = active_period.start_date.strftime('%Y-%m-%d') if active_period else ''
-    end_date_default = active_period.end_date.strftime('%Y-%m-%d') if active_period else ''
 
     return render(request, 'academics/teacher_class_create.html', {
         'subjects': subjects,
         'teacher_levels': teacher_levels,
         'all_level_choices': list(Level.choices),
+        'all_class_types': list(KelasType.choices),
         'active_period': active_period,
         'all_periods': all_periods,
         'form_data': form_data,
-        'default_total_sessions': 16,
+        'day_choices': day_choices,
+        'default_weeks': 8,
         'start_date_default': start_date_default,
-        'end_date_default': end_date_default,
+        # Multi-select prefill: list of currently selected level codes.
+        'selected_levels': (
+            request.POST.getlist('levels')
+            if request.method == 'POST' else []
+        ),
+        'selected_class_type': (
+            request.POST.get('class_type') or KelasType.REGULAR
+            if request.method == 'POST' else KelasType.REGULAR
+        ),
     })
 
 
@@ -340,14 +444,34 @@ def teacher_class_edit(request, pk):
         .order_by('level')
     )
 
+    from sessions_app.services import (
+        generate_sessions_for_kelas, teacher_weekly_slot_conflict,
+    )
+
+    # Day.choices excludes Sunday; honor in UI
+    day_choices = [(v, label) for v, label in Day.choices if v != 'SUNDAY']
+    valid_days = {v for v, _ in day_choices}
+
+    current_schedule = kelas.schedules.order_by('id').first()
+
     if request.method == 'POST':
         name = (request.POST.get('name') or '').strip()
         subject_id = request.POST.get('subject')
         period_id = request.POST.get('academic_period')
-        level = request.POST.get('level')
+        levels_raw = (
+            request.POST.getlist('levels')
+            or [v for v in [request.POST.get('level')] if v]
+        )
+        levels_picked = [v for v in dict.fromkeys(levels_raw) if v]
+        class_type = (request.POST.get('class_type') or kelas.class_type).strip().upper()
+        if class_type not in {v for v, _ in KelasType.choices}:
+            class_type = kelas.class_type
         description = (request.POST.get('description') or '').strip()
-        start_date = request.POST.get('start_date') or None
-        end_date = request.POST.get('end_date') or None
+        start_date_raw = request.POST.get('start_date') or ''
+        day = (request.POST.get('day') or '').strip().upper()
+        start_time_raw = request.POST.get('start_time') or ''
+        end_time_raw = request.POST.get('end_time') or ''
+        room = (request.POST.get('room') or '').strip()
         status = request.POST.get('status') or kelas.status
 
         errors = []
@@ -357,16 +481,45 @@ def teacher_class_edit(request, pk):
             errors.append('Pilih mata pelajaran.')
         if not period_id:
             errors.append('Pilih periode akademik.')
-        if not level:
-            errors.append('Pilih jenjang.')
-        elif teacher_levels and level not in teacher_levels:
-            errors.append(f'Jenjang {level} belum terdaftar di profil — tambahkan di Pengaturan dulu.')
-        if not start_date:
-            errors.append('Tanggal mulai wajib diisi.')
-        if not end_date:
-            errors.append('Tanggal selesai wajib diisi.')
+        if not levels_picked:
+            errors.append('Pilih minimal satu jenjang.')
+        else:
+            invalid_levels = [
+                v for v in levels_picked if v not in {lv for lv, _ in Level.choices}
+            ]
+            if invalid_levels:
+                errors.append('Jenjang tidak valid: ' + ', '.join(invalid_levels) + '.')
+            elif teacher_levels:
+                out_of_scope = [v for v in levels_picked if v not in teacher_levels]
+                if out_of_scope:
+                    errors.append(
+                        'Jenjang ' + ', '.join(out_of_scope) + ' belum terdaftar di profil Anda. '
+                        'Tambahkan di Pengaturan dulu.'
+                    )
         if status not in {s for s, _ in KelasStatus.choices}:
             errors.append('Status kelas tidak valid.')
+
+        start_date_parsed = None
+        try:
+            start_date_parsed = _dt.datetime.strptime(start_date_raw, '%Y-%m-%d').date()
+        except ValueError:
+            errors.append('Tanggal mulai wajib diisi.')
+
+        if day not in valid_days:
+            errors.append('Pilih hari pertemuan (Senin sampai Sabtu).')
+
+        start_time_parsed = None
+        end_time_parsed = None
+        try:
+            start_time_parsed = _dt.datetime.strptime(start_time_raw[:5], '%H:%M').time()
+        except ValueError:
+            errors.append('Jam mulai wajib diisi.')
+        try:
+            end_time_parsed = _dt.datetime.strptime(end_time_raw[:5], '%H:%M').time()
+        except ValueError:
+            errors.append('Jam selesai wajib diisi.')
+        if start_time_parsed and end_time_parsed and end_time_parsed <= start_time_parsed:
+            errors.append('Jam selesai harus setelah jam mulai.')
 
         try:
             capacity_int = int(request.POST.get('capacity') or 0)
@@ -376,36 +529,89 @@ def teacher_class_edit(request, pk):
             errors.append('Kapasitas tidak valid.')
             capacity_int = 0
 
-        try:
-            total_sessions_int = int(request.POST.get('total_sessions') or 0)
-            if total_sessions_int <= 0:
-                errors.append('Total pertemuan harus lebih dari 0.')
-        except (TypeError, ValueError):
-            errors.append('Total pertemuan tidak valid.')
-            total_sessions_int = 0
+        # GANJIL_GENAP forces capacity = 2 (server-side enforcement).
+        if class_type == KelasType.GANJIL_GENAP:
+            capacity_int = 2
 
-        # Phase 3R: price field removed from the edit form. Preserve the
-        # existing kelas.price value rather than overwriting it.
+        try:
+            weeks_int = int(request.POST.get('weeks') or 0)
+            if weeks_int <= 0:
+                errors.append('Jumlah minggu harus lebih dari 0.')
+            elif weeks_int > 52:
+                errors.append('Jumlah minggu maksimal 52.')
+        except (TypeError, ValueError):
+            errors.append('Jumlah minggu tidak valid.')
+            weeks_int = 0
+
+        # Slot conflict guard (skips self via exclude_kelas_id)
+        if (
+            not errors
+            and day in valid_days
+            and start_time_parsed and end_time_parsed
+        ):
+            clash = teacher_weekly_slot_conflict(
+                teacher_profile, day, start_time_parsed, end_time_parsed,
+                exclude_kelas_id=kelas.pk,
+            )
+            if clash is not None:
+                errors.append(
+                    f'Slot bentrok dengan kelas Anda yang lain: "{clash.name}" '
+                    f'di hari yang sama. Pilih jam atau hari lain.'
+                )
 
         if errors:
             for e in errors:
                 messages.error(request, e)
         else:
+            slot_changed = (
+                current_schedule is None
+                or current_schedule.day != day
+                or current_schedule.start_time != start_time_parsed
+                or current_schedule.end_time != end_time_parsed
+            )
+            weeks_changed = (kelas.total_sessions != weeks_int)
+            start_changed = (kelas.start_date != start_date_parsed)
             try:
                 with transaction.atomic():
                     kelas.name = name
                     kelas.subject_id = subject_id
                     kelas.academic_period_id = period_id
-                    kelas.level = level
+                    kelas.level = levels_picked[0]
+                    kelas.class_type = class_type
                     kelas.description = description
-                    kelas.start_date = start_date
-                    kelas.end_date = end_date
+                    kelas.start_date = start_date_parsed
                     kelas.capacity = capacity_int
-                    kelas.total_sessions = total_sessions_int
+                    kelas.total_sessions = weeks_int
                     kelas.status = status
                     kelas.save()
+                    # Sync KelasJenjang relation
+                    kelas.set_jenjang(levels_picked)
+
+                    if current_schedule is None:
+                        Schedule.objects.create(
+                            kelas=kelas, day=day,
+                            start_time=start_time_parsed,
+                            end_time=end_time_parsed,
+                            room=room,
+                        )
+                    elif slot_changed or current_schedule.room != room:
+                        current_schedule.day = day
+                        current_schedule.start_time = start_time_parsed
+                        current_schedule.end_time = end_time_parsed
+                        current_schedule.room = room
+                        current_schedule.save()
+
+                    regenerate = slot_changed or weeks_changed or start_changed
+                    created = generate_sessions_for_kelas(kelas, regenerate=regenerate)
                 log_activity(request.user, 'updated', 'kelas', kelas.pk)
-                messages.success(request, f'✓ Kelas "{kelas.name}" berhasil diperbarui!')
+                if regenerate:
+                    messages.success(
+                        request,
+                        f'Kelas "{kelas.name}" berhasil diperbarui. '
+                        f'{created} pertemuan baru dibuat (yang sudah ada absensi tetap dipertahankan).'
+                    )
+                else:
+                    messages.success(request, f'Kelas "{kelas.name}" berhasil diperbarui.')
                 return redirect('academics:teacher_classes')
             except Exception as e:
                 messages.error(request, f'Gagal memperbarui kelas: {e}')
@@ -426,24 +632,54 @@ def teacher_class_edit(request, pk):
             return form_data.get(field) or ''
         return fallback
 
+    schedule_day = (
+        current_schedule.day if current_schedule else ''
+    )
+    schedule_start = (
+        current_schedule.start_time.strftime('%H:%M') if current_schedule else ''
+    )
+    schedule_end = (
+        current_schedule.end_time.strftime('%H:%M') if current_schedule else ''
+    )
+    schedule_room = current_schedule.room if current_schedule else ''
+
+    # Multi-jenjang prefill: form_data takes priority on POST error, else
+    # the kelas's current KelasJenjang set.
+    if form_data:
+        selected_levels = (
+            form_data.getlist('levels')
+            or [v for v in [form_data.get('level')] if v]
+        )
+    else:
+        selected_levels = kelas.get_jenjang_list()
+    selected_class_type = (
+        form_data.get('class_type') if form_data else kelas.class_type
+    ) or KelasType.REGULAR
+
     return render(request, 'academics/teacher_class_edit.html', {
         'kelas': kelas,
         'subjects': subjects,
         'teacher_levels': teacher_levels,
         'all_level_choices': list(Level.choices),
+        'all_class_types': list(KelasType.choices),
         'all_periods': all_periods,
         'all_status_choices': list(KelasStatus.choices),
+        'day_choices': day_choices,
         'selected_subject': selected_subject,
         'selected_level': selected_level,
+        'selected_levels': selected_levels,
+        'selected_class_type': selected_class_type,
         'selected_period': selected_period,
         'selected_status': selected_status,
+        'selected_day': _val('day', schedule_day),
         'name_value': _val('name', kelas.name),
         'description_value': _val('description', kelas.description or ''),
         'capacity_value': _val('capacity', str(kelas.capacity)),
-        'total_sessions_value': _val('total_sessions', str(kelas.total_sessions)),
-        'price_value': _val('price', f'{kelas.price:.0f}'),
+        'weeks_value': _val('weeks', str(kelas.total_sessions)),
         'start_date_value': _val('start_date', kelas.start_date.strftime('%Y-%m-%d')),
-        'end_date_value': _val('end_date', kelas.end_date.strftime('%Y-%m-%d')),
+        'start_time_value': _val('start_time', schedule_start),
+        'end_time_value': _val('end_time', schedule_end),
+        'room_value': _val('room', schedule_room),
     })
 
 
@@ -537,12 +773,12 @@ def class_browse(request):
     if selected_jenjang != 'ALL' and selected_jenjang not in Level.values:
         selected_jenjang = 'ALL'
     if selected_jenjang != 'ALL':
-        qs = qs.filter(level=selected_jenjang)
+        qs = qs.filter(jenjang_set__level=selected_jenjang).distinct()
 
-    # ── Filter: level ─────────────────────────────────────────────────────────
+    # ── Filter: level (multi-jenjang aware) ──────────────────────────────────
     level_filter = [v for v in request.GET.getlist('level') if v in Level.values]
     if level_filter:
-        qs = qs.filter(level__in=level_filter)
+        qs = qs.filter(jenjang_set__level__in=level_filter).distinct()
 
     # ── Filter: subject ───────────────────────────────────────────────────────
     subject_filter_raw = request.GET.getlist('subject')
@@ -629,7 +865,7 @@ def class_browse(request):
             user_level = user.student_profile.level
         if user_level:
             qs = qs.annotate(
-                _is_my_level=Count('pk', filter=Q(level=user_level))
+                _is_my_level=Count('jenjang_set', filter=Q(jenjang_set__level=user_level))
             ).order_by('-_is_my_level', '-active_enrolled', '-created_at')
         else:
             qs = qs.order_by('-active_enrolled', '-created_at')
@@ -755,7 +991,7 @@ def class_browse(request):
                 if kelas.primary_state is None:
                     kelas.primary_state = 'trending'
 
-            if student_profile and kelas.level == student_profile.level:
+            if student_profile and student_profile.level in kelas.get_jenjang_list():
                 kelas.states.append('recommended')
                 if kelas.primary_state is None:
                     kelas.primary_state = 'recommended'
@@ -1003,7 +1239,7 @@ def class_detail(request, pk):
     description = (
         kelas.description.strip()
         if kelas.description else
-        f'Kelas {kelas.name} untuk jenjang {kelas.level}. '
+        f'Kelas {kelas.name} untuk jenjang {kelas.get_jenjang_display()}. '
         f'Bergabunglah dengan {teacher_full_name} untuk pengalaman belajar terbaik!'
     )
 
@@ -1017,12 +1253,13 @@ def class_detail(request, pk):
         'Simulasi rutin & pembahasan',
     ]
 
-    # ── Level mismatch flag (for the CTA) ─────────────────────────────────────
+    # ── Level mismatch flag (multi-jenjang aware) ────────────────────────────
+    accepted_levels = kelas.get_jenjang_list()
     level_mismatch = bool(
-        student_profile and student_profile.level != kelas.level
+        student_profile and student_profile.level not in accepted_levels
     )
 
-    # ── Related classes (same subject + level → fallback same level) ──────────
+    # ── Related classes (same subject + any matching jenjang → fallback) ─────
     related_cache_key = f'kelas_{kelas.id}_related'
     related_classes = cache.get(related_cache_key)
     if related_classes is None:
@@ -1047,15 +1284,46 @@ def class_detail(request, pk):
                 .order_by(F('avg_rating').desc(nulls_last=True), '-active_count')[:3]
             )
 
-        related_qs = _build_related({'level': kelas.level, 'subject': kelas.subject})
+        related_qs = _build_related(
+            {'jenjang_set__level__in': accepted_levels, 'subject': kelas.subject}
+        )
         if len(related_qs) < 3:
-            related_qs = _build_related({'level': kelas.level})
+            related_qs = _build_related({'jenjang_set__level__in': accepted_levels})
+        # `distinct()` is applied here (not via _build_related) so the slice still works
+        seen, unique_related = set(), []
+        for k in related_qs:
+            if k.pk in seen:
+                continue
+            seen.add(k.pk)
+            unique_related.append(k)
+        related_qs = unique_related
         for k in related_qs:
             k.slots_remaining = max(0, k.capacity - k.active_count)
             k.capacity_pct = int(round((k.active_count / k.capacity) * 100)) if k.capacity else 0
             k.is_full_or_no_slots = (k.status == KelasStatus.FULL) or (k.slots_remaining == 0)
         related_classes = related_qs
         cache.set(related_cache_key, related_classes, 1800)
+
+    # Paket Ganjil Genap seat status (only meaningful for that class type).
+    seat_status = None
+    if kelas.class_type == KelasType.GANJIL_GENAP:
+        from sessions_app.services import kelas_seat_status, SEAT_GANJIL, SEAT_GENAP
+        seats = kelas_seat_status(kelas)
+        def _seat_row(code, label):
+            enr = seats.get(code)
+            who = ''
+            if enr is not None:
+                who = enr.student_profile.user.get_full_name() or enr.student_profile.user.username
+            return {
+                'code': code,
+                'label': label,
+                'taken': enr is not None,
+                'student_name': who,
+            }
+        seat_status = [
+            _seat_row(SEAT_GANJIL, 'Slot Ganjil'),
+            _seat_row(SEAT_GENAP, 'Slot Genap'),
+        ]
 
     return render(request, 'academics/class_detail.html', {
         'kelas': kelas,
@@ -1076,6 +1344,7 @@ def class_detail(request, pk):
         'student_profile': student_profile,
         'level_mismatch': level_mismatch,
         'related_classes': related_classes,
+        'seat_status': seat_status,
     })
 
 
@@ -1146,12 +1415,27 @@ def _student_schedule_ctx(user):
 
 @role_required('STUDENT')
 def student_schedule_redirect(request):
-    """My Schedule — Khan Playful weekly view at /my-schedule/.
+    """Real redirect from /my-schedule/ to /my-schedule/classes/.
+
+    Preserves the querystring so the week navigation works when other code or
+    bookmarks point at the legacy short URL.
+    """
+    target = '/my-schedule/classes/'
+    qs = request.META.get('QUERY_STRING', '')
+    if qs:
+        target = f'{target}?{qs}'
+    return redirect(target)
+
+
+def _render_student_schedule_week(request):
+    """Khan Playful weekly view body. Used by /my-schedule/classes/.
 
     Renders 7-day grid + today highlight + week navigator. Cached 5min per
     (student, week_start). Cache is invalidated by Session/Enrollment signals.
 
-    Function name kept for URL-name compatibility (academics:student_schedule).
+    Accepts ?week=YYYY-MM-DD (canonical) or ?week=prev|next|current (also
+    supported so prev/next button conventions are unified with the sessions
+    tab).
     """
     from datetime import datetime, timedelta
     from django.core.cache import cache
@@ -1168,13 +1452,23 @@ def student_schedule_redirect(request):
 
     # ── Parse week (default = current) ─────────────────────────────────────
     week_param = request.GET.get('week', '').strip()
-    target_date = today
+    today_monday = today - timedelta(days=today.weekday())
+    week_start = today_monday
     if week_param:
-        try:
-            target_date = datetime.strptime(week_param, '%Y-%m-%d').date()
-        except ValueError:
-            target_date = today
-    week_start = target_date - timedelta(days=target_date.weekday())
+        # Sessions-tab convention: prev / next / current
+        if week_param == 'next':
+            week_start = today_monday + timedelta(days=7)
+        elif week_param == 'prev':
+            week_start = today_monday - timedelta(days=7)
+        elif week_param == 'current':
+            week_start = today_monday
+        else:
+            # Canonical YYYY-MM-DD; snap to that week's Monday
+            try:
+                target_date = datetime.strptime(week_param, '%Y-%m-%d').date()
+                week_start = target_date - timedelta(days=target_date.weekday())
+            except ValueError:
+                week_start = today_monday
     week_end = week_start + timedelta(days=6)
     prev_week = (week_start - timedelta(days=7)).strftime('%Y-%m-%d')
     next_week = (week_start + timedelta(days=7)).strftime('%Y-%m-%d')
@@ -1278,7 +1572,6 @@ def student_schedule_redirect(request):
             f'{week_start.day} {_ID_MONTHS_SHORT[week_start.month - 1]} – '
             f'{week_end.day} {_ID_MONTHS_SHORT[week_end.month - 1]} {week_end.year}'
         )
-    today_monday = today - timedelta(days=today.weekday())
     is_current_week = (week_start == today_monday)
 
     return render(request, 'academics/student_schedule.html', {
@@ -1300,8 +1593,12 @@ def student_schedule(request):
 
 @role_required('STUDENT')
 def student_schedule_classes(request):
-    return render(request, 'academics/student_schedule.html',
-                  _student_schedule_ctx(request.user))
+    """Canonical weekly classes view at /my-schedule/classes/.
+
+    Delegates to the same body the legacy /my-schedule/ used to render so the
+    Khan Playful day grid + stats + prev/next navigation all work here.
+    """
+    return _render_student_schedule_week(request)
 
 
 @role_required('STUDENT')

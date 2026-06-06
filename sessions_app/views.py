@@ -17,6 +17,7 @@ from activity_logs.utils import log_activity
 from enrollments.models import Enrollment, EnrollmentStatus
 
 from .forms import SessionForm
+from .services import generate_sessions_for_kelas
 from .models import (
     Attendance, AttendanceStatus, BookingKind, BookingStatus,
     Session, SessionBooking, SessionStatus, SessionType,
@@ -288,6 +289,38 @@ def teacher_sessions(request, pk):
         'session_types': SessionType.choices,
         'statuses': SessionStatus.choices,
     })
+
+
+@role_required('TEACHER')
+@require_POST
+def teacher_regenerate_sessions(request, pk):
+    """Rebuild future SCHEDULED sessions from the current weekly slot.
+
+    Preserves any session that has Attendance rows (past completed sessions
+    and anything already marked stay untouched).
+    """
+    teacher_profile = request.user.teacher_profile
+    kelas = get_object_or_404(
+        Kelas, pk=pk, teacher_profile=teacher_profile, is_deleted=False,
+    )
+    if not kelas.schedules.exists():
+        messages.error(
+            request,
+            'Kelas ini belum punya slot mingguan. Atur Hari dan Jam di Edit Kelas dulu.',
+        )
+        return redirect('sessions_app:teacher_sessions', pk=kelas.pk)
+    try:
+        created = generate_sessions_for_kelas(kelas, regenerate=True)
+    except Exception as e:
+        messages.error(request, f'Gagal membuat ulang pertemuan: {e}')
+        return redirect('sessions_app:teacher_sessions', pk=kelas.pk)
+    log_activity(request.user, 'regenerated', 'kelas_sessions', kelas.pk)
+    messages.success(
+        request,
+        f'Berhasil dibuat ulang. {created} pertemuan baru ditambahkan '
+        f'(pertemuan dengan absensi tetap dipertahankan).'
+    )
+    return redirect('sessions_app:teacher_sessions', pk=kelas.pk)
 
 
 @role_required('TEACHER')
@@ -939,10 +972,12 @@ def student_pick_session(request, session_id):
         messages.error(request, 'Pendaftaran sudah ditutup, kelas sudah dimulai.')
         return redirect('academics:class_detail', pk=kelas.pk)
 
-    if student_profile.level != kelas.level:
+    accepted_levels = kelas.get_jenjang_list()
+    if student_profile.level not in accepted_levels:
         messages.error(
             request,
-            f'Kelas ini untuk jenjang {kelas.level}, bukan {student_profile.level}.',
+            f'Kelas ini untuk jenjang {kelas.get_jenjang_display()}, '
+            f'bukan {student_profile.level}.',
         )
         return redirect('academics:class_detail', pk=kelas.pk)
 
@@ -1009,9 +1044,14 @@ def student_pick_session(request, session_id):
                 booking.save(update_fields=dirty)
 
         # Fan out AUTO bookings for the rest of the kelas's REGULAR sessions.
-        # bulk_create(ignore_conflicts=True) honors unique (enrollment, session) —
-        # the picked row above stays PICKED because get_or_create won't update it.
-        _auto_book_regular_sessions(enrollment)
+        # For Paket Ganjil Genap, route through the parity helper so the
+        # fan-out only covers the student's parity sessions.
+        from academics.models import KelasType
+        if kelas.class_type == KelasType.GANJIL_GENAP:
+            from sessions_app.services import auto_book_parity_sessions
+            auto_book_parity_sessions(enrollment)
+        else:
+            _auto_book_regular_sessions(enrollment)
 
     log_activity(request.user, 'created', 'session_booking', booking.pk)
     if result == 'ok':
