@@ -89,17 +89,16 @@ bg-primary-100 text-primary-800 border-primary-200
                     width: calc({{ item.cal_width_pct }}% - 2px);
                     padding: 3px 4px;
                     {% if is_print %}font-size: 12pt; border-radius: 2px;{% else %}font-size: 11px; border-radius: 4px;{% endif %}">
-          <div class="font-semibold {% if not is_print %}truncate{% endif %}" title="{{ item.kelas.name }}">
+          {# Time range ALWAYS visible per client requirement (Feature 3). #}
+          <div class="font-medium opacity-80 leading-tight" style="font-size: 10px;">
+            {{ item.schedule.start_time|time:"H:i" }}-{{ item.schedule.end_time|time:"H:i" }}
+          </div>
+          <div class="font-semibold {% if not is_print %}truncate{% endif %} mt-0.5" title="{{ item.kelas.name }}">
             {{ item.kelas.name }}
           </div>
-          {% if item.cal_height >= 36 %}
+          {% if item.cal_height >= 48 %}
           <div class="{% if not is_print %}truncate{% endif %} opacity-80">
             {{ item.kelas.subject.name }}
-          </div>
-          {% endif %}
-          {% if item.cal_height >= 52 %}
-          <div class="font-medium opacity-70 mt-0.5">
-            {{ item.schedule.start_time|time:"H:i" }}–{{ item.schedule.end_time|time:"H:i" }}
           </div>
           {% endif %}
           {% if item.cal_height >= 68 %}
