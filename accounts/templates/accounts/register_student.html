@@ -306,7 +306,10 @@
         },
         progressPct() { return Math.round(this.completedCount() * 100 / 3); },
         completedCount() {
-          return (this.done.s1 ? 1 : 0) + (this.done.s2 ? 1 : 0) + (this.step === 3 ? 1 : 0);
+          // Step 3 counts only when its required fields are actually filled,
+          // not just because the user has navigated to step 3.
+          const s3Done = !!(this.form3.parent_name && this.form3.parent_phone);
+          return (this.done.s1 ? 1 : 0) + (this.done.s2 ? 1 : 0) + (s3Done ? 1 : 0);
         },
         validateStep1() {
           this.err1.email = (this.form1.email.includes('@') && this.form1.email.includes('.')) ? '' : 'Email tidak valid.';
