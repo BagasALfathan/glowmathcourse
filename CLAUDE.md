@@ -10,7 +10,7 @@
 
 **Phase 3 — UI Redesign (in progress)**
 
-✅ Database ERD v4 (26 tables, all migrated, supports TK + UMUM levels)
+✅ Database ERD v4 (27 tables: 26 base + KelasJenjang for multi-jenjang classes)
 ✅ 3 separate login portals (siswa / guru / admin) at `/`, `/guru/login/`, `/admin/login/`
 ✅ 2 register wizards (siswa + guru) with 5-level jenjang pills (TK / SD / SMP / SMA / UMUM)
 ✅ 2 forgot-password pages (WhatsApp deeplink with pre-filled username)
@@ -169,16 +169,35 @@ class Quarter(models.TextChoices):
 
 ## Business Rules (enforce in views)
 
-1. **Level matching:** student_profile.level must match kelas.level on enrollment
-2. **Capacity check:** active enrollment count < kelas.capacity before enrolling
-3. **Rating guard:** enrollment.status must be COMPLETED before student can rate
-4. **Grade ownership:** only kelas.teacher can input grades for that kelas
-5. **Teacher schedule conflict:** same teacher cannot have overlapping times on same day
-6. **Room conflict:** same room cannot be double-booked on same day/time
-7. **Session limit:** session_number cannot exceed kelas.total_sessions
-8. **Duplicate enrollment:** prevented by unique_together (student_id, kelas_id)
-9. **Duplicate attendance:** prevented by unique_together (enrollment_id, session_id)
-10. **One rating per enrollment:** enforced by unique constraint on enrollment_id
+1. **Level membership (multi-jenjang):** student_profile.level must be IN
+   `kelas.get_jenjang_list()` on enrollment. Equality against the legacy
+   `kelas.level` field is NOT correct; a class can accept multiple jenjang
+   via the KelasJenjang relation, and `kelas.level` is only the primary one
+   (the first selected, kept for backward compatibility).
+2. **Capacity check:** active enrollment count < kelas.capacity before enrolling.
+   For `class_type == GANJIL_GENAP`, capacity is forced to 2 in create/edit
+   forms; the third enrollment is rejected by the same `_try_enroll` lock.
+3. **Paket Ganjil Genap parity:** when `kelas.class_type == GANJIL_GENAP`, the
+   first enrollee gets the GANJIL seat (AUTO bookings on odd `session_number`
+   only); the second gets the GENAP seat (even only). Implemented in
+   `sessions_app/services.auto_book_parity_sessions`; enroll view and
+   `student_pick_session` route GANJIL_GENAP classes through it instead of
+   `_auto_book_regular_sessions`. Dropping a student frees their parity for
+   the next enrollee.
+4. **Rating guard:** enrollment.status must be COMPLETED before student can rate
+5. **Grade ownership:** only kelas.teacher can input grades for that kelas
+6. **Teacher weekly slot exclusivity:** the same teacher cannot have two
+   non-deleted classes whose weekly slots overlap on the same day. Enforced by
+   `sessions_app.services.teacher_weekly_slot_conflict()` in both
+   `teacher_class_create` and `teacher_class_edit`. Back-to-back times (one
+   slot ending exactly when the next begins) are NOT considered overlap.
+   Multi-jenjang in one slot is the supported way to teach several jenjang
+   simultaneously.
+7. **Room conflict:** same room cannot be double-booked on same day/time
+8. **Session limit:** session_number cannot exceed kelas.total_sessions
+9. **Duplicate enrollment:** prevented by unique_together (student_id, kelas_id)
+10. **Duplicate attendance:** prevented by unique_together (enrollment_id, session_id)
+11. **One rating per enrollment:** enforced by unique constraint on enrollment_id
 
 ---
 

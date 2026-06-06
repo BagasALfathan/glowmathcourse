@@ -45,7 +45,7 @@
 - level: **TK | SD | SMP | SMA | UMUM** (5 jenjang) — one row per (teacher, level) the teacher can teach
 - unique (teacher, level)
 
-## Academic Structure (5 tables)
+## Academic Structure (6 tables)
 
 ### Category
 - name, description, is_active, created_at, updated_at
@@ -63,21 +63,41 @@
 
 ### Kelas (UPDATED)
 - name, subject (FK), academic_period (FK)
-- teacher_profile (FK → TeacherProfile, was User; @property teacher kept for compat)
-- level: **TK | SD | SMP | SMA | UMUM** (5 jenjang)
+- teacher_profile (FK -> TeacherProfile, was User; @property teacher kept for compat)
+- level: **TK | SD | SMP | SMA | UMUM** (5 jenjang) - primary jenjang, kept for
+  backward compatibility. Multi-jenjang classes use KelasJenjang for the full set.
+- class_type (NEW): REGULAR | GANJIL_GENAP. GANJIL_GENAP is a two-seat alternating
+  paket where capacity is forced to 2 and each seat covers either odd or even
+  session numbers (parity routed by `auto_book_parity_sessions` in
+  sessions_app/services.py).
 - capacity, total_sessions
 - start_date, end_date
 - status: OPEN | FULL | CLOSED
-- price (NEW): Decimal Rp per student
-- description (NEW)
+- price: Decimal Rp per student
+- description
 - is_deleted, deleted_at (soft delete)
 - created_at, updated_at
+
+### KelasJenjang (NEW - multi-jenjang support)
+- kelas (FK -> Kelas, related_name='jenjang_set')
+- level: **TK | SD | SMP | SMA | UMUM**
+- unique (kelas, level)
+- created_at, updated_at
+- One row per (kelas, level). A kelas may accept multiple jenjang in one weekly
+  slot. Enrollment rule: student.level must be IN kelas.get_jenjang_list()
+  (membership, NOT equality). Backfilled by migration 0007 from Kelas.level.
+- Helpers on Kelas mirror TeacherProfile:
+  - get_jenjang_list() -> list of level codes (falls back to [Kelas.level])
+  - get_jenjang_display() -> "SD, SMP" style string
+  - set_jenjang(levels) -> replace + sync Kelas.level to first item
 
 ### Schedule
 - kelas (FK), day: MONDAY-SATURDAY
 - start_time, end_time, room
 - unique (kelas, day, start_time)
-- = operating hours
+- One weekly slot per kelas (domain rule, enforced in UI: create form takes
+  one day + one time range; sessions are generated weekly by
+  generate_sessions_for_kelas).
 
 ## Sessions (1 table)
 
