@@ -42,9 +42,10 @@ from ratings.models import ClassRating, TeacherRating
 from sessions_app.models import (
     Attendance, AttendanceStatus, Session, SessionStatus, SessionType,
 )
+from django.db import models
 from sessions_app.services import (
-    SEAT_GANJIL, SEAT_GENAP, auto_book_parity_sessions,
-    generate_sessions_for_kelas,
+    SEAT_GANJIL, SEAT_GENAP, anchor_new_batch, auto_book_parity_sessions,
+    book_enrollment_into_current_batch, generate_sessions_for_kelas,
 )
 
 
@@ -218,6 +219,11 @@ class Command(BaseCommand):
         # ── 7b. Feature demos (multi-jenjang + Paket Ganjil Genap)
         feature_demo = self._populate_feature_demo_classes(trista, period)
 
+        # ── 7c. Batch-lifecycle demos (one PRIVAT / GROUP / GG in mixed states)
+        feature_demo['batch_lifecycle'] = self._populate_batch_lifecycle_demos(
+            trista, period,
+        )
+
         # ── 8. Confirm rafael's data (already populated by populate_rafael)
         rafael = User.objects.filter(username='rafaeladhikabagasalfathan').first()
         rafael_summary = self._rafael_check(rafael) if rafael else None
@@ -265,7 +271,7 @@ class Command(BaseCommand):
                 name=multi_name,
                 description='Kelas lintas jenjang SD-SMP oleh Bu Trista.',
                 level=Level.SD,
-                class_type=KelasType.REGULAR,
+                class_type=KelasType.GROUP,
                 start_date=today - timedelta(days=14),
                 end_date=today + timedelta(days=7 * 7),
                 capacity=10,
@@ -364,6 +370,215 @@ class Command(BaseCommand):
                     'seat': seat or '-',
                 })
             results['ganjil_genap'] = gg_summary
+
+        return results
+
+    # ─── Batch-lifecycle demos (PRIVAT / GROUP / GANJIL_GENAP) ───────────────
+
+    def _populate_batch_lifecycle_demos(self, trista, period):
+        """Seed three demo kelas that show the batch lifecycle:
+          - PRIVAT (Privat Demo) : OPEN, no batch anchored.
+          - GROUP  (Grup Demo)   : batch mid-run, one student enrolled.
+          - GG     (GG Demo)     : batch just-completed; the next browse will
+                                   sweep the enrollments to COMPLETED and the
+                                   slot becomes OPEN again.
+
+        Idempotent: re-running normalizes state (won't double-seed enrollments
+        or sessions).
+        """
+        from sessions_app.models import (
+            BookingKind, BookingStatus, Session, SessionBooking, SessionStatus,
+            SessionType,
+        )
+
+        results = {}
+        cat = self._ensure_category('Matematika', 'Mata pelajaran matematika.')
+        for lvl in (Level.SMA,):
+            TeacherJenjang.objects.get_or_create(teacher_profile=trista, level=lvl)
+
+        # 1) PRIVAT - OPEN
+        privat_name = 'Matematika SMA Privat Demo'
+        privat = Kelas.objects.filter(
+            teacher_profile=trista, name=privat_name, is_deleted=False,
+        ).first()
+        if not privat:
+            subj = self._ensure_subject(
+                'Matematika Privat SMA', 'Kelas privat 1 siswa', cat,
+            )
+            today = date.today()
+            privat = Kelas.objects.create(
+                teacher_profile=trista, subject=subj,
+                academic_period=period, name=privat_name,
+                description='Demo kelas Privat - paket 4 pertemuan.',
+                level=Level.SMA, class_type=KelasType.PRIVAT,
+                start_date=today, end_date=today,
+                capacity=1, total_sessions=4,
+                price=Decimal('400000'), status=KelasStatus.OPEN,
+            )
+            privat.set_jenjang([Level.SMA])
+            Schedule.objects.create(
+                kelas=privat, day='TUESDAY',
+                start_time=time(16, 0), end_time=time(17, 30),
+            )
+        results['privat'] = {'kelas': privat.name, 'state': 'OPEN (no batch anchored)'}
+
+        # 2) GROUP - batch mid-run
+        group_name = 'Matematika SMA Grup Demo'
+        group = Kelas.objects.filter(
+            teacher_profile=trista, name=group_name, is_deleted=False,
+        ).first()
+        if not group:
+            subj = self._ensure_subject(
+                'Matematika Grup SMA', 'Kelas grup demo', cat,
+            )
+            today = date.today()
+            group = Kelas.objects.create(
+                teacher_profile=trista, subject=subj,
+                academic_period=period, name=group_name,
+                description='Demo kelas Grup - paket 4 pertemuan, batch mid-run.',
+                level=Level.SMA, class_type=KelasType.GROUP,
+                start_date=today, end_date=today,
+                capacity=6, total_sessions=4,
+                price=Decimal('250000'), status=KelasStatus.OPEN,
+            )
+            group.set_jenjang([Level.SMA])
+            Schedule.objects.create(
+                kelas=group, day='WEDNESDAY',
+                start_time=time(15, 30), end_time=time(17, 0),
+            )
+        # Anchor a mid-run batch: 4 weekly sessions starting 1 week ago.
+        anchor_first = date.today() - timedelta(days=7)
+        # Snap to that weekday so dates align with the slot.
+        # (Wednesday = 2; if today's day-of-week is not aligned, just use
+        # anchor_first as-is for demo purposes.)
+        max_num = (
+            Session.objects.filter(kelas=group)
+            .aggregate(m=models.Max('session_number'))['m'] or 0
+        )
+        existing = Session.objects.filter(kelas=group).count()
+        if existing < 4:
+            for i in range(4 - existing):
+                d = anchor_first + timedelta(days=7 * (existing + i))
+                sess_num = max_num + i + 1
+                Session.objects.get_or_create(
+                    kelas=group, session_number=sess_num,
+                    defaults={
+                        'date': d,
+                        'start_time': time(15, 30), 'end_time': time(17, 0),
+                        'session_type': SessionType.REGULAR,
+                        'status': SessionStatus.COMPLETED if d < date.today() else SessionStatus.SCHEDULED,
+                        'capacity': group.capacity,
+                    },
+                )
+        # Enroll bimdarmawa + create AUTO bookings for the batch sessions
+        bim = User.objects.filter(username='bimdarmawa').first()
+        if bim:
+            enr, _ = Enrollment.objects.get_or_create(
+                student_profile=bim.student_profile, kelas=group,
+                defaults={
+                    'status': EnrollmentStatus.ACTIVE,
+                    'price_at_enrollment': group.price,
+                },
+            )
+            if enr.status != EnrollmentStatus.ACTIVE:
+                enr.status = EnrollmentStatus.ACTIVE
+                enr.save(update_fields=['status', 'updated_at'])
+            for s in Session.objects.filter(
+                kelas=group, session_type=SessionType.REGULAR,
+            ):
+                SessionBooking.objects.get_or_create(
+                    enrollment=enr, session=s,
+                    defaults={
+                        'status': BookingStatus.BOOKED,
+                        'kind': BookingKind.AUTO,
+                    },
+                )
+        results['group'] = {
+            'kelas': group.name, 'state': 'batch mid-run (1 enrollee)',
+        }
+
+        # 3) GANJIL_GENAP - batch just-completed (window all in the past)
+        gg_name_late = 'Matematika SMA GG Demo (selesai)'
+        gg_late = Kelas.objects.filter(
+            teacher_profile=trista, name=gg_name_late, is_deleted=False,
+        ).first()
+        if not gg_late:
+            subj = self._ensure_subject(
+                'Matematika GG Demo SMA', 'Demo GG yang sudah selesai', cat,
+            )
+            today = date.today()
+            gg_late = Kelas.objects.create(
+                teacher_profile=trista, subject=subj,
+                academic_period=period, name=gg_name_late,
+                description='Demo GG dengan batch yang baru selesai - akan reopen via sweep.',
+                level=Level.SMA, class_type=KelasType.GANJIL_GENAP,
+                start_date=today, end_date=today,
+                capacity=2, total_sessions=2,  # window = 4 weeks
+                price=Decimal('500000'), status=KelasStatus.OPEN,
+            )
+            gg_late.set_jenjang([Level.SMA])
+            Schedule.objects.create(
+                kelas=gg_late, day='THURSDAY',
+                start_time=time(17, 0), end_time=time(18, 30),
+            )
+        # Anchor a finished batch: window = 4 weeks, anchor 6 weeks ago so the
+        # final session is 1 week in the past. The dashboard sweep will then
+        # auto-complete enrollments and the kelas reopens on next browse.
+        anchor_first_late = date.today() - timedelta(days=7 * 5)
+        existing_late = Session.objects.filter(kelas=gg_late).count()
+        if existing_late < 4:
+            max_num_late = (
+                Session.objects.filter(kelas=gg_late)
+                .aggregate(m=models.Max('session_number'))['m'] or 0
+            )
+            for i in range(4 - existing_late):
+                d = anchor_first_late + timedelta(days=7 * (existing_late + i))
+                sess_num = max_num_late + i + 1
+                Session.objects.get_or_create(
+                    kelas=gg_late, session_number=sess_num,
+                    defaults={
+                        'date': d,
+                        'start_time': time(17, 0), 'end_time': time(18, 30),
+                        'session_type': SessionType.REGULAR,
+                        'status': SessionStatus.COMPLETED,
+                        'capacity': gg_late.capacity,
+                    },
+                )
+        # Enroll yohanes (kursi ganjil); book him on weeks 1, 3 of the window.
+        yohanes = User.objects.filter(username='yohanes').first()
+        if yohanes:
+            enr, _ = Enrollment.objects.get_or_create(
+                student_profile=yohanes.student_profile, kelas=gg_late,
+                defaults={
+                    'status': EnrollmentStatus.ACTIVE,
+                    'price_at_enrollment': gg_late.price,
+                },
+            )
+            if enr.status != EnrollmentStatus.ACTIVE:
+                enr.status = EnrollmentStatus.ACTIVE
+                enr.save(update_fields=['status', 'updated_at'])
+            sessions_late = list(
+                Session.objects.filter(
+                    kelas=gg_late, session_type=SessionType.REGULAR,
+                ).order_by('date')
+            )
+            # Ganjil = sessions on weeks 1, 3, ... (offset day // 7 even)
+            first_date = sessions_late[0].date if sessions_late else None
+            if first_date:
+                for s in sessions_late:
+                    week_index = (s.date - first_date).days // 7
+                    if week_index % 2 == 0:  # ganjil
+                        SessionBooking.objects.get_or_create(
+                            enrollment=enr, session=s,
+                            defaults={
+                                'status': BookingStatus.BOOKED,
+                                'kind': BookingKind.AUTO,
+                            },
+                        )
+        results['ganjil_genap_late'] = {
+            'kelas': gg_late.name,
+            'state': 'batch just-completed (next browse will sweep + reopen)',
+        }
 
         return results
 

@@ -152,72 +152,39 @@ def build_schedule_grid(items):
 
 
 def update_expired_classes():
-    """
-    Synchronise class, enrollment, and session statuses with today's date.
-    Cached for 5 minutes so it runs at most once per 5 minutes per process.
+    """Batch model housekeeping.
 
-    1. Sessions where date < today and SCHEDULED → COMPLETED
-    2. Classes where end_date < today → CLOSED; their ACTIVE enrollments → COMPLETED
-    3. Classes where all expected sessions are COMPLETED → CLOSED; ACTIVE → COMPLETED
+    1. Auto-complete past SCHEDULED sessions (date < today) -> COMPLETED.
+    2. Sweep finished batches per kelas: any kelas with an ACTIVE batch
+       whose window has ended flips ACTIVE enrollments to COMPLETED. The
+       kelas STAYS OPEN (no end_date-based auto-CLOSED anymore - CLOSED is
+       a manual teacher action meaning the slot is retired).
+
+    Cached for 5 minutes per process to avoid hot loops.
     """
     if cache.get(_CACHE_KEY):
         return
 
-    from .models import Kelas, KelasStatus
-    from enrollments.models import Enrollment, EnrollmentStatus
+    from .models import Kelas
     from sessions_app.models import Session, SessionStatus
+    from sessions_app.services import sweep_finished_batches
 
     today = timezone.localdate()
 
-    # Step 1: auto-complete past SCHEDULED sessions
+    # Step 1: past SCHEDULED sessions -> COMPLETED
     Session.objects.filter(
         date__lt=today,
         status=SessionStatus.SCHEDULED,
     ).update(status=SessionStatus.COMPLETED)
 
-    # Step 2: auto-close expired classes and complete their enrollments
-    expired_qs = Kelas.objects.filter(
-        end_date__lt=today,
-        is_deleted=False,
-    ).exclude(status=KelasStatus.CLOSED)
-
-    if expired_qs.exists():
-        with transaction.atomic():
-            expired_ids = list(expired_qs.values_list('pk', flat=True))
-            Enrollment.objects.filter(
-                kelas_id__in=expired_ids,
-                status=EnrollmentStatus.ACTIVE,
-                is_deleted=False,
-            ).update(status=EnrollmentStatus.COMPLETED)
-            expired_qs.update(status=KelasStatus.CLOSED)
-
-    # Step 3: auto-close classes where all expected sessions are COMPLETED
-    all_done_qs = (
-        Kelas.objects
-        .filter(is_deleted=False, total_sessions__gt=0)
-        .exclude(status=KelasStatus.CLOSED)
-        .annotate(
-            created_count=Count('sessions', distinct=True),
-            completed_count=Count(
-                'sessions',
-                filter=Q(sessions__status=SessionStatus.COMPLETED),
-                distinct=True,
-            ),
-        )
-        .filter(
-            created_count=F('total_sessions'),
-            completed_count=F('total_sessions'),
-        )
-    )
-
-    if all_done_qs.exists():
-        with transaction.atomic():
-            done_ids = list(all_done_qs.values_list('pk', flat=True))
-            Enrollment.objects.filter(
-                kelas_id__in=done_ids,
-                status=EnrollmentStatus.ACTIVE,
-                is_deleted=False,
-            ).update(status=EnrollmentStatus.COMPLETED)
-            Kelas.objects.filter(pk__in=done_ids).update(status=KelasStatus.CLOSED)
+    # Step 2: per-kelas batch sweep
+    for kelas in Kelas.objects.filter(is_deleted=False).only('id'):
+        try:
+            sweep_finished_batches(kelas)
+        except Exception:
+            # Belt and braces: one bad kelas should not block the sweep
+            # for the rest. The error will resurface via the management
+            # command's per-kelas error handling.
+            continue
 
     cache.set(_CACHE_KEY, True, timeout=_CACHE_TTL)

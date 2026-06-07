@@ -380,16 +380,23 @@ def teacher_session_create(request, kelas_id):
         session_date = form.cleaned_data['date']
         start_t = form.cleaned_data.get('start_time')
         end_t = form.cleaned_data.get('end_time')
-        if session_date < kelas.start_date or session_date > kelas.end_date:
+        # Batch model: a manually added (e.g. makeup) session must land inside
+        # the current batch window (on or before the last batch session date).
+        from sessions_app.services import (
+            batch_state, is_makeup_date_inside_window,
+        )
+        state = batch_state(kelas)
+        if state['is_anchored'] and not is_makeup_date_inside_window(kelas, session_date):
+            last = state['last_session_date']
             form.add_error(
                 'date',
-                f'Tanggal harus antara {kelas.start_date.strftime("%d %b %Y")} '
-                f'dan {kelas.end_date.strftime("%d %b %Y")}.',
+                f'Tanggal makeup harus pada atau sebelum akhir batch berjalan '
+                f'({last.strftime("%d %b %Y") if last else "-"}).',
             )
         elif start_t and end_t and end_t <= start_t:
             form.add_error('end_time', 'Jam selesai harus setelah jam mulai.')
         else:
-            # Cross-class overlap guard — teacher can't be in two places at once.
+            # Cross-class overlap guard - teacher can't be in two places at once.
             conflicts = (
                 _session_overlap_conflicts(kelas.teacher_profile, session_date, start_t, end_t)
                 if start_t and end_t else []
@@ -399,7 +406,7 @@ def teacher_session_create(request, kelas_id):
                 form.add_error(
                     'start_time',
                     f'Bentrok dengan "{c.kelas.name}" sesi #{c.session_number} '
-                    f'({c.start_time.strftime("%H:%M")}–{c.end_time.strftime("%H:%M")}) di tanggal yang sama.',
+                    f'({c.start_time.strftime("%H:%M")}-{c.end_time.strftime("%H:%M")}) di tanggal yang sama.',
                 )
             else:
                 session = form.save(commit=False)
@@ -432,16 +439,21 @@ def teacher_session_edit(request, pk):
         session_date = form.cleaned_data['date']
         start_t = form.cleaned_data.get('start_time')
         end_t = form.cleaned_data.get('end_time')
-        if session_date < kelas.start_date or session_date > kelas.end_date:
+        from sessions_app.services import (
+            batch_state, is_makeup_date_inside_window,
+        )
+        state = batch_state(kelas)
+        if state['is_anchored'] and not is_makeup_date_inside_window(kelas, session_date):
+            last = state['last_session_date']
             form.add_error(
                 'date',
-                f'Tanggal harus antara {kelas.start_date.strftime("%d %b %Y")} '
-                f'dan {kelas.end_date.strftime("%d %b %Y")}.',
+                f'Tanggal harus pada atau sebelum akhir batch berjalan '
+                f'({last.strftime("%d %b %Y") if last else "-"}).',
             )
         elif start_t and end_t and end_t <= start_t:
             form.add_error('end_time', 'Jam selesai harus setelah jam mulai.')
         else:
-            # Cross-class overlap guard — exclude this session itself so editing
+            # Cross-class overlap guard - exclude this session itself so editing
             # without changing the time doesn't trigger a self-conflict.
             conflicts = (
                 _session_overlap_conflicts(
@@ -968,8 +980,31 @@ def student_pick_session(request, session_id):
             messages.error(request, 'Kelas ini sudah tidak menerima pendaftaran.')
         return redirect('academics:class_detail', pk=kelas.pk)
 
-    if kelas.start_date < timezone.localdate():
-        messages.error(request, 'Pendaftaran sudah ditutup, kelas sudah dimulai.')
+    # Batch model: replace the old permanent start_date block with
+    # is_enrollment_open() so joiners can still come in pre-batch-start.
+    from sessions_app.services import (
+        batch_state, is_enrollment_open, sweep_finished_batches,
+    )
+    sweep_finished_batches(kelas)
+    kelas.refresh_from_db()
+    ok, reason = is_enrollment_open(kelas)
+    if not ok:
+        state = batch_state(kelas)
+        reopen = state.get('next_open_date')
+        reopen_str = reopen.strftime('%d %b %Y') if reopen else 'segera'
+        if reason == 'CLOSED':
+            messages.error(request, 'Kelas ini sudah tidak menerima pendaftaran.')
+        elif reason == 'FULL':
+            messages.error(request, 'Kelas sudah penuh.')
+        elif reason == 'BATCH_RUNNING':
+            messages.error(request, f'Batch berjalan, buka lagi {reopen_str}.')
+        elif reason == 'GG_GENAP_PAST':
+            messages.error(
+                request,
+                f'Pertemuan ke-2 sudah lewat, kursi genap tutup. Buka lagi {reopen_str}.',
+            )
+        else:
+            messages.error(request, 'Pendaftaran ditutup.')
         return redirect('academics:class_detail', pk=kelas.pk)
 
     accepted_levels = kelas.get_jenjang_list()

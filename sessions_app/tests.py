@@ -1,24 +1,31 @@
-"""Smoke tests for sessions: schema constraints + weekly-slot generator.
+"""Tests for the batch-based class model.
 
-  * Session.session_number unique per kelas
-  * Attendance unique per (enrollment, session)
-  * generate_sessions_for_kelas(): N weeks generates N Mondays, 7 days apart
-  * Re-running creates no duplicates
-  * regenerate=True rebuilds future SCHEDULED rows but preserves any session
-    that already has Attendance
+Coverage:
+  * Schema: Session unique (kelas, session_number); Attendance unique
+    (enrollment, session).
+  * Batch lifecycle (PRIVAT / GROUP / GANJIL_GENAP) including anchor on first
+    enrollment, joiner pre-start, joiner blocked after first session, auto-
+    completion via sweep, slot reopens, second batch continues numbering.
+  * GG parity: A on odd weeks, B on even, 14-day steps, B may join until
+    week-2 has happened, B's last session is one week after A's, both
+    auto-complete after window end.
+  * Makeup: a manually added session inside the window is accepted (the
+    check is a pure helper), outside is rejected.
+  * Teacher slot exclusivity (per-teacher; back-to-back not overlap).
 
 Run:  python manage.py test sessions_app
 """
 from datetime import date, time, timedelta
+from unittest import mock
 
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.utils import timezone
 
-from accounts.models import User, Role, Level
+from accounts.models import Level, Role, User
 from academics.models import (
-    Category, Subject, AcademicPeriod, Kelas, KelasJenjang, KelasType,
-    PeriodType, Quarter, Schedule,
+    AcademicPeriod, Category, Kelas, KelasStatus, KelasType, PeriodType,
+    Quarter, Schedule, Subject,
 )
 from enrollments.models import Enrollment, EnrollmentStatus
 from sessions_app.models import (
@@ -26,38 +33,59 @@ from sessions_app.models import (
     SessionBooking, SessionStatus, SessionType,
 )
 from sessions_app.services import (
-    SEAT_GANJIL, SEAT_GENAP, auto_book_parity_sessions,
-    generate_sessions_for_kelas, teacher_weekly_slot_conflict,
+    SEAT_GANJIL, SEAT_GENAP, anchor_new_batch, batch_state,
+    book_enrollment_into_current_batch, is_enrollment_open,
+    is_makeup_date_inside_window, sweep_finished_batches,
+    teacher_weekly_slot_conflict,
 )
 
 
+# ── Helpers ────────────────────────────────────────────────────────────────
+
 def _world():
-    teacher = User.objects.create(username="t_sess", role=Role.TEACHER)
-    category = Category.objects.create(name="Sains")
-    subject = Subject.objects.create(category=category, name="Fisika")
+    teacher = User.objects.create(username='t_world', role=Role.TEACHER)
+    cat = Category.objects.create(name='Cat')
+    subj = Subject.objects.create(category=cat, name='Subj')
     today = timezone.localdate()
     period = AcademicPeriod.objects.create(
-        year="2026-2027", period_type=PeriodType.QUARTER, quarter=Quarter.Q1,
-        name="K1", start_date=today, end_date=today + timedelta(days=120),
+        year='2026', period_type=PeriodType.QUARTER, quarter=Quarter.Q1,
+        name='P', start_date=today, end_date=today + timedelta(days=200),
     )
-    kelas = Kelas.objects.create(
-        teacher_profile=teacher.teacher_profile, subject=subject, academic_period=period,
-        name="Fisika SMA", level=Level.SMA, start_date=today, end_date=today + timedelta(days=90),
-        capacity=10, total_sessions=12,
-    )
-    student = User.objects.create(username="s_sess", role=Role.STUDENT)
-    student.student_profile.level = Level.SMA
-    student.student_profile.save(update_fields=["level"])
-    enrollment = Enrollment.objects.create(
-        student_profile=student.student_profile, kelas=kelas,
-        status=EnrollmentStatus.ACTIVE, price_at_enrollment=0,
-    )
-    return kelas, enrollment
+    return teacher, cat, subj, period
 
+
+def _make_kelas(teacher, subj, period, *, name='K', level=Level.SMA,
+                class_type=KelasType.GROUP, total_sessions=4, capacity=8,
+                day='MONDAY', start_t=time(10, 0), end_t=time(11, 30)):
+    today = timezone.localdate()
+    kelas = Kelas.objects.create(
+        teacher_profile=teacher.teacher_profile, subject=subj,
+        academic_period=period, name=name, level=level,
+        class_type=class_type,
+        start_date=today, end_date=today,
+        capacity=capacity, total_sessions=total_sessions,
+        status=KelasStatus.OPEN,
+    )
+    kelas.set_jenjang([level])
+    Schedule.objects.create(
+        kelas=kelas, day=day, start_time=start_t, end_time=end_t,
+    )
+    return kelas
+
+
+def _make_student(username, level=Level.SMA):
+    u = User.objects.create(username=username, role=Role.STUDENT)
+    u.student_profile.level = level
+    u.student_profile.save(update_fields=['level'])
+    return u
+
+
+# ── Schema constraints ────────────────────────────────────────────────────
 
 class SessionConstraintTests(TestCase):
     def test_session_number_unique_per_kelas(self):
-        kelas, _ = _world()
+        teacher, _, subj, period = _world()
+        kelas = _make_kelas(teacher, subj, period)
         today = timezone.localdate()
         Session.objects.create(kelas=kelas, session_number=1, date=today)
         with self.assertRaises(IntegrityError):
@@ -67,282 +95,345 @@ class SessionConstraintTests(TestCase):
 
 class AttendanceConstraintTests(TestCase):
     def test_attendance_unique_per_enrollment_session(self):
-        kelas, enrollment = _world()
+        teacher, _, subj, period = _world()
+        kelas = _make_kelas(teacher, subj, period)
+        s = _make_student('s_att')
+        enr = Enrollment.objects.create(
+            student_profile=s.student_profile, kelas=kelas,
+            status=EnrollmentStatus.ACTIVE, price_at_enrollment=0,
+        )
         session = Session.objects.create(
-            kelas=kelas, session_number=1, date=timezone.localdate()
+            kelas=kelas, session_number=1, date=timezone.localdate(),
         )
         Attendance.objects.create(
-            enrollment=enrollment, session=session, status=AttendanceStatus.PRESENT
+            enrollment=enr, session=session, status=AttendanceStatus.PRESENT,
         )
         with self.assertRaises(IntegrityError):
             with transaction.atomic():
                 Attendance.objects.create(
-                    enrollment=enrollment, session=session, status=AttendanceStatus.ABSENT
+                    enrollment=enr, session=session,
+                    status=AttendanceStatus.ABSENT,
                 )
 
 
-# ── Weekly-slot generator tests ────────────────────────────────────────────
+# ── PRIVAT full lifecycle ─────────────────────────────────────────────────
 
-def _kelas_with_monday_slot(weeks=8):
-    """Build a fresh Kelas with a single Monday slot (10:00-12:00).
+class PrivatBatchLifecycleTests(TestCase):
+    """End-to-end: anchor -> book N sessions -> window passes -> sweep
+    completes -> kelas reopens -> second student starts a fresh batch and
+    session_number continues."""
 
-    Start date picked so that the first Monday is well in the past (so we can
-    assert past sessions land as COMPLETED). Uses a future Monday is also
-    fine; tests only depend on geometry (8 dates, 7 days apart, all Mondays,
-    numbered 1..8), not on past/future.
-    """
-    teacher = User.objects.create(username='t_gen', role=Role.TEACHER)
-    category = Category.objects.create(name='Mate')
-    subject = Subject.objects.create(category=category, name='Mat SD')
-    today = timezone.localdate()
-    period = AcademicPeriod.objects.create(
-        year='2026', period_type=PeriodType.QUARTER, quarter=Quarter.Q1,
-        name='P', start_date=today, end_date=today + timedelta(days=200),
-    )
-    # Anchor start on a specific Monday in the past
-    start = date(2026, 4, 6)  # confirm: 2026-04-06 is a Monday
-    assert start.weekday() == 0
-    kelas = Kelas.objects.create(
-        teacher_profile=teacher.teacher_profile, subject=subject,
-        academic_period=period, name='Mat SD Senin Sore',
-        level=Level.SD, start_date=start,
-        end_date=start + timedelta(days=7 * (weeks - 1)),
-        capacity=10, total_sessions=weeks,
-    )
-    Schedule.objects.create(
-        kelas=kelas, day='MONDAY',
-        start_time=time(10, 0), end_time=time(12, 0),
-    )
-    return kelas
-
-
-class GenerateSessionsForKelasTests(TestCase):
-    def test_monday_slot_eight_weeks_generates_eight_sessions(self):
-        kelas = _kelas_with_monday_slot(weeks=8)
-        created = generate_sessions_for_kelas(kelas)
-        self.assertEqual(created, 8)
-        rows = list(Session.objects.filter(kelas=kelas).order_by('session_number'))
-        self.assertEqual(len(rows), 8)
-        self.assertEqual([r.session_number for r in rows], list(range(1, 9)))
-        # Each session is a Monday and exactly 7 days after the previous one
-        for r in rows:
-            self.assertEqual(r.date.weekday(), 0, f'{r.date} is not a Monday')
-            self.assertEqual(r.start_time, time(10, 0))
-            self.assertEqual(r.end_time, time(12, 0))
-            self.assertEqual(r.session_type, SessionType.REGULAR)
-        for prev, nxt in zip(rows, rows[1:]):
-            self.assertEqual(
-                (nxt.date - prev.date).days, 7,
-                f'Gap between sessions {prev.session_number} and {nxt.session_number} is not 7 days'
-            )
-        # end_date follows the last session
-        kelas.refresh_from_db()
-        self.assertEqual(kelas.end_date, rows[-1].date)
-
-    def test_running_twice_is_idempotent(self):
-        kelas = _kelas_with_monday_slot(weeks=8)
-        first = generate_sessions_for_kelas(kelas)
-        second = generate_sessions_for_kelas(kelas)
-        self.assertEqual(first, 8)
-        self.assertEqual(second, 0)
-        self.assertEqual(Session.objects.filter(kelas=kelas).count(), 8)
-        # session_numbers stay 1..8 with no gaps or dupes
-        nums = list(
-            Session.objects.filter(kelas=kelas)
-            .order_by('session_number').values_list('session_number', flat=True)
+    def test_full_lifecycle(self):
+        teacher, _, subj, period = _world()
+        kelas = _make_kelas(
+            teacher, subj, period,
+            class_type=KelasType.PRIVAT, capacity=1, total_sessions=4,
+            day='MONDAY',
         )
-        self.assertEqual(nums, list(range(1, 9)))
+        # No batch anchored yet -> open.
+        ok, reason = is_enrollment_open(kelas)
+        self.assertTrue(ok, f'should be open, got reason={reason}')
 
-    def test_multi_jenjang_class_admits_listed_levels_only(self):
-        """An SMP student CAN enroll in a class with SD+SMP ticked; an SMA
-        student (or any level not in the jenjang set) CANNOT.
-
-        Enroll path is exercised via the rules embedded in enroll() rather
-        than spinning up the HTTP layer: we ensure get_jenjang_list() returns
-        the right set and that level-in-set membership is the gating rule.
-        """
-        # Build a multi-jenjang Kelas (SD + SMP)
-        teacher = User.objects.create(username='t_multi', role=Role.TEACHER)
-        cat = Category.objects.create(name='Mate')
-        subj = Subject.objects.create(category=cat, name='Mat')
-        today = timezone.localdate()
-        period = AcademicPeriod.objects.create(
-            year='2026', period_type=PeriodType.QUARTER, quarter=Quarter.Q1,
-            name='P', start_date=today, end_date=today + timedelta(days=120),
-        )
-        kelas = Kelas.objects.create(
-            teacher_profile=teacher.teacher_profile, subject=subj,
-            academic_period=period, name='Mat SD/SMP', level=Level.SD,
-            start_date=today, end_date=today + timedelta(days=60),
-            capacity=10, total_sessions=8,
-        )
-        kelas.set_jenjang([Level.SD, Level.SMP])
-        # Sanity: helper returns both jenjang
-        self.assertEqual(set(kelas.get_jenjang_list()), {Level.SD, Level.SMP})
-        # Membership rule: SMP IS in, SMA is NOT in
-        self.assertIn(Level.SMP, kelas.get_jenjang_list())
-        self.assertNotIn(Level.SMA, kelas.get_jenjang_list())
-        # Backfill data migration would have created a single KelasJenjang
-        # for the original kelas.level; set_jenjang() resets the relation to
-        # the new list, so exactly two rows exist.
-        self.assertEqual(
-            KelasJenjang.objects.filter(kelas=kelas).count(), 2
-        )
-
-    def test_regenerate_preserves_sessions_with_attendance(self):
-        kelas = _kelas_with_monday_slot(weeks=8)
-        generate_sessions_for_kelas(kelas)
-        # Enroll a student and force-mark attendance on session #1 (past) so
-        # it is "attended" and must be preserved on regenerate.
-        student = User.objects.create(username='s_gen', role=Role.STUDENT)
-        student.student_profile.level = Level.SD
-        student.student_profile.save(update_fields=['level'])
-        enrollment = Enrollment.objects.create(
-            student_profile=student.student_profile, kelas=kelas,
-            status=EnrollmentStatus.ACTIVE, price_at_enrollment=0,
-        )
-        attended_session = Session.objects.get(kelas=kelas, session_number=1)
-        Attendance.objects.create(
-            enrollment=enrollment, session=attended_session,
-            status=AttendanceStatus.PRESENT,
-        )
-        attended_pk = attended_session.pk
-
-        # Pick a future SCHEDULED session and remember its pk so we can verify
-        # it gets recreated (different pk after regenerate).
-        today = timezone.localdate()
-        future_qs = Session.objects.filter(
-            kelas=kelas, status=SessionStatus.SCHEDULED, date__gte=today,
-        ).order_by('session_number')
-        future_pks_before = list(future_qs.values_list('pk', flat=True))
-
-        if not future_pks_before:
-            # The fixture is fully in the past; bump start to guarantee at
-            # least one future session, then re-run setup.
-            kelas.start_date = today
-            kelas.save(update_fields=['start_date'])
-            # Wipe and regenerate so the geometry is recomputed cleanly
-            Session.objects.filter(kelas=kelas).exclude(pk=attended_pk).delete()
-            generate_sessions_for_kelas(kelas, regenerate=True)
-            future_pks_before = list(
-                Session.objects.filter(
-                    kelas=kelas, status=SessionStatus.SCHEDULED, date__gte=today,
-                ).values_list('pk', flat=True)
-            )
-
-        # Regenerate: future SCHEDULED sessions without attendance are wiped
-        # and recreated; the attended session #1 must survive untouched.
-        generate_sessions_for_kelas(kelas, regenerate=True)
-
-        # Total is still 8
-        self.assertEqual(Session.objects.filter(kelas=kelas).count(), 8)
-        # Attended session #1 still exists with the same pk
-        self.assertTrue(Session.objects.filter(pk=attended_pk).exists())
-        # No duplicate session_numbers
-        nums = list(
-            Session.objects.filter(kelas=kelas)
-            .order_by('session_number').values_list('session_number', flat=True)
-        )
-        self.assertEqual(nums, list(range(1, 9)))
-
-
-class GanjilGenapParityTests(TestCase):
-    """Paket Ganjil Genap: first enrollee on odd session_numbers, second on
-    even, third enrollment must be rejected by capacity=2 (Kelas.capacity is
-    forced to 2 by the create/edit view, and _try_enroll enforces it under
-    row lock)."""
-
-    def _world(self):
-        teacher = User.objects.create(username='t_paket', role=Role.TEACHER)
-        cat = Category.objects.create(name='Mate')
-        subj = Subject.objects.create(category=cat, name='Mat')
-        today = timezone.localdate()
-        period = AcademicPeriod.objects.create(
-            year='2026', period_type=PeriodType.QUARTER, quarter=Quarter.Q1,
-            name='P', start_date=today, end_date=today + timedelta(days=120),
-        )
-        kelas = Kelas.objects.create(
-            teacher_profile=teacher.teacher_profile, subject=subj,
-            academic_period=period, name='Mat SD Paket',
-            level=Level.SD, start_date=today,
-            end_date=today + timedelta(days=7 * 5),
-            capacity=2, total_sessions=6,
-            class_type=KelasType.GANJIL_GENAP,
-        )
-        kelas.set_jenjang([Level.SD])
-        from academics.models import Schedule as Sched
-        Sched.objects.create(
-            kelas=kelas, day='MONDAY',
-            start_time=time(10, 0), end_time=time(11, 0),
-        )
-        generate_sessions_for_kelas(kelas)
-        return kelas
-
-    def _make_student(self, username, level=Level.SD):
-        u = User.objects.create(username=username, role=Role.STUDENT)
-        u.student_profile.level = level
-        u.student_profile.save(update_fields=['level'])
-        return u
-
-    def test_first_enrollee_gets_ganjil_second_gets_genap(self):
-        kelas = self._world()
-        a = self._make_student('s_a')
-        b = self._make_student('s_b')
+        s_a = _make_student('s_a')
         enr_a = Enrollment.objects.create(
-            student_profile=a.student_profile, kelas=kelas,
+            student_profile=s_a.student_profile, kelas=kelas,
             status=EnrollmentStatus.ACTIVE, price_at_enrollment=0,
         )
-        seat_a, _ = auto_book_parity_sessions(enr_a)
-        self.assertEqual(seat_a, SEAT_GANJIL)
-        nums_a = sorted(
-            SessionBooking.objects
-            .filter(enrollment=enr_a, status=BookingStatus.BOOKED)
-            .values_list('session__session_number', flat=True)
-        )
-        self.assertTrue(all(n % 2 == 1 for n in nums_a), f'A got {nums_a}')
+        anchor_new_batch(kelas)
+        book_enrollment_into_current_batch(enr_a)
 
+        # 4 sessions exist for the kelas, on Mondays, 7 days apart.
+        sessions = list(
+            Session.objects.filter(kelas=kelas).order_by('session_number')
+        )
+        self.assertEqual(len(sessions), 4)
+        self.assertEqual([s.session_number for s in sessions], [1, 2, 3, 4])
+        for s in sessions:
+            self.assertEqual(s.date.weekday(), 0, 'Monday')
+        for a, b in zip(sessions, sessions[1:]):
+            self.assertEqual((b.date - a.date).days, 7)
+        # A booked on all 4.
+        self.assertEqual(
+            SessionBooking.objects.filter(enrollment=enr_a).count(), 4,
+        )
+
+        # Capacity 1: second student blocked from joining same batch.
+        ok2, reason2 = is_enrollment_open(kelas)
+        self.assertFalse(ok2)
+        self.assertEqual(reason2, 'FULL')
+
+        # Fast-forward: pretend window has ended.
+        fake_today = sessions[-1].date + timedelta(days=1)
+        with mock.patch('sessions_app.services.timezone.localdate',
+                        return_value=fake_today):
+            flipped = sweep_finished_batches(kelas)
+            self.assertEqual(flipped, 1)
+            enr_a.refresh_from_db()
+            self.assertEqual(enr_a.status, EnrollmentStatus.COMPLETED)
+            # Kelas stays OPEN (not auto-CLOSED).
+            kelas.refresh_from_db()
+            self.assertEqual(kelas.status, KelasStatus.OPEN)
+            ok3, _ = is_enrollment_open(kelas)
+            self.assertTrue(ok3)
+
+            # Second student starts a fresh batch. session_number continues.
+            s_b = _make_student('s_b')
+            enr_b = Enrollment.objects.create(
+                student_profile=s_b.student_profile, kelas=kelas,
+                status=EnrollmentStatus.ACTIVE, price_at_enrollment=0,
+            )
+            anchor_new_batch(kelas)
+            book_enrollment_into_current_batch(enr_b)
+
+        nums = list(
+            Session.objects.filter(kelas=kelas)
+            .order_by('session_number')
+            .values_list('session_number', flat=True)
+        )
+        self.assertEqual(nums, [1, 2, 3, 4, 5, 6, 7, 8])
+
+
+# ── GROUP lifecycle ──────────────────────────────────────────────────────
+
+class GroupBatchLifecycleTests(TestCase):
+    def test_joiner_pre_start_ok_post_start_blocked(self):
+        teacher, _, subj, period = _world()
+        kelas = _make_kelas(
+            teacher, subj, period, class_type=KelasType.GROUP,
+            capacity=3, total_sessions=4, day='MONDAY',
+        )
+        s_a = _make_student('s_a')
+        enr_a = Enrollment.objects.create(
+            student_profile=s_a.student_profile, kelas=kelas,
+            status=EnrollmentStatus.ACTIVE, price_at_enrollment=0,
+        )
+        anchor_new_batch(kelas)
+        book_enrollment_into_current_batch(enr_a)
+        state = batch_state(kelas)
+        first_date = state['first_session_date']
+
+        # Pre-start: joiner allowed.
+        ok, _ = is_enrollment_open(kelas)
+        self.assertTrue(ok)
+
+        s_b = _make_student('s_b')
         enr_b = Enrollment.objects.create(
-            student_profile=b.student_profile, kelas=kelas,
+            student_profile=s_b.student_profile, kelas=kelas,
             status=EnrollmentStatus.ACTIVE, price_at_enrollment=0,
         )
-        seat_b, _ = auto_book_parity_sessions(enr_b)
+        book_enrollment_into_current_batch(enr_b)
+        # B booked on the same 4 sessions.
+        self.assertEqual(
+            SessionBooking.objects.filter(enrollment=enr_b).count(), 4,
+        )
+
+        # Now fast-forward past the first session: joiners blocked even with
+        # a free seat.
+        post_start = first_date + timedelta(days=1)
+        with mock.patch('sessions_app.services.timezone.localdate',
+                        return_value=post_start):
+            ok3, reason3 = is_enrollment_open(kelas)
+            self.assertFalse(ok3)
+            self.assertEqual(reason3, 'BATCH_RUNNING')
+
+    def test_full_capacity_blocks_pre_start(self):
+        teacher, _, subj, period = _world()
+        kelas = _make_kelas(
+            teacher, subj, period, class_type=KelasType.GROUP,
+            capacity=2, total_sessions=4, day='MONDAY',
+        )
+        for name in ('s_a', 's_b'):
+            s = _make_student(name)
+            enr = Enrollment.objects.create(
+                student_profile=s.student_profile, kelas=kelas,
+                status=EnrollmentStatus.ACTIVE, price_at_enrollment=0,
+            )
+            state = batch_state(kelas)
+            if not state['is_anchored']:
+                anchor_new_batch(kelas)
+            book_enrollment_into_current_batch(enr)
+        ok, reason = is_enrollment_open(kelas)
+        self.assertFalse(ok)
+        self.assertEqual(reason, 'FULL')
+
+    def test_reopen_after_window_ends(self):
+        teacher, _, subj, period = _world()
+        kelas = _make_kelas(
+            teacher, subj, period, class_type=KelasType.GROUP,
+            capacity=4, total_sessions=4, day='MONDAY',
+        )
+        s_a = _make_student('s_a')
+        enr_a = Enrollment.objects.create(
+            student_profile=s_a.student_profile, kelas=kelas,
+            status=EnrollmentStatus.ACTIVE, price_at_enrollment=0,
+        )
+        anchor_new_batch(kelas)
+        book_enrollment_into_current_batch(enr_a)
+        state = batch_state(kelas)
+
+        end = state['last_session_date'] + timedelta(days=1)
+        with mock.patch('sessions_app.services.timezone.localdate',
+                        return_value=end):
+            sweep_finished_batches(kelas)
+            enr_a.refresh_from_db()
+            self.assertEqual(enr_a.status, EnrollmentStatus.COMPLETED)
+            ok, _ = is_enrollment_open(kelas)
+            self.assertTrue(ok)
+
+
+# ── GANJIL_GENAP lifecycle ────────────────────────────────────────────────
+
+class GanjilGenapBatchTests(TestCase):
+    def test_A_odd_weeks_B_even_weeks_14_day_steps(self):
+        teacher, _, subj, period = _world()
+        kelas = _make_kelas(
+            teacher, subj, period, class_type=KelasType.GANJIL_GENAP,
+            capacity=2, total_sessions=3, day='MONDAY',
+        )
+        s_a = _make_student('s_a')
+        enr_a = Enrollment.objects.create(
+            student_profile=s_a.student_profile, kelas=kelas,
+            status=EnrollmentStatus.ACTIVE, price_at_enrollment=0,
+        )
+        anchor_new_batch(kelas)
+        seat_a, _ = book_enrollment_into_current_batch(enr_a)
+        self.assertEqual(seat_a, SEAT_GANJIL)
+
+        # Window = 6 sessions (2 * N).
+        sessions = list(
+            Session.objects.filter(kelas=kelas).order_by('date')
+        )
+        self.assertEqual(len(sessions), 6)
+        first_date = sessions[0].date
+
+        a_bookings = list(
+            SessionBooking.objects.filter(enrollment=enr_a)
+            .select_related('session').order_by('session__date')
+        )
+        # A on weeks 1, 3, 5 -> dates offset 0, 14, 28.
+        a_dates = [b.session.date for b in a_bookings]
+        self.assertEqual(len(a_dates), 3)
+        self.assertEqual(a_dates[0], first_date)
+        self.assertEqual(a_dates[1], first_date + timedelta(days=14))
+        self.assertEqual(a_dates[2], first_date + timedelta(days=28))
+
+        # B joins; gets GENAP, weeks 2, 4, 6.
+        s_b = _make_student('s_b')
+        enr_b = Enrollment.objects.create(
+            student_profile=s_b.student_profile, kelas=kelas,
+            status=EnrollmentStatus.ACTIVE, price_at_enrollment=0,
+        )
+        seat_b, _ = book_enrollment_into_current_batch(enr_b)
         self.assertEqual(seat_b, SEAT_GENAP)
-        nums_b = sorted(
-            SessionBooking.objects
-            .filter(enrollment=enr_b, status=BookingStatus.BOOKED)
-            .values_list('session__session_number', flat=True)
+        b_dates = list(
+            SessionBooking.objects.filter(enrollment=enr_b)
+            .select_related('session')
+            .order_by('session__date')
+            .values_list('session__date', flat=True)
         )
-        self.assertTrue(all(n % 2 == 0 for n in nums_b), f'B got {nums_b}')
+        self.assertEqual(len(b_dates), 3)
+        self.assertEqual(b_dates[0], first_date + timedelta(days=7))
+        self.assertEqual(b_dates[1], first_date + timedelta(days=21))
+        self.assertEqual(b_dates[2], first_date + timedelta(days=35))
+        # B's last is one week after A's last.
+        self.assertEqual(b_dates[-1] - a_dates[-1], timedelta(days=7))
 
-    def test_third_enrollment_rejected_at_capacity_2(self):
-        """The capacity gate that protects against a 3rd enrollee lives in
-        the enroll view's _try_enroll helper. Verify it: with two ACTIVE
-        enrollments and capacity=2, _try_enroll returns ('full', None)."""
-        from enrollments.views import _try_enroll
-        kelas = self._world()
-        a = self._make_student('s_a')
-        b = self._make_student('s_b')
-        c = self._make_student('s_c')
-        Enrollment.objects.create(
-            student_profile=a.student_profile, kelas=kelas,
+    def test_B_may_join_until_week2_session(self):
+        teacher, _, subj, period = _world()
+        kelas = _make_kelas(
+            teacher, subj, period, class_type=KelasType.GANJIL_GENAP,
+            capacity=2, total_sessions=2, day='MONDAY',
+        )
+        s_a = _make_student('s_a')
+        enr_a = Enrollment.objects.create(
+            student_profile=s_a.student_profile, kelas=kelas,
             status=EnrollmentStatus.ACTIVE, price_at_enrollment=0,
         )
-        Enrollment.objects.create(
-            student_profile=b.student_profile, kelas=kelas,
+        anchor_new_batch(kelas)
+        book_enrollment_into_current_batch(enr_a)
+        state = batch_state(kelas)
+        first = state['first_session_date']
+
+        # Today between week 1 and week 2: B may join.
+        between = first + timedelta(days=2)
+        with mock.patch('sessions_app.services.timezone.localdate',
+                        return_value=between):
+            ok, reason = is_enrollment_open(kelas)
+            self.assertTrue(ok, f'should be open before week-2; got {reason}')
+
+        # Today on/after week 2 session: B cannot join.
+        on_week2 = first + timedelta(days=7)
+        with mock.patch('sessions_app.services.timezone.localdate',
+                        return_value=on_week2):
+            ok, reason = is_enrollment_open(kelas)
+            self.assertFalse(ok)
+            self.assertEqual(reason, 'GG_GENAP_PAST')
+
+    def test_window_auto_completes_both_seats(self):
+        teacher, _, subj, period = _world()
+        kelas = _make_kelas(
+            teacher, subj, period, class_type=KelasType.GANJIL_GENAP,
+            capacity=2, total_sessions=2, day='MONDAY',
+        )
+        s_a = _make_student('s_a')
+        s_b = _make_student('s_b')
+        enr_a = Enrollment.objects.create(
+            student_profile=s_a.student_profile, kelas=kelas,
             status=EnrollmentStatus.ACTIVE, price_at_enrollment=0,
         )
-        result, payload = _try_enroll(c.student_profile, kelas)
-        self.assertEqual(result, 'full')
-        self.assertIsNone(payload)
+        anchor_new_batch(kelas)
+        book_enrollment_into_current_batch(enr_a)
+        enr_b = Enrollment.objects.create(
+            student_profile=s_b.student_profile, kelas=kelas,
+            status=EnrollmentStatus.ACTIVE, price_at_enrollment=0,
+        )
+        book_enrollment_into_current_batch(enr_b)
+        state = batch_state(kelas)
 
+        after = state['last_session_date'] + timedelta(days=1)
+        with mock.patch('sessions_app.services.timezone.localdate',
+                        return_value=after):
+            flipped = sweep_finished_batches(kelas)
+            self.assertEqual(flipped, 2)
+            enr_a.refresh_from_db()
+            enr_b.refresh_from_db()
+            self.assertEqual(enr_a.status, EnrollmentStatus.COMPLETED)
+            self.assertEqual(enr_b.status, EnrollmentStatus.COMPLETED)
+
+
+# ── Makeup window constraint ─────────────────────────────────────────────
+
+class MakeupDateInsideWindowTests(TestCase):
+    def test_inside_window_accepted_outside_rejected(self):
+        teacher, _, subj, period = _world()
+        kelas = _make_kelas(
+            teacher, subj, period, class_type=KelasType.GROUP,
+            capacity=4, total_sessions=4, day='MONDAY',
+        )
+        s_a = _make_student('s_a')
+        enr_a = Enrollment.objects.create(
+            student_profile=s_a.student_profile, kelas=kelas,
+            status=EnrollmentStatus.ACTIVE, price_at_enrollment=0,
+        )
+        anchor_new_batch(kelas)
+        book_enrollment_into_current_batch(enr_a)
+        state = batch_state(kelas)
+        first, last = state['first_session_date'], state['last_session_date']
+
+        # On window end: accepted.
+        self.assertTrue(is_makeup_date_inside_window(kelas, last))
+        # Mid-window: accepted.
+        self.assertTrue(is_makeup_date_inside_window(kelas, first + timedelta(days=3)))
+        # After window end: rejected.
+        self.assertFalse(is_makeup_date_inside_window(kelas, last + timedelta(days=1)))
+
+
+# ── Teacher slot exclusivity ─────────────────────────────────────────────
 
 class TeacherWeeklySlotConflictTests(TestCase):
-    """Slot exclusivity is per teacher: same teacher overlapping slot
-    rejected; different teacher same slot is fine."""
-
     def _build(self, username='t1'):
         teacher = User.objects.create(username=username, role=Role.TEACHER)
-        cat = Category.objects.create(name='Cat-' + username)
+        cat = Category.objects.create(name='C-' + username)
         subj = Subject.objects.create(category=cat, name='S-' + username)
         today = timezone.localdate()
         period = AcademicPeriod.objects.create(
@@ -371,21 +462,16 @@ class TeacherWeeklySlotConflictTests(TestCase):
         self.assertIsNotNone(clash)
 
     def test_different_teacher_same_slot_allowed(self):
-        _t1, _k1 = self._build('t1')
-        t2, _k2 = self._build('t2')
-        # t2 builder already creates a kelas; passing t2 as the candidate
-        # teacher for the SAME slot as t1 must NOT collide because the conflict
-        # check is per-teacher.
+        self._build('t1')
+        t2, k2 = self._build('t2')
         clash = teacher_weekly_slot_conflict(
             t2, 'MONDAY', time(15, 0), time(17, 0),
-            exclude_kelas_id=_k2.pk,
+            exclude_kelas_id=k2.pk,
         )
         self.assertIsNone(clash)
 
-    def test_back_to_back_not_treated_as_overlap(self):
+    def test_back_to_back_not_overlap(self):
         teacher, _kelas = self._build('t1')
-        # Existing class is 15:00-17:00; a 17:00-19:00 slot is back-to-back,
-        # not overlapping. Strict `<` comparison must allow it.
         clash = teacher_weekly_slot_conflict(
             teacher, 'MONDAY', time(17, 0), time(19, 0),
         )

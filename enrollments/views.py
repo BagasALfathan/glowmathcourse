@@ -141,20 +141,45 @@ def _try_enroll(student_profile, kelas):
 @role_required('STUDENT')
 @require_POST
 def enroll(request, kelas_id):
+    from academics.models import KelasType
+    from sessions_app.services import (
+        anchor_new_batch, batch_state, book_enrollment_into_current_batch,
+        is_enrollment_open, sweep_finished_batches,
+    )
+
     kelas = get_object_or_404(Kelas, pk=kelas_id, is_deleted=False)
 
-    # Class must be OPEN (rejects FULL and CLOSED) — pre-check before locking
-    if kelas.status != KelasStatus.OPEN:
-        if kelas.status == KelasStatus.FULL:
+    # Sweep any window that has already ended so the kelas reflects its
+    # real state before we check open-for-enrollment.
+    sweep_finished_batches(kelas)
+    kelas.refresh_from_db()
+
+    # Batch-model enrollment gate.
+    ok, reason = is_enrollment_open(kelas)
+    if not ok:
+        if reason == 'CLOSED':
+            messages.error(request, 'Kelas ini sudah tidak menerima pendaftaran.')
+        elif reason == 'FULL':
             messages.error(request, 'Kelas sudah penuh.')
+        elif reason == 'BATCH_RUNNING':
+            state = batch_state(kelas)
+            reopen = state['next_open_date']
+            reopen_str = reopen.strftime('%d %b %Y') if reopen else 'segera'
+            messages.error(
+                request,
+                f'Batch berjalan, buka lagi {reopen_str}.',
+            )
+        elif reason == 'GG_GENAP_PAST':
+            state = batch_state(kelas)
+            reopen = state['next_open_date']
+            reopen_str = reopen.strftime('%d %b %Y') if reopen else 'segera'
+            messages.error(
+                request,
+                f'Pertemuan ke-2 sudah lewat, kursi genap tutup. '
+                f'Buka lagi {reopen_str}.',
+            )
         else:
             messages.error(request, 'Kelas ini sudah tidak menerima pendaftaran.')
-        return redirect('academics:class_detail', pk=kelas_id)
-
-    # Block enrollment if class has already started
-    today = timezone.localdate()
-    if kelas.start_date < today:
-        messages.error(request, 'Pendaftaran sudah ditutup, kelas sudah dimulai.')
         return redirect('academics:class_detail', pk=kelas_id)
 
     # Level must be in the class's accepted jenjang set (multi-jenjang aware).
@@ -194,16 +219,13 @@ def enroll(request, kelas_id):
     enrollment = payload
     log_activity(request.user, 'created', 'enrollment', enrollment.pk)
 
-    # Fan out session-level AUTO bookings. For Paket Ganjil Genap, route to
-    # the parity helper so each student only gets bookings on their assigned
-    # parity (capacity-2 invariant is enforced by _try_enroll above).
-    from academics.models import KelasType
-    if kelas.class_type == KelasType.GANJIL_GENAP:
-        from sessions_app.services import auto_book_parity_sessions
-        auto_book_parity_sessions(enrollment)
-    else:
-        from sessions_app.views import _auto_book_regular_sessions
-        _auto_book_regular_sessions(enrollment)
+    # Batch lifecycle: if no batch is anchored yet, this student anchors one.
+    state = batch_state(kelas)
+    if not state['is_anchored']:
+        anchor_new_batch(kelas)
+    # Book the student into the current batch. PRIVAT/GROUP -> book all
+    # batch sessions; GANJIL_GENAP -> book the assigned parity.
+    book_enrollment_into_current_batch(enrollment)
 
     # Invalidate detail-page caches so the next view shows the updated capacity.
     # Sibling related-classes caches also need a refresh since this kelas's active_count changed.

@@ -34,6 +34,7 @@
   {% endif %}
 
   <form method="post" novalidate
+        x-data="{ classType: '{{ selected_class_type|default:'GROUP'|escapejs }}' }"
         class="bg-white border border-gray-200 rounded-xl p-5 md:p-6 hover:border-primary-600 transition-colors space-y-5">
     {% csrf_token %}
 
@@ -106,6 +107,7 @@
           {% for ct_value, ct_label in all_class_types %}
             <label class="cursor-pointer">
               <input type="radio" name="class_type" value="{{ ct_value }}" class="peer sr-only"
+                     @change="classType = '{{ ct_value }}'"
                      {% if selected_class_type == ct_value %}checked{% endif %}>
               <span class="inline-block px-3 py-1.5 rounded-full border border-gray-300 text-xs text-gray-700 hover:border-primary-400 peer-checked:bg-primary-600 peer-checked:text-white peer-checked:border-primary-600 peer-checked:font-semibold transition-colors">
                 {{ ct_label }}
@@ -114,18 +116,25 @@
           {% endfor %}
         </div>
         <p class="text-[10px] text-gray-400 mt-1.5">
-          Paket Ganjil Genap memaksa kapasitas jadi 2 (satu kursi pertemuan ganjil, satu kursi pertemuan genap).
+          Privat memaksa kapasitas jadi 1. Paket Ganjil Genap memaksa kapasitas jadi 2 (satu kursi ganjil, satu genap). Hanya tipe Grup yang meminta input kapasitas.
         </p>
       </div>
 
-      <div>
+      <div x-show="classType === 'GROUP'" x-cloak>
         <label for="cls-cap" class="block text-xs font-semibold text-gray-700 mb-1.5">
           Kapasitas <span class="text-red-500">*</span>
+          <span class="text-[10px] text-gray-400 font-normal ml-1">(hanya untuk Grup)</span>
         </label>
-        <input id="cls-cap" type="number" name="capacity" required min="1" max="100"
-               value="{{ form_data.capacity|default:'12' }}"
+        <input id="cls-cap" type="number" name="capacity" min="1" max="100"
+               value="{{ form_data.capacity|default:'8' }}"
                class="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-100 outline-none">
       </div>
+      <p x-show="classType === 'PRIVAT'" x-cloak class="text-[11px] text-primary-700 bg-primary-50 border border-primary-100 px-3 py-2 rounded-lg">
+        Privat: kapasitas otomatis 1 siswa per batch.
+      </p>
+      <p x-show="classType === 'GANJIL_GENAP'" x-cloak class="text-[11px] text-rose-700 bg-rose-50 border border-rose-100 px-3 py-2 rounded-lg">
+        Paket Ganjil Genap: kapasitas otomatis 2 (satu kursi ganjil, satu genap).
+      </p>
 
       <div>
         <label for="cls-desc" class="block text-xs font-semibold text-gray-700 mb-1.5">

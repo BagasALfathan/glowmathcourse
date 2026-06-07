@@ -541,8 +541,14 @@
           {% elif user_enrollment.status == 'COMPLETED' %}
           <div class="enroll-cta completed">✨ Kelas sudah selesai</div>
           {% endif %}
-        {% elif kelas.status == 'FULL' or slots_remaining == 0 %}
-          <button disabled class="enroll-cta disabled">🔒 Kelas Penuh</button>
+        {% elif not batch_open and batch_reason == 'BATCH_RUNNING' %}
+          <button disabled class="enroll-cta disabled">Batch berjalan</button>
+          <div class="enroll-warn">Batch berjalan, buka lagi <b>{{ batch_next_open_str }}</b>.</div>
+        {% elif not batch_open and batch_reason == 'GG_GENAP_PAST' %}
+          <button disabled class="enroll-cta disabled">Kursi genap tutup</button>
+          <div class="enroll-warn">Pertemuan ke-2 sudah lewat, kursi genap tutup. Buka lagi <b>{{ batch_next_open_str }}</b>.</div>
+        {% elif kelas.status == 'FULL' or slots_remaining == 0 or batch_reason == 'FULL' %}
+          <button disabled class="enroll-cta disabled">Kelas Penuh</button>
         {% elif student_profile is None %}
           <div class="enroll-warn">ℹ️ Login sebagai siswa untuk mendaftar.</div>
         {% elif level_mismatch %}
@@ -552,6 +558,15 @@
             {% csrf_token %}
             <button type="submit" class="enroll-cta primary">DAFTAR SEKARANG</button>
           </form>
+          {% if not batch_state.is_anchored and next_start_date %}
+          <p style="margin-top:8px; font-size:11px; color:#475569; text-align:center;">
+            Mulai <b>{{ next_start_date|date:"d M Y" }}</b> jika daftar sekarang - estimasi selesai <b>{{ est_finish|date:"d M Y" }}</b>.
+          </p>
+          {% elif batch_state.is_anchored and not batch_state.is_running %}
+          <p style="margin-top:8px; font-size:11px; color:#475569; text-align:center;">
+            Gabung batch yang baru dianchor - mulai <b>{{ batch_state.first_session_date|date:"d M Y" }}</b>, selesai <b>{{ batch_state.last_session_date|date:"d M Y" }}</b>.
+          </p>
+          {% endif %}
         {% endif %}
 
         <div class="enroll-trust"><span class="shield">🛡️</span> Pendaftaran aman & terverifikasi</div>

@@ -66,10 +66,14 @@
 - teacher_profile (FK -> TeacherProfile, was User; @property teacher kept for compat)
 - level: **TK | SD | SMP | SMA | UMUM** (5 jenjang) - primary jenjang, kept for
   backward compatibility. Multi-jenjang classes use KelasJenjang for the full set.
-- class_type (NEW): REGULAR | GANJIL_GENAP. GANJIL_GENAP is a two-seat alternating
-  paket where capacity is forced to 2 and each seat covers either odd or even
-  session numbers (parity routed by `auto_book_parity_sessions` in
-  sessions_app/services.py).
+- class_type: **PRIVAT | GROUP | GANJIL_GENAP** (client revision, migration
+  0008 + 0009). Drives capacity rules and the batch window:
+    - PRIVAT       -> capacity 1, batch window = N weeks (N = total_sessions)
+    - GROUP        -> capacity chosen by teacher, batch window = N weeks
+    - GANJIL_GENAP -> capacity 2, batch window = 2N weeks (kursi ganjil
+                     books weeks 1, 3, 5, ...; kursi genap books 2, 4, 6, ...)
+  The legacy REGULAR value was backfilled by 0009: capacity 1 -> PRIVAT,
+  capacity > 1 -> GROUP. There is no longer a REGULAR option.
 - capacity, total_sessions
 - start_date, end_date
 - status: OPEN | FULL | CLOSED
@@ -95,9 +99,25 @@
 - kelas (FK), day: MONDAY-SATURDAY
 - start_time, end_time, room
 - unique (kelas, day, start_time)
-- One weekly slot per kelas (domain rule, enforced in UI: create form takes
-  one day + one time range; sessions are generated weekly by
-  generate_sessions_for_kelas).
+- One weekly slot per kelas. The Kelas is a PERMANENT slot owned by a teacher;
+  sessions for a batch are created ONLY when the first enrollee anchors that
+  batch (see `sessions_app/services.anchor_new_batch`). `generate_sessions_for_kelas`
+  is kept as a no-op compat shim.
+
+### Batch derivation (no new table)
+The "running batch" on a kelas is derived from enrollments + bookings + the
+existing Session rows. Helpers in `sessions_app/services`:
+- `batch_state(kelas)` -> dict with first/last session dates, is_running,
+  next_open_date, enrolled_count. Detects anchor via either ACTIVE bookings
+  OR (as a fallback for the moment between anchor and the first booking)
+  the earliest future SCHEDULED session.
+- `is_enrollment_open(kelas)` -> (ok, reason) gating new enrollment.
+- `anchor_new_batch(kelas)` -> creates the batch's Session rows.
+- `book_enrollment_into_current_batch(enrollment)` -> fans out AUTO bookings.
+- `sweep_finished_batches(kelas)` -> auto-completes enrollments when the
+  window ends. Kelas STAYS OPEN; the next enrollee anchors a fresh batch
+  and session_number continues.
+- `python manage.py close_finished_batches` for cron in production.
 
 ## Sessions (1 table)
 

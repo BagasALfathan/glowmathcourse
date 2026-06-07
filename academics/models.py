@@ -38,7 +38,19 @@ class KelasStatus(models.TextChoices):
 
 
 class KelasType(models.TextChoices):
-    REGULAR = 'REGULAR', 'Reguler'
+    """Reusable batch classes.
+
+    A Kelas is a permanent weekly slot owned by a teacher. Each enrollment
+    cohort runs through one "batch window" then auto-completes; the slot
+    immediately becomes OPEN for the next batch (no manual teacher step).
+
+    - PRIVAT       : capacity forced to 1 (one student per batch)
+    - GROUP        : capacity chosen by the teacher (multiple seats per batch)
+    - GANJIL_GENAP : two-seat paket (kursi ganjil + kursi genap, window 2N
+                     weeks where N = total_sessions per student)
+    """
+    PRIVAT = 'PRIVAT', 'Privat'
+    GROUP = 'GROUP', 'Grup'
     GANJIL_GENAP = 'GANJIL_GENAP', 'Paket Ganjil Genap'
 
 
@@ -154,8 +166,12 @@ class Kelas(models.Model):
     class_type = models.CharField(
         max_length=15,
         choices=KelasType.choices,
-        default=KelasType.REGULAR,
-        help_text='REGULAR (default) atau GANJIL_GENAP (paket dua kursi, satu ganjil, satu genap).',
+        default=KelasType.GROUP,
+        help_text=(
+            'PRIVAT (kapasitas 1), GROUP (kapasitas dipilih guru), '
+            'atau GANJIL_GENAP (dua kursi, satu ganjil + satu genap, '
+            'window 2N minggu).'
+        ),
     )
     is_deleted = models.BooleanField(default=False)
     deleted_at = models.DateTimeField(null=True, blank=True)
@@ -188,17 +204,20 @@ class Kelas(models.Model):
             return 0
 
     def check_and_update_status(self):
-        """Auto-close this kelas if end_date has passed. Returns True if status changed."""
-        today = timezone.localdate()
-        if self.end_date < today and self.status != KelasStatus.CLOSED:
-            self.status = KelasStatus.CLOSED
-            self.save(update_fields=['status', 'updated_at'])
-            return True
+        """Batch model: end_date-based auto-CLOSED is removed.
+
+        CLOSED is now a manual teacher action meaning the slot is retired.
+        Each batch's enrollments auto-complete via
+        sessions_app.services.sweep_finished_batches; the kelas itself stays
+        OPEN until a teacher chooses to retire it.
+        """
         return False
 
     @property
     def is_expired(self):
-        return self.end_date < timezone.localdate()
+        # Retained for any legacy callers; batch model no longer treats
+        # end_date as an "expired" signal.
+        return False
 
     @property
     def is_upcoming(self):

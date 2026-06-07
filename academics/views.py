@@ -295,26 +295,31 @@ def teacher_class_create(request):
         if start_time_parsed and end_time_parsed and end_time_parsed <= start_time_parsed:
             errors.append('Jam selesai harus setelah jam mulai.')
 
-        try:
-            capacity_int = int(request.POST.get('capacity') or 0)
-            if capacity_int <= 0:
-                errors.append('Kapasitas harus lebih dari 0.')
-        except (TypeError, ValueError):
-            errors.append('Kapasitas tidak valid.')
-            capacity_int = 0
-
-        # GANJIL_GENAP forces capacity = 2 (server-side enforcement).
-        if class_type == KelasType.GANJIL_GENAP:
+        # Capacity rules per class_type:
+        #   PRIVAT       -> forced to 1
+        #   GROUP        -> teacher chooses (required input)
+        #   GANJIL_GENAP -> forced to 2
+        if class_type == KelasType.PRIVAT:
+            capacity_int = 1
+        elif class_type == KelasType.GANJIL_GENAP:
             capacity_int = 2
+        else:
+            try:
+                capacity_int = int(request.POST.get('capacity') or 0)
+                if capacity_int <= 0:
+                    errors.append('Kapasitas wajib diisi dan harus lebih dari 0 untuk kelas Grup.')
+            except (TypeError, ValueError):
+                errors.append('Kapasitas tidak valid.')
+                capacity_int = 0
 
         try:
             weeks_int = int(request.POST.get('weeks') or 0)
             if weeks_int <= 0:
-                errors.append('Jumlah minggu harus lebih dari 0.')
+                errors.append('Jumlah pertemuan per siswa harus lebih dari 0.')
             elif weeks_int > 52:
-                errors.append('Jumlah minggu maksimal 52.')
+                errors.append('Jumlah pertemuan maksimal 52.')
         except (TypeError, ValueError):
-            errors.append('Jumlah minggu tidak valid.')
+            errors.append('Jumlah pertemuan tidak valid.')
             weeks_int = 0
 
         # Teacher slot conflict: same teacher, same day, overlapping time window.
@@ -338,25 +343,24 @@ def teacher_class_create(request):
         else:
             try:
                 with transaction.atomic():
+                    # Batch model: sessions are NOT generated at create time.
+                    # The first enrollment will anchor the first batch and
+                    # create that batch's sessions.
                     kelas = Kelas.objects.create(
                         teacher_profile=teacher_profile,
                         subject_id=subject_id,
                         academic_period_id=period_id,
                         name=name,
                         description=description,
-                        # Primary jenjang stays the FIRST selected for legacy paths.
                         level=levels_picked[0],
                         class_type=class_type,
                         start_date=start_date_parsed,
-                        # Temporary end_date; the generator will reset it to
-                        # the date of the last weekly session.
-                        end_date=start_date_parsed + timedelta(days=7 * (weeks_int - 1)),
+                        end_date=start_date_parsed,
                         capacity=capacity_int,
                         total_sessions=weeks_int,
                         price=Decimal('0'),
                         status=KelasStatus.OPEN,
                     )
-                    # Multi-jenjang relation
                     kelas.set_jenjang(levels_picked)
                     Schedule.objects.create(
                         kelas=kelas,
@@ -365,20 +369,20 @@ def teacher_class_create(request):
                         end_time=end_time_parsed,
                         room=room,
                     )
-                    created = generate_sessions_for_kelas(kelas)
                 log_activity(request.user, 'created', 'kelas', kelas.pk)
                 jenjang_label = ', '.join(
                     dict(Level.choices).get(lv, lv) for lv in levels_picked
                 )
-                paket_note = (
-                    ' Tipe: Paket Ganjil Genap, kapasitas dipaksa 2 (satu kursi ganjil, satu kursi genap).'
-                    if class_type == KelasType.GANJIL_GENAP else ''
-                )
+                type_note = {
+                    KelasType.PRIVAT: 'Tipe: Privat (kapasitas 1, paket per siswa).',
+                    KelasType.GROUP: f'Tipe: Grup (kapasitas {capacity_int}).',
+                    KelasType.GANJIL_GENAP: 'Tipe: Paket Ganjil Genap (2 kursi, window 2N minggu).',
+                }.get(class_type, '')
                 messages.success(
                     request,
                     f'Kelas "{kelas.name}" berhasil dibuat (jenjang: {jenjang_label}). '
-                    f'{created} pertemuan dijadwalkan otomatis (setiap '
-                    f'{kelas.schedules.first().get_day_display()}).' + paket_note
+                    f'Batch pertama dimulai otomatis saat siswa pertama mendaftar. '
+                    + type_note
                 )
                 return redirect('academics:teacher_classes')
             except Exception as e:
@@ -521,26 +525,27 @@ def teacher_class_edit(request, pk):
         if start_time_parsed and end_time_parsed and end_time_parsed <= start_time_parsed:
             errors.append('Jam selesai harus setelah jam mulai.')
 
-        try:
-            capacity_int = int(request.POST.get('capacity') or 0)
-            if capacity_int <= 0:
-                errors.append('Kapasitas harus lebih dari 0.')
-        except (TypeError, ValueError):
-            errors.append('Kapasitas tidak valid.')
-            capacity_int = 0
-
-        # GANJIL_GENAP forces capacity = 2 (server-side enforcement).
-        if class_type == KelasType.GANJIL_GENAP:
+        if class_type == KelasType.PRIVAT:
+            capacity_int = 1
+        elif class_type == KelasType.GANJIL_GENAP:
             capacity_int = 2
+        else:
+            try:
+                capacity_int = int(request.POST.get('capacity') or 0)
+                if capacity_int <= 0:
+                    errors.append('Kapasitas wajib diisi dan harus lebih dari 0 untuk kelas Grup.')
+            except (TypeError, ValueError):
+                errors.append('Kapasitas tidak valid.')
+                capacity_int = 0
 
         try:
             weeks_int = int(request.POST.get('weeks') or 0)
             if weeks_int <= 0:
-                errors.append('Jumlah minggu harus lebih dari 0.')
+                errors.append('Jumlah pertemuan per siswa harus lebih dari 0.')
             elif weeks_int > 52:
-                errors.append('Jumlah minggu maksimal 52.')
+                errors.append('Jumlah pertemuan maksimal 52.')
         except (TypeError, ValueError):
-            errors.append('Jumlah minggu tidak valid.')
+            errors.append('Jumlah pertemuan tidak valid.')
             weeks_int = 0
 
         # Slot conflict guard (skips self via exclude_kelas_id)
@@ -601,17 +606,17 @@ def teacher_class_edit(request, pk):
                         current_schedule.room = room
                         current_schedule.save()
 
-                    regenerate = slot_changed or weeks_changed or start_changed
-                    created = generate_sessions_for_kelas(kelas, regenerate=regenerate)
+                    # Batch model: do NOT regenerate sessions on edit. The
+                    # currently running batch (if any) keeps its existing
+                    # sessions; the new slot/weeks take effect on the NEXT
+                    # batch when a new student anchors it.
                 log_activity(request.user, 'updated', 'kelas', kelas.pk)
-                if regenerate:
-                    messages.success(
-                        request,
-                        f'Kelas "{kelas.name}" berhasil diperbarui. '
-                        f'{created} pertemuan baru dibuat (yang sudah ada absensi tetap dipertahankan).'
-                    )
-                else:
-                    messages.success(request, f'Kelas "{kelas.name}" berhasil diperbarui.')
+                messages.success(
+                    request,
+                    f'Kelas "{kelas.name}" berhasil diperbarui. '
+                    f'Perubahan slot atau jumlah pertemuan berlaku untuk '
+                    f'batch berikutnya; batch berjalan tidak diubah.'
+                )
                 return redirect('academics:teacher_classes')
             except Exception as e:
                 messages.error(request, f'Gagal memperbarui kelas: {e}')
@@ -924,7 +929,26 @@ def class_browse(request):
         'urgent':             ('Daftar Sekarang →', False),
     }
 
+    from sessions_app.services import (
+        batch_state as _batch_state,
+        estimated_completion_date as _est_completion,
+        next_slot_date as _next_slot,
+        sweep_finished_batches as _sweep,
+    )
     for kelas in page_obj:
+        # Batch-aware annotations (cheap; cached state per-kelas at template).
+        # Sweep first so a kelas whose window just ended reopens for display.
+        _sweep(kelas)
+        kelas.batch_state = _batch_state(kelas)
+        if not kelas.batch_state['is_anchored']:
+            kelas.next_slot_date = _next_slot(kelas)
+            if kelas.next_slot_date:
+                kelas.estimated_finish = _est_completion(kelas, kelas.next_slot_date)
+            else:
+                kelas.estimated_finish = None
+        else:
+            kelas.next_slot_date = None
+            kelas.estimated_finish = None
         # Capacity %
         kelas.capacity_pct = int(round((kelas.active_enrolled / kelas.capacity) * 100)) if kelas.capacity else 0
         kelas.slots_remaining = max(0, kelas.capacity - kelas.active_enrolled)
@@ -1120,6 +1144,30 @@ def class_detail(request, pk):
         .prefetch_related('schedules', 'sessions'),
         pk=pk, is_deleted=False,
     )
+
+    # Batch sweep: roll over to the next batch if the current one just ended.
+    from sessions_app.services import (
+        batch_state as _batch_state,
+        estimated_completion_date as _est_completion,
+        is_enrollment_open as _is_open,
+        next_slot_date as _next_slot,
+        sweep_finished_batches as _sweep,
+    )
+    _sweep(kelas)
+    kelas.refresh_from_db()
+    bstate = _batch_state(kelas)
+    batch_open, batch_reason = _is_open(kelas)
+    if bstate['is_anchored']:
+        batch_next_open_str = (
+            bstate['next_open_date'].strftime('%d %b %Y')
+            if bstate['next_open_date'] else 'segera'
+        )
+        next_start_date = None
+        est_finish = None
+    else:
+        batch_next_open_str = ''
+        next_start_date = _next_slot(kelas)
+        est_finish = _est_completion(kelas, next_start_date) if next_start_date else None
 
     # ── Capacity (live, 30s cache) ────────────────────────────────────────────
     capacity_cache_key = f'kelas_{kelas.id}_capacity'
@@ -1345,6 +1393,12 @@ def class_detail(request, pk):
         'level_mismatch': level_mismatch,
         'related_classes': related_classes,
         'seat_status': seat_status,
+        'batch_state': bstate,
+        'batch_open': batch_open,
+        'batch_reason': batch_reason,
+        'batch_next_open_str': batch_next_open_str,
+        'next_start_date': next_start_date,
+        'est_finish': est_finish,
     })
 
 

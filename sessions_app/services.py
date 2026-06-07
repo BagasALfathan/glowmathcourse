@@ -1,16 +1,26 @@
-"""Services for the weekly-slot class model.
+"""Batch-based class services.
 
-Domain rule (confirmed with client):
-    A class is one recurring weekly slot. It meets once per week on a single
-    day at a fixed time, for a number of weeks. Number of weeks equals number
-    of sessions.
+Domain model (client revision):
+    A Kelas is a permanent weekly slot owned by a teacher. Each enrollment
+    cohort runs through one batch window then auto-completes; the slot
+    immediately becomes OPEN for the next batch with no manual teacher
+    action.
 
-generate_sessions_for_kelas() turns a Kelas + its single weekly Schedule into
-the exact set of Session rows that slot implies. It is idempotent and refuses
-to delete or modify any Session that already has Attendance rows.
+    A class has a type that drives the batch geometry:
+      - PRIVAT       : capacity 1, batch window = N weeks (N == total_sessions)
+      - GROUP        : capacity chosen by teacher, batch window = N weeks
+      - GANJIL_GENAP : capacity 2, batch window = 2N weeks (the kursi ganjil
+                       student takes weeks 1, 3, 5, ...; kursi genap takes
+                       weeks 2, 4, 6, ...; each student gets exactly N
+                       sessions, 14 days apart; the genap seat may join
+                       while the week-2 session is still in the future).
 
-All user-facing strings stay in Bahasa Indonesia. Use plain hyphens only (no
-em-dash, en-dash, or arrow characters) per the project writing rule.
+    Batch boundary is derived (no new tables): the EARLIEST date among the
+    ACTIVE bookings of ACTIVE enrollments anchors the batch's first session;
+    the batch's last session date = anchor + 7 * (window_weeks - 1) days
+    where window_weeks = N for PRIVAT/GROUP and 2N for GANJIL_GENAP.
+
+All user-facing strings are Bahasa Indonesia, plain ASCII.
 """
 from __future__ import annotations
 
@@ -18,23 +28,28 @@ from datetime import date, timedelta
 from typing import TYPE_CHECKING
 
 from django.db import transaction
+from django.db.models import Max
 from django.utils import timezone
 
 from .models import (
     Attendance, Session, SessionBooking, SessionStatus, SessionType,
+    BookingKind, BookingStatus,
 )
 
 if TYPE_CHECKING:
     from academics.models import Kelas
 
 
-# Day.choices values are MONDAY..SATURDAY (Sunday omitted in the project Day
-# enum but date.weekday() returns 0..6 with 6=Sunday; mapping list below.)
 _WEEKDAY_TO_DAY = [
     'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY',
     'FRIDAY', 'SATURDAY', 'SUNDAY',
 ]
 _DAY_TO_WEEKDAY = {name: idx for idx, name in enumerate(_WEEKDAY_TO_DAY)}
+
+# Seat codes for Paket Ganjil Genap (module-level, do not collide with
+# KelasType or any session enum).
+SEAT_GANJIL = 'GANJIL'
+SEAT_GENAP = 'GENAP'
 
 
 def _first_date_on_or_after(start: date, target_weekday: int) -> date:
@@ -43,207 +58,346 @@ def _first_date_on_or_after(start: date, target_weekday: int) -> date:
     return start + timedelta(days=delta)
 
 
-@transaction.atomic
-def generate_sessions_for_kelas(kelas: 'Kelas', regenerate: bool = False) -> int:
-    """Generate weekly Session rows for `kelas` from its single Schedule.
+def _first_date_strictly_after(today: date, target_weekday: int) -> date:
+    """Return the first date > today whose weekday() matches target_weekday."""
+    delta = (target_weekday - today.weekday()) % 7
+    if delta == 0:
+        delta = 7
+    return today + timedelta(days=delta)
 
-    Behavior:
-        - Read the single weekly Schedule (day, start_time, end_time).
-        - Find the first date on or after kelas.start_date matching that day.
-        - Create one Session per week (every 7 days) until kelas.total_sessions
-          sessions exist for the kelas. session_number is 1, 2, 3, ...
-        - Each session uses the schedule's start_time/end_time,
-          session_type=REGULAR, status=COMPLETED if date < today else SCHEDULED.
-        - After generating, set kelas.end_date to the date of the last session
-          and save.
-        - Auto-book every ACTIVE enrollment of the kelas into the resulting
-          sessions, re-using sessions_app.views._auto_book_regular_sessions.
 
-    Idempotency:
-        - Never create a duplicate session_number for the kelas.
-        - Never delete or modify a Session that has Attendance rows.
+def _window_weeks(kelas: 'Kelas') -> int:
+    """How many weeks the batch window spans for this class type."""
+    from academics.models import KelasType
+    N = max(int(kelas.total_sessions or 0), 0)
+    if kelas.class_type == KelasType.GANJIL_GENAP:
+        return 2 * N
+    return N
 
-    regenerate=False (default):
-        - Add only missing session_numbers; existing rows are left untouched.
-        - end_date is still recomputed from the slot.
 
-    regenerate=True:
-        - Delete only future SCHEDULED sessions with NO attendance (and their
-          dependent SessionBookings via FK CASCADE).
-        - Past sessions, sessions with any Attendance, and cancelled sessions
-          are preserved.
-        - Then top up missing session_numbers as in the default path.
+# ── Batch state introspection ────────────────────────────────────────────
 
-    Returns:
-        The number of Session rows newly created in this call.
+def batch_state(kelas: 'Kelas') -> dict:
+    """Describe the current batch on this kelas (or report none is running).
+
+    Returns a dict with:
+      is_anchored        : bool  - some ACTIVE enrollment owns BOOKED bookings
+      is_running         : bool  - today >= first_session_date
+      first_session_date : date or None
+      last_session_date  : date or None  (= anchor + 7 * (window_weeks - 1))
+      next_open_date     : date or None  (= last_session_date + 1 day)
+      enrolled_count     : int   - distinct ACTIVE enrollments in batch
+      capacity           : int   - kelas.capacity (1 for PRIVAT, 2 for GG)
+
+    Derivation: the batch's first session is the EARLIEST date among ACTIVE
+    bookings of ACTIVE enrollments of the kelas. Last = anchor + window
+    width. The kelas is OPEN for new enrollment when no batch is anchored.
     """
-    from enrollments.models import Enrollment, EnrollmentStatus
-    from sessions_app.views import _auto_book_regular_sessions
+    from enrollments.models import EnrollmentStatus
 
-    schedule = kelas.schedules.order_by('id').first()
-    if schedule is None:
-        return 0
+    bookings = (
+        SessionBooking.objects
+        .filter(
+            enrollment__kelas=kelas,
+            enrollment__status=EnrollmentStatus.ACTIVE,
+            enrollment__is_deleted=False,
+            status=BookingStatus.BOOKED,
+            is_deleted=False,
+        )
+        .select_related('session')
+    )
 
-    target_weekday = _DAY_TO_WEEKDAY.get(schedule.day)
-    if target_weekday is None:
-        return 0
+    enrolled_count = (
+        bookings.values('enrollment_id').distinct().count()
+    )
 
-    total = int(kelas.total_sessions or 0)
-    if total <= 0:
-        return 0
-
-    today = timezone.localdate()
-
-    # Step 1: regenerate, if requested, drops only safe (future SCHEDULED, no
-    # attendance) sessions. Attended or completed sessions are preserved.
-    if regenerate:
-        wipeable_ids = list(
+    if not bookings.exists():
+        # Anchor may exist via SCHEDULED future sessions even before the first
+        # booking lands (anchor_new_batch creates sessions, then the first
+        # book_enrollment_into_current_batch call would otherwise see no
+        # batch). Find the EARLIEST future SCHEDULED session and treat that
+        # as the batch first_date.
+        fallback = (
             Session.objects
             .filter(
                 kelas=kelas,
                 status=SessionStatus.SCHEDULED,
-                date__gte=today,
+                session_type=SessionType.REGULAR,
+                date__gte=timezone.localdate(),
             )
-            .exclude(attendances__isnull=False)
-            .values_list('id', flat=True)
+            .order_by('date')
+            .first()
         )
-        if wipeable_ids:
-            Session.objects.filter(pk__in=wipeable_ids).delete()
+        if fallback is None:
+            return {
+                'is_anchored': False,
+                'is_running': False,
+                'first_session_date': None,
+                'last_session_date': None,
+                'next_open_date': None,
+                'enrolled_count': 0,
+                'capacity': kelas.capacity,
+            }
+        first_date = fallback.date
+        window_w = _window_weeks(kelas)
+        last_date = first_date + timedelta(days=7 * max(window_w - 1, 0))
+        return {
+            'is_anchored': True,
+            'is_running': timezone.localdate() >= first_date,
+            'first_session_date': first_date,
+            'last_session_date': last_date,
+            'next_open_date': last_date + timedelta(days=1),
+            'enrolled_count': 0,
+            'capacity': kelas.capacity,
+        }
 
-    # Step 2: compute the slot's expected dates (per week).
-    first_date = _first_date_on_or_after(kelas.start_date, target_weekday)
-    expected_dates = [first_date + timedelta(days=7 * i) for i in range(total)]
-
-    # Step 3: build the missing-only insert set, honoring existing
-    # session_numbers (never duplicate, never modify, never delete attended).
-    existing_by_number = {
-        s.session_number: s
-        for s in Session.objects.filter(kelas=kelas).only(
-            'id', 'session_number', 'date'
-        )
+    first_date = min(b.session.date for b in bookings)
+    window_w = _window_weeks(kelas)
+    if window_w <= 0:
+        return {
+            'is_anchored': True,
+            'is_running': True,
+            'first_session_date': first_date,
+            'last_session_date': first_date,
+            'next_open_date': first_date + timedelta(days=1),
+            'enrolled_count': enrolled_count,
+            'capacity': kelas.capacity,
+        }
+    last_date = first_date + timedelta(days=7 * (window_w - 1))
+    today = timezone.localdate()
+    return {
+        'is_anchored': True,
+        'is_running': today >= first_date,
+        'first_session_date': first_date,
+        'last_session_date': last_date,
+        'next_open_date': last_date + timedelta(days=1),
+        'enrolled_count': enrolled_count,
+        'capacity': kelas.capacity,
     }
 
-    created_count = 0
-    last_session_date = None
-    for idx, slot_date in enumerate(expected_dates):
-        sess_num = idx + 1
-        existing = existing_by_number.get(sess_num)
-        if existing is not None:
-            # Preserve existing row. Use its date for the end_date calc so we
-            # honor any holiday-exception reschedules already made.
-            last_session_date = existing.date
-            continue
-        Session.objects.create(
+
+def next_slot_date(kelas: 'Kelas', after: date | None = None) -> date | None:
+    """Next slot occurrence strictly after `after` (default: today).
+
+    Returns None if the kelas has no Schedule.
+    """
+    schedule = kelas.schedules.order_by('id').first()
+    if schedule is None:
+        return None
+    target_weekday = _DAY_TO_WEEKDAY.get(schedule.day)
+    if target_weekday is None:
+        return None
+    base = after if after is not None else timezone.localdate()
+    return _first_date_strictly_after(base, target_weekday)
+
+
+def estimated_completion_date(kelas: 'Kelas', first_date: date) -> date:
+    """Date of the last session in a window that begins at `first_date`."""
+    weeks = _window_weeks(kelas)
+    if weeks <= 0:
+        return first_date
+    return first_date + timedelta(days=7 * (weeks - 1))
+
+
+# ── Enrollment-driven batch operations ────────────────────────────────────
+
+def is_enrollment_open(kelas: 'Kelas', for_student_profile=None) -> tuple[bool, str]:
+    """May a new student enroll into this kelas right now?
+
+    Returns (ok, reason_id). reason_id is one of:
+      ''                  - ok
+      'CLOSED'            - kelas.status == CLOSED (teacher retired the slot)
+      'BATCH_RUNNING'     - batch first session has happened, no joining
+      'FULL'              - capacity reached for current batch
+      'GG_GENAP_PAST'     - GG batch's week-2 session has already happened
+    """
+    from academics.models import KelasStatus, KelasType
+    if kelas.status == KelasStatus.CLOSED:
+        return False, 'CLOSED'
+    state = batch_state(kelas)
+    if not state['is_anchored']:
+        return True, ''
+    today = timezone.localdate()
+    cap = kelas.capacity
+    if kelas.class_type == KelasType.GANJIL_GENAP:
+        # Both seats taken?
+        if state['enrolled_count'] >= cap:
+            return False, 'FULL'
+        # Genap seat free. Week-2 session date = first_date + 7 days.
+        week2 = state['first_session_date'] + timedelta(days=7)
+        if today >= week2:
+            return False, 'GG_GENAP_PAST'
+        return True, ''
+    # PRIVAT / GROUP
+    if state['enrolled_count'] >= cap:
+        return False, 'FULL'
+    if state['is_running']:
+        return False, 'BATCH_RUNNING'
+    return True, ''
+
+
+@transaction.atomic
+def anchor_new_batch(kelas: 'Kelas') -> dict:
+    """Create the Session rows for a fresh batch on this kelas.
+
+    First session date = next slot occurrence strictly after today.
+    For PRIVAT/GROUP: generates N sessions, 7 days apart.
+    For GANJIL_GENAP: generates 2N sessions (the full window).
+
+    session_number continues from kelas's current max session_number so the
+    unique (kelas, session_number) constraint is preserved across batches.
+
+    Updates kelas.end_date to the new batch's last session date so existing
+    callers that read it still see something reasonable.
+
+    Returns: dict with first_session_date, last_session_date, sessions_created.
+    """
+    schedule = kelas.schedules.order_by('id').first()
+    if schedule is None:
+        return {
+            'first_session_date': None, 'last_session_date': None,
+            'sessions_created': 0,
+        }
+    target_weekday = _DAY_TO_WEEKDAY.get(schedule.day)
+    if target_weekday is None:
+        return {
+            'first_session_date': None, 'last_session_date': None,
+            'sessions_created': 0,
+        }
+    today = timezone.localdate()
+    first_date = _first_date_strictly_after(today, target_weekday)
+
+    weeks = _window_weeks(kelas)
+    if weeks <= 0:
+        return {
+            'first_session_date': first_date, 'last_session_date': first_date,
+            'sessions_created': 0,
+        }
+
+    max_num = (
+        Session.objects.filter(kelas=kelas)
+        .aggregate(m=Max('session_number'))['m']
+        or 0
+    )
+
+    new_rows = []
+    for i in range(weeks):
+        new_rows.append(Session(
             kelas=kelas,
-            session_number=sess_num,
-            date=slot_date,
+            session_number=max_num + i + 1,
+            date=first_date + timedelta(days=7 * i),
             start_time=schedule.start_time,
             end_time=schedule.end_time,
             topic='',
             capacity=kelas.capacity,
             session_type=SessionType.REGULAR,
-            status=(
-                SessionStatus.COMPLETED if slot_date < today
-                else SessionStatus.SCHEDULED
-            ),
-        )
-        last_session_date = slot_date
-        created_count += 1
+            status=SessionStatus.SCHEDULED,
+        ))
+    Session.objects.bulk_create(new_rows, ignore_conflicts=True)
 
-    # Step 4: sync end_date to the last expected slot date so the class
-    # boundary stays consistent with the slot. Use the canonical "last expected
-    # date" rather than max(existing) so a partially-attended class that loses
-    # future rows still extends correctly.
-    canonical_end = expected_dates[-1]
-    if kelas.end_date != canonical_end:
-        kelas.end_date = canonical_end
+    last_date = first_date + timedelta(days=7 * (weeks - 1))
+    if kelas.end_date != last_date:
+        kelas.end_date = last_date
         kelas.save(update_fields=['end_date', 'updated_at'])
 
-    # Step 5: every ACTIVE enrollment must be re-booked so newly created
-    # sessions get AUTO SessionBookings. For GANJIL_GENAP classes, route to
-    # the parity-aware helper so each student only gets bookings on their
-    # assigned parity. Idempotent via unique (enrollment, session).
+    return {
+        'first_session_date': first_date,
+        'last_session_date': last_date,
+        'sessions_created': len(new_rows),
+    }
+
+
+def book_enrollment_into_current_batch(enrollment, seat: str | None = None):
+    """Create AUTO bookings for `enrollment` over the current batch sessions.
+
+    Returns (seat_code, new_booking_count). seat_code is None for
+    PRIVAT/GROUP and SEAT_GANJIL/SEAT_GENAP for GANJIL_GENAP.
+
+    Pre-condition: the batch has been anchored (anchor_new_batch ran). If no
+    batch is anchored, returns (None, 0) so the caller can decide to anchor.
+    """
     from academics.models import KelasType
-    is_paket = kelas.class_type == KelasType.GANJIL_GENAP
-    active_enrollments = list(
-        Enrollment.objects.filter(
-            kelas=kelas, status=EnrollmentStatus.ACTIVE, is_deleted=False,
-        ).order_by('enrolled_at', 'id')
+    kelas = enrollment.kelas
+    state = batch_state(kelas)
+    if not state['is_anchored']:
+        return None, 0
+    first_date = state['first_session_date']
+    last_date = state['last_session_date']
+
+    batch_sessions = list(
+        Session.objects.filter(
+            kelas=kelas,
+            date__gte=first_date,
+            date__lte=last_date,
+            session_type=SessionType.REGULAR,
+        ).order_by('date')
     )
-    if is_paket:
-        for enr in active_enrollments:
-            auto_book_parity_sessions(enr)
-    else:
-        for enr in active_enrollments:
-            _auto_book_regular_sessions(enr)
+    if not batch_sessions:
+        return seat, 0
 
-    return created_count
-
-
-# ── Ganjil-Genap (parity) helpers ──────────────────────────────────────────
-
-# Module-level seat codes (do not collide with KelasType / sessions enums).
-SEAT_GANJIL = 'GANJIL'
-SEAT_GENAP = 'GENAP'
-
-
-def kelas_seat_status(kelas):
-    """Return seat occupancy for a GANJIL_GENAP class.
-
-    Reads ACTIVE bookings on REGULAR sessions, groups by enrollment, and
-    inspects the parity of the booked session_numbers. A seat is taken if any
-    ACTIVE enrollment owns at least one booking on a session of that parity.
-
-    Returns: dict {'GANJIL': enrollment_or_None, 'GENAP': enrollment_or_None}
-    """
-    from sessions_app.models import BookingStatus, SessionBooking, SessionType
-    bookings = (
-        SessionBooking.objects
-        .filter(
-            enrollment__kelas=kelas,
-            enrollment__status='ACTIVE',
-            enrollment__is_deleted=False,
-            status=BookingStatus.BOOKED,
-            is_deleted=False,
-            session__session_type=SessionType.REGULAR,
+    if kelas.class_type == KelasType.GANJIL_GENAP:
+        if seat is None:
+            seat = _assign_parity_for_batch(enrollment, batch_sessions, first_date)
+        if seat not in (SEAT_GANJIL, SEAT_GENAP):
+            return None, 0
+        matching = [
+            s for s in batch_sessions
+            if _parity_for_session(s, first_date) == seat
+        ]
+        pre = SessionBooking.objects.filter(enrollment=enrollment).count()
+        SessionBooking.objects.bulk_create(
+            [
+                SessionBooking(
+                    enrollment=enrollment, session=s,
+                    status=BookingStatus.BOOKED, kind=BookingKind.AUTO,
+                )
+                for s in matching
+            ],
+            ignore_conflicts=True,
         )
-        .select_related('enrollment', 'session')
+        post = SessionBooking.objects.filter(enrollment=enrollment).count()
+        return seat, max(0, post - pre)
+
+    # PRIVAT / GROUP: book ALL batch sessions
+    pre = SessionBooking.objects.filter(enrollment=enrollment).count()
+    SessionBooking.objects.bulk_create(
+        [
+            SessionBooking(
+                enrollment=enrollment, session=s,
+                status=BookingStatus.BOOKED, kind=BookingKind.AUTO,
+            )
+            for s in batch_sessions
+        ],
+        ignore_conflicts=True,
     )
-    ganjil_owner = None
-    genap_owner = None
-    for b in bookings:
-        parity = SEAT_GANJIL if (b.session.session_number % 2 == 1) else SEAT_GENAP
-        if parity == SEAT_GANJIL and ganjil_owner is None:
-            ganjil_owner = b.enrollment
-        elif parity == SEAT_GENAP and genap_owner is None:
-            genap_owner = b.enrollment
-    return {SEAT_GANJIL: ganjil_owner, SEAT_GENAP: genap_owner}
+    post = SessionBooking.objects.filter(enrollment=enrollment).count()
+    return None, max(0, post - pre)
 
 
-def assign_parity_for_enrollment(enrollment):
-    """Pick GANJIL if free, else GENAP if free, else None (capacity reached).
+def _parity_for_session(session, first_date: date) -> str:
+    """Return SEAT_GANJIL if the session falls on weeks 1, 3, 5, ...; else
+    SEAT_GENAP."""
+    offset_days = (session.date - first_date).days
+    week_index = offset_days // 7  # 0 = week 1, 1 = week 2, ...
+    return SEAT_GANJIL if (week_index % 2 == 0) else SEAT_GENAP
 
-    The current enrollment's existing bookings are ignored when checking who
-    occupies which seat, so a re-enroll / re-call is idempotent.
-    """
-    from sessions_app.models import BookingStatus, SessionBooking, SessionType
-    bookings = (
-        SessionBooking.objects
-        .filter(
-            enrollment__kelas=enrollment.kelas,
-            enrollment__status='ACTIVE',
-            enrollment__is_deleted=False,
-            status=BookingStatus.BOOKED,
-            is_deleted=False,
-            session__session_type=SessionType.REGULAR,
-        )
-        .exclude(enrollment_id=enrollment.id)
-        .select_related('enrollment', 'session')
-    )
+
+def _assign_parity_for_batch(enrollment, batch_sessions, first_date):
+    """Pick GANJIL if free in this batch, else GENAP if free, else None."""
+    other_bookings = SessionBooking.objects.filter(
+        enrollment__kelas=enrollment.kelas,
+        enrollment__status='ACTIVE',
+        enrollment__is_deleted=False,
+        status=BookingStatus.BOOKED,
+        is_deleted=False,
+        session__in=batch_sessions,
+    ).exclude(enrollment_id=enrollment.id).select_related('session')
+
     ganjil_taken = False
     genap_taken = False
-    for b in bookings:
-        if b.session.session_number % 2 == 1:
+    for b in other_bookings:
+        p = _parity_for_session(b.session, first_date)
+        if p == SEAT_GANJIL:
             ganjil_taken = True
         else:
             genap_taken = True
@@ -256,50 +410,99 @@ def assign_parity_for_enrollment(enrollment):
     return None
 
 
-def auto_book_parity_sessions(enrollment, seat=None):
-    """For a GANJIL_GENAP enrollment, create AUTO bookings only on the
-    sessions whose session_number matches the assigned parity.
+# ── Sweep finished batches ────────────────────────────────────────────────
 
-    If `seat` is None, assigns the first free parity (ganjil before genap).
-    Returns: (seat_code, new_booking_count). If no free seat, returns
-    (None, 0) without creating any rows.
+@transaction.atomic
+def sweep_finished_batches(kelas: 'Kelas') -> int:
+    """When the current batch's window has ended, auto-complete every ACTIVE
+    enrollment of the kelas.
+
+    Returns the number of enrollments flipped to COMPLETED.
+
+    Called inline from class_browse, class_detail, enroll, teacher class
+    pages (cheap, idempotent). Also called by the
+    `python manage.py close_finished_batches` cron command.
     """
-    from sessions_app.models import (
-        BookingKind, BookingStatus, Session, SessionBooking, SessionStatus,
-        SessionType,
-    )
-    if seat is None:
-        seat = assign_parity_for_enrollment(enrollment)
-    if seat not in (SEAT_GANJIL, SEAT_GENAP):
-        return None, 0
+    from enrollments.models import Enrollment, EnrollmentStatus
 
-    target_parity = 1 if seat == SEAT_GANJIL else 0
-    regular_sessions = list(
-        Session.objects
-        .filter(
-            kelas=enrollment.kelas,
+    state = batch_state(kelas)
+    if not state['is_anchored']:
+        return 0
+    if state['last_session_date'] is None:
+        return 0
+    if timezone.localdate() <= state['last_session_date']:
+        return 0
+    flipped = Enrollment.objects.filter(
+        kelas=kelas,
+        status=EnrollmentStatus.ACTIVE,
+        is_deleted=False,
+    ).update(status=EnrollmentStatus.COMPLETED)
+    return flipped
+
+
+# ── Seat status (Paket Ganjil Genap UI) ───────────────────────────────────
+
+def kelas_seat_status(kelas: 'Kelas') -> dict:
+    """Return seat occupancy for a GANJIL_GENAP class.
+
+    Reads ACTIVE bookings on the CURRENT batch's sessions and groups by
+    enrollment.
+
+    Returns dict {'GANJIL': enrollment_or_None, 'GENAP': enrollment_or_None}.
+    """
+    state = batch_state(kelas)
+    if not state['is_anchored']:
+        return {SEAT_GANJIL: None, SEAT_GENAP: None}
+    first_date = state['first_session_date']
+    last_date = state['last_session_date']
+    batch_sessions = list(
+        Session.objects.filter(
+            kelas=kelas,
+            date__gte=first_date,
+            date__lte=last_date,
             session_type=SessionType.REGULAR,
-            status__in=[SessionStatus.SCHEDULED, SessionStatus.COMPLETED],
         )
-        .only('id', 'session_number')
     )
-    matching = [s for s in regular_sessions if (s.session_number % 2) == target_parity]
-    if not matching:
-        return seat, 0
-    pre = SessionBooking.objects.filter(enrollment=enrollment).count()
-    rows = [
-        SessionBooking(
-            enrollment=enrollment, session=s,
-            status=BookingStatus.BOOKED, kind=BookingKind.AUTO,
+    bookings = (
+        SessionBooking.objects
+        .filter(
+            enrollment__kelas=kelas,
+            enrollment__status='ACTIVE',
+            enrollment__is_deleted=False,
+            status=BookingStatus.BOOKED,
+            is_deleted=False,
+            session__in=batch_sessions,
         )
-        for s in matching
-    ]
-    SessionBooking.objects.bulk_create(rows, ignore_conflicts=True)
-    post = SessionBooking.objects.filter(enrollment=enrollment).count()
-    return seat, max(0, post - pre)
+        .select_related('enrollment', 'session')
+    )
+    ganjil_owner = None
+    genap_owner = None
+    for b in bookings:
+        p = _parity_for_session(b.session, first_date)
+        if p == SEAT_GANJIL and ganjil_owner is None:
+            ganjil_owner = b.enrollment
+        elif p == SEAT_GENAP and genap_owner is None:
+            genap_owner = b.enrollment
+        if ganjil_owner and genap_owner:
+            break
+    return {SEAT_GANJIL: ganjil_owner, SEAT_GENAP: genap_owner}
 
 
-# ── Slot conflict (teacher level) ──────────────────────────────────────────
+# ── Makeup constraint ─────────────────────────────────────────────────────
+
+def is_makeup_date_inside_window(kelas: 'Kelas', makeup_date: date) -> bool:
+    """A makeup session must land on or before the current batch's window
+    end. Returns True if `makeup_date <= last_session_date` of the running
+    batch. If no batch is anchored, returns False (no batch, nothing to
+    make up against).
+    """
+    state = batch_state(kelas)
+    if not state['is_anchored'] or state['last_session_date'] is None:
+        return False
+    return makeup_date <= state['last_session_date']
+
+
+# ── Teacher slot conflict (unchanged from prior model) ────────────────────
 
 def teacher_weekly_slot_conflict(
     teacher_profile,
@@ -311,11 +514,10 @@ def teacher_weekly_slot_conflict(
     """Return the first non-deleted Kelas this teacher owns whose weekly
     Schedule overlaps the given (day, start_time, end_time) window, or None.
 
-    Overlap uses strict less-than comparisons, so back-to-back slots (one
-    ending exactly when the next begins) do not count as conflicts.
-
-    Args:
-        exclude_kelas_id: pass the current kelas pk on edit to skip self.
+    Overlap uses strict less-than comparisons - back-to-back slots (one
+    ending exactly when the next begins) are NOT a conflict. The rule is
+    per-teacher; multi-jenjang in one slot is the supported way to teach
+    several jenjang simultaneously.
     """
     from academics.models import Kelas
 
@@ -331,7 +533,6 @@ def teacher_weekly_slot_conflict(
     )
     if exclude_kelas_id:
         qs = qs.exclude(pk=exclude_kelas_id)
-
     for kelas in qs:
         for sched in kelas.schedules.all():
             if sched.day != day:
@@ -339,3 +540,48 @@ def teacher_weekly_slot_conflict(
             if start_time < sched.end_time and sched.start_time < end_time:
                 return kelas
     return None
+
+
+# ── Backward-compat shims ─────────────────────────────────────────────────
+#
+# Older callers (teacher_class_edit, teacher_regenerate_sessions, the demo
+# seeders) called `generate_sessions_for_kelas`. With the batch model
+# sessions are created on first enrollment by `anchor_new_batch`; there is
+# nothing to pre-generate at class-create time. These shims let the existing
+# call sites keep compiling and behave sensibly:
+#
+#   - If no batch is anchored: return 0 without creating sessions. The first
+#     enrollment will anchor.
+#   - If a batch IS anchored: refuse to touch anything (the sessions are
+#     already in place). Returns 0.
+
+def generate_sessions_for_kelas(kelas: 'Kelas', regenerate: bool = False) -> int:
+    """Compat shim. In the batch model the first enrollee anchors a batch
+    and creates its Session rows; this function intentionally creates
+    nothing on its own. Kept so call sites compile without rewrite.
+    """
+    return 0
+
+
+# Legacy parity helper alias used by enrollments.views and student_pick_session
+# until those call sites switch fully to book_enrollment_into_current_batch.
+def auto_book_parity_sessions(enrollment, seat: str | None = None):
+    """Compat shim: route to the new batch helper."""
+    return book_enrollment_into_current_batch(enrollment, seat=seat)
+
+
+def assign_parity_for_enrollment(enrollment):
+    """Compat shim: pick a free seat for the current batch."""
+    state = batch_state(enrollment.kelas)
+    if not state['is_anchored']:
+        return SEAT_GANJIL  # new batch will give first enrollee ganjil
+    first_date = state['first_session_date']
+    last_date = state['last_session_date']
+    batch_sessions = list(
+        Session.objects.filter(
+            kelas=enrollment.kelas,
+            date__gte=first_date, date__lte=last_date,
+            session_type=SessionType.REGULAR,
+        )
+    )
+    return _assign_parity_for_batch(enrollment, batch_sessions, first_date)

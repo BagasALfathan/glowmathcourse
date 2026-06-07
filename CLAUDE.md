@@ -174,30 +174,66 @@ class Quarter(models.TextChoices):
    `kelas.level` field is NOT correct; a class can accept multiple jenjang
    via the KelasJenjang relation, and `kelas.level` is only the primary one
    (the first selected, kept for backward compatibility).
-2. **Capacity check:** active enrollment count < kelas.capacity before enrolling.
-   For `class_type == GANJIL_GENAP`, capacity is forced to 2 in create/edit
-   forms; the third enrollment is rejected by the same `_try_enroll` lock.
-3. **Paket Ganjil Genap parity:** when `kelas.class_type == GANJIL_GENAP`, the
-   first enrollee gets the GANJIL seat (AUTO bookings on odd `session_number`
-   only); the second gets the GENAP seat (even only). Implemented in
-   `sessions_app/services.auto_book_parity_sessions`; enroll view and
-   `student_pick_session` route GANJIL_GENAP classes through it instead of
-   `_auto_book_regular_sessions`. Dropping a student frees their parity for
-   the next enrollee.
-4. **Rating guard:** enrollment.status must be COMPLETED before student can rate
-5. **Grade ownership:** only kelas.teacher can input grades for that kelas
-6. **Teacher weekly slot exclusivity:** the same teacher cannot have two
-   non-deleted classes whose weekly slots overlap on the same day. Enforced by
-   `sessions_app.services.teacher_weekly_slot_conflict()` in both
+2. **Class types (client revision):** `Kelas.class_type` is one of three
+   values:
+   - `PRIVAT` (label "Privat") - capacity forced to 1.
+   - `GROUP` (label "Grup") - teacher sets capacity on the create form.
+   - `GANJIL_GENAP` (label "Paket Ganjil Genap") - capacity forced to 2.
+   The legacy `REGULAR` value was migrated by `0009_backfill_class_type_privat_group`
+   (capacity 1 -> PRIVAT, capacity > 1 -> GROUP).
+3. **Batch lifecycle (no new tables; derive from enrollments and bookings):**
+   - A kelas with no running batch is OPEN. The FIRST enrollee anchors a
+     batch via `sessions_app.services.anchor_new_batch(kelas)`; the first
+     session is the next slot occurrence strictly AFTER today. The function
+     generates N weekly sessions for PRIVAT/GROUP, 2N for GANJIL_GENAP.
+     `session_number` continues across batches (unique (kelas, session_number)).
+   - GROUP: more students may join the SAME batch while seats are free AND
+     the batch's first session has not yet happened. Once it has, joiners
+     are blocked with "Batch berjalan - buka lagi [date]". No mid-batch
+     joins. Capacity full also blocks.
+   - GANJIL_GENAP: window is 2N weeks. First enrollee gets `SEAT_GANJIL`
+     (weeks 1, 3, 5, ...); second gets `SEAT_GENAP` (weeks 2, 4, 6, ...).
+     Each seat owns N sessions, 14 days apart. The genap seat may still
+     join until the window's week-2 session has happened. B's last session
+     is exactly one week after A's.
+   - Auto-end: when today > batch's last session date,
+     `sweep_finished_batches(kelas)` flips every ACTIVE enrollment in the
+     batch to COMPLETED and the kelas immediately reopens for the next
+     batch. Sweep is called inline from class_browse, class_detail, enroll,
+     `student_pick_session`, AND by the
+     `python manage.py close_finished_batches` cron command.
+4. **Paket Ganjil Genap parity (batch-aware):** `book_enrollment_into_current_batch`
+   in `sessions_app/services` routes GANJIL_GENAP through the parity helper
+   and free-seat selection so each student only books their assigned
+   parity's sessions inside the current batch window. Dropping a student
+   does NOT free their parity mid-batch; the seat reopens at the next batch.
+5. **Makeup constraint:** manually adding a (typically MAKEUP) session on a
+   running-batch kelas requires the date to be inside the current batch
+   window (on or before the last session date). Enforced by
+   `is_makeup_date_inside_window(kelas, date)` from
+   `teacher_session_create` and `teacher_session_edit`.
+6. **Removed:** the old "kelas sudah dimulai" permanent block (now covered
+   by the batch-running block above) and the end_date-based auto-CLOSED
+   in `update_expired_classes`. `KelasStatus.CLOSED` is now a MANUAL teacher
+   action meaning the slot is retired - it never flips automatically.
+7. **Rating guard:** enrollment.status must be COMPLETED before student can
+   rate. The auto-COMPLETED flag from `sweep_finished_batches` satisfies
+   this so rating works as soon as the window ends.
+8. **Grade ownership:** only kelas.teacher can input grades for that kelas.
+9. **Teacher weekly slot exclusivity:** the same teacher cannot have two
+   non-deleted classes whose weekly slots overlap on the same day. Enforced
+   by `sessions_app.services.teacher_weekly_slot_conflict()` in both
    `teacher_class_create` and `teacher_class_edit`. Back-to-back times (one
    slot ending exactly when the next begins) are NOT considered overlap.
    Multi-jenjang in one slot is the supported way to teach several jenjang
    simultaneously.
-7. **Room conflict:** same room cannot be double-booked on same day/time
-8. **Session limit:** session_number cannot exceed kelas.total_sessions
-9. **Duplicate enrollment:** prevented by unique_together (student_id, kelas_id)
-10. **Duplicate attendance:** prevented by unique_together (enrollment_id, session_id)
-11. **One rating per enrollment:** enforced by unique constraint on enrollment_id
+10. **Room conflict:** same room cannot be double-booked on same day/time.
+11. **Session limit:** session_number is unique per kelas across batches;
+    each batch generates exactly `total_sessions` for PRIVAT/GROUP (or 2x
+    for GANJIL_GENAP window).
+12. **Duplicate enrollment:** prevented by unique_together (student_id, kelas_id).
+13. **Duplicate attendance:** prevented by unique_together (enrollment_id, session_id).
+14. **One rating per enrollment:** enforced by unique constraint on enrollment_id.
 
 ---
 
