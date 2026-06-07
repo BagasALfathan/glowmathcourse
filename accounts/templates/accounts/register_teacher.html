@@ -50,19 +50,26 @@
         <span>Akun guru akan diverifikasi admin terlebih dahulu. Estimasi 1×24 jam.</span>
       </div>
 
-      <div x-data="teacherWizard()" x-cloak>
-
-        {% if messages %}
-          <div class="space-y-2 mb-4">
-            {% for m in messages %}
-            <div class="text-xs rounded-lg px-3 py-2 border
-                  {% if m.tags == 'error' %}bg-red-50 border-red-200 text-red-700
-                  {% else %}bg-primary-50 border-primary-200 text-primary-800{% endif %}">
-              {{ m }}
-            </div>
-            {% endfor %}
+      {% comment %}
+        Messages MUST live OUTSIDE the x-cloak Alpine container, see note in
+        register_student.html. Server-side errors from _parse_register_payload
+        must be visible the moment the page reloads.
+      {% endcomment %}
+      {% if messages %}
+        <div class="space-y-2 mb-4">
+          {% for m in messages %}
+          <div class="text-sm font-semibold rounded-lg px-3 py-2.5 border flex items-start gap-2
+                {% if m.tags == 'error' %}bg-red-50 border-red-300 text-red-700
+                {% elif 'warning' in m.tags %}bg-yellow-50 border-yellow-300 text-yellow-800
+                {% else %}bg-primary-50 border-primary-200 text-primary-800{% endif %}">
+            <i class="ti ti-alert-circle text-base shrink-0 mt-0.5"></i>
+            <span>{{ m }}</span>
           </div>
-        {% endif %}
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div x-data="teacherWizard()" x-cloak>
 
         <!-- Progress -->
         <div class="bg-white rounded-xl p-4 mb-5 flex items-center gap-4"
@@ -116,17 +123,21 @@
                 <div>
                   <label class="block text-xs font-semibold text-gray-700 mb-1">Kata Sandi</label>
                   <input type="password" name="password" x-model="form1.password" autocomplete="new-password"
+                         @input="checkPasswordMatch()" @blur="checkPasswordMatch()"
+                         :class="{ 'input-error': err1.password }"
                          class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100">
                 </div>
                 <div>
                   <label class="block text-xs font-semibold text-gray-700 mb-1">Konfirmasi</label>
                   <input type="password" name="password2" x-model="form1.password2" autocomplete="new-password"
+                         @input="checkPasswordMatch()" @blur="checkPasswordMatch()"
+                         :class="{ 'input-error': err1.password }"
                          class="w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-100">
+                  <p class="error-message" x-show="err1.password">
+                    <i class="ti ti-alert-circle"></i> <span x-text="err1.password"></span>
+                  </p>
                 </div>
               </div>
-              <p class="error-message" x-show="err1.password">
-                <i class="ti ti-alert-circle"></i> <span x-text="err1.password"></span>
-              </p>
             </div>
           </div>
 
@@ -305,6 +316,20 @@
           else if (this.form1.password !== this.form1.password2) e = 'Konfirmasi kata sandi tidak cocok.';
           this.err1.password = e;
           return !this.err1.email && !this.err1.password;
+        },
+        // Live mismatch check used on @input/@blur of the password fields.
+        checkPasswordMatch() {
+          if (!this.form1.password || !this.form1.password2) {
+            if (this.err1.password === 'Konfirmasi kata sandi tidak cocok.') {
+              this.err1.password = '';
+            }
+            return;
+          }
+          if (this.form1.password !== this.form1.password2) {
+            this.err1.password = 'Konfirmasi kata sandi tidak cocok.';
+          } else if (this.err1.password === 'Konfirmasi kata sandi tidak cocok.') {
+            this.err1.password = '';
+          }
         },
         validateStep2() {
           if (!this.form2.full_name || this.form2.full_name.length < 2) { alert('Nama lengkap wajib diisi.'); return false; }

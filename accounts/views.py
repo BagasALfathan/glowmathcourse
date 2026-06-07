@@ -234,7 +234,13 @@ def _parse_register_payload(post, is_teacher):
     # Step 1: account (email-as-credential; username auto-derived in the view)
     if '@' not in email or '.' not in email.split('@')[-1]:
         errors.append('Email tidak valid.')
-    if User.objects.filter(email__iexact=email, is_deleted=False).exists():
+    # Only block APPROVED-account duplicates here so the view can route
+    # PENDING duplicates back to /waiting/ and REJECTED ones to their own
+    # error path. The view itself runs that check after this validator.
+    if User.objects.filter(
+        email__iexact=email, is_deleted=False,
+        approval_status=ApprovalStatus.APPROVED,
+    ).exists():
         errors.append('Email sudah terdaftar.')
     if password != password2:
         errors.append('Konfirmasi kata sandi tidak cocok.')
