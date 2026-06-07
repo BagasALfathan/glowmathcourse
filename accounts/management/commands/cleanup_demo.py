@@ -19,6 +19,12 @@ What it does:
       session_number) and migrate bookings/attendance from the losers onto
       the survivor where the unique constraint allows. Cancelled losers and
       their bookings are then deleted.
+  (g) Dedupe Kelas rows by (teacher_profile_id, name): when populate_demo
+      (or a similar seeder) re-creates a demo class because the academic
+      period rotated, two non-deleted Kelas rows for the same teacher and
+      name accumulate. Keep the one with the most enrollments (tie broken
+      by highest pk), re-point Enrollment FKs onto the survivor where the
+      unique (student, kelas) constraint allows, and soft-delete the loser.
 
 Run:
     python manage.py cleanup_demo
@@ -50,6 +56,10 @@ class Command(BaseCommand):
         c_count = self._merge_duplicate_subjects()
         d_count = self._collapse_active_periods()
         e_count = self._fix_trista_overlaps()
+        # Run Kelas dedupe BEFORE Session dedupe so any sessions moved onto
+        # the surviving Kelas in step (g) get folded by (date, start_time)
+        # in step (f).
+        g_count = self._dedupe_kelas_by_name()
         f_removed, f_skipped = self._dedupe_sessions()
 
         self.stdout.write(self.style.SUCCESS('\n=== SUMMARY ==='))
@@ -61,6 +71,7 @@ class Command(BaseCommand):
         self.stdout.write(f'  (f) Duplicate sessions removed:  {f_removed}')
         if f_skipped:
             self.stdout.write(f'      (skipped, kept both):        {f_skipped}')
+        self.stdout.write(f'  (g) Duplicate Kelas merged:      {g_count}')
 
     # ─── (a) QA leftovers ───────────────────────────────────────────────────
 
@@ -432,3 +443,117 @@ class Command(BaseCommand):
         except IntegrityError as e:
             # Bail out and keep both. Should be rare; reported via WARN above.
             return False
+
+    # ─── (g) Duplicate Kelas rows ───────────────────────────────────────────
+
+    def _dedupe_kelas_by_name(self):
+        """Collapse Kelas duplicates by (teacher_profile_id, name).
+
+        When a seeder (e.g. populate_demo) re-creates a demo class because
+        the academic period rotated, two non-deleted Kelas rows for the same
+        teacher and name accumulate. Keep the one with the most enrollments
+        (tie broken by highest pk), re-point Enrollment + Schedule + Session
+        FKs onto the survivor where unique constraints allow, and soft-delete
+        the loser.
+        """
+        from collections import defaultdict
+        from django.db import models
+        from django.utils import timezone
+
+        from academics.models import Kelas, Schedule
+        from enrollments.models import Enrollment
+        from sessions_app.models import Session
+
+        kelas_groups = defaultdict(list)
+        for k in Kelas.objects.filter(is_deleted=False).only(
+            'id', 'teacher_profile_id', 'name',
+        ):
+            kelas_groups[(k.teacher_profile_id, k.name)].append(k)
+
+        merged = 0
+        for (tp_id, name), rows in kelas_groups.items():
+            if len(rows) < 2:
+                continue
+
+            # Choose survivor: most enrollments, highest pk as tiebreak.
+            def _score(k):
+                n = Enrollment.objects.filter(kelas=k).count()
+                return (n, k.pk)
+
+            rows.sort(key=_score, reverse=True)
+            survivor = Kelas.objects.get(pk=rows[0].pk)  # full instance
+            losers = rows[1:]
+
+            for loser_stub in losers:
+                loser = Kelas.objects.get(pk=loser_stub.pk)
+
+                # Move Enrollment rows where (student_profile, survivor) does
+                # not collide; otherwise drop the loser's enrollment to avoid
+                # the unique constraint.
+                for enr in Enrollment.objects.filter(kelas=loser):
+                    collision = Enrollment.objects.filter(
+                        student_profile=enr.student_profile_id,
+                        kelas=survivor,
+                    ).exclude(pk=enr.pk).first()
+                    if collision is None:
+                        enr.kelas = survivor
+                        enr.save(update_fields=['kelas', 'updated_at'])
+                    else:
+                        # Survivor already has an enrollment for this student.
+                        # Prefer the row with stronger status (ACTIVE > COMPLETED
+                        # > DROPPED). Hard-delete the weaker row; bookings and
+                        # attendance cascade with it.
+                        rank = {
+                            'ACTIVE': 3, 'COMPLETED': 2, 'DROPPED': 1,
+                        }
+                        if rank.get(enr.status, 0) > rank.get(collision.status, 0):
+                            collision.delete()
+                            enr.kelas = survivor
+                            enr.save(update_fields=['kelas', 'updated_at'])
+                        else:
+                            enr.delete()
+
+                # Schedule rows: the survivor's slot is the canonical one for
+                # the merged kelas (cleanup_demo's step (e) keeps Trista's
+                # schedules unique per kelas). Just drop the loser's schedules
+                # rather than try to re-point and clash on
+                # unique (kelas, day, start_time).
+                Schedule.objects.filter(kelas=loser).delete()
+
+                # Session rows: re-point per row with a session_number bump
+                # when the survivor already owns that number. The (date,
+                # start_time) duplicates this creates get folded by step (f)
+                # which runs after this method.
+                max_num = (
+                    Session.objects.filter(kelas=survivor)
+                    .aggregate(models.Max('session_number'))['session_number__max']
+                    or 0
+                )
+                used = set(
+                    Session.objects
+                    .filter(kelas=survivor)
+                    .values_list('session_number', flat=True)
+                )
+                next_num = max_num + 1
+                for sess in Session.objects.filter(kelas=loser).order_by('session_number'):
+                    if sess.session_number not in used:
+                        used.add(sess.session_number)
+                        sess.kelas = survivor
+                        sess.save(update_fields=['kelas', 'updated_at'])
+                    else:
+                        sess.kelas = survivor
+                        sess.session_number = next_num
+                        used.add(next_num)
+                        next_num += 1
+                        sess.save(update_fields=['kelas', 'session_number', 'updated_at'])
+
+                loser.is_deleted = True
+                loser.deleted_at = timezone.now()
+                loser.save(update_fields=['is_deleted', 'deleted_at', 'updated_at'])
+                merged += 1
+                self.stdout.write(
+                    f'  - merged Kelas duplicate "{name}" pk={loser.pk} '
+                    f'-> pk={survivor.pk} (teacher_profile={tp_id})'
+                )
+
+        return merged

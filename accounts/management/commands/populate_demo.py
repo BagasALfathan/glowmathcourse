@@ -246,10 +246,13 @@ class Command(BaseCommand):
         cat = self._ensure_category('Matematika', 'Mata pelajaran matematika.')
 
         # 1) Multi-jenjang class
+        # Idempotency keyed on (teacher_profile, name) - NOT academic_period.
+        # cleanup_demo can collapse active periods between runs, which would
+        # otherwise let a second copy of this kelas slip past the lookup.
         multi_name = 'Matematika Lintas SD-SMP'
         multi = Kelas.objects.filter(
-            name=multi_name, academic_period=period, is_deleted=False,
-        ).first()
+            teacher_profile=trista, name=multi_name, is_deleted=False,
+        ).order_by('id').first()
         if not multi:
             subj = self._ensure_subject(
                 'Matematika Lintas', 'Lintas jenjang SD-SMP', cat,
@@ -302,11 +305,11 @@ class Command(BaseCommand):
                 'students': [gracia.username, dianfera.username],
             }
 
-        # 2) Paket Ganjil Genap class
+        # 2) Paket Ganjil Genap class - same idempotency keying as above.
         gg_name = 'Matematika SMA Paket Ganjil-Genap'
         gg = Kelas.objects.filter(
-            name=gg_name, academic_period=period, is_deleted=False,
-        ).first()
+            teacher_profile=trista, name=gg_name, is_deleted=False,
+        ).order_by('id').first()
         if not gg:
             subj = self._ensure_subject(
                 'Matematika Paket SMA', 'Paket khusus dua siswa', cat,
