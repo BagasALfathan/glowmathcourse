@@ -239,9 +239,9 @@ def teacher_class_create(request):
         levels_picked = [
             v for v in dict.fromkeys(levels_raw) if v
         ]
-        class_type = (request.POST.get('class_type') or KelasType.REGULAR).strip().upper()
+        class_type = (request.POST.get('class_type') or KelasType.GROUP).strip().upper()
         if class_type not in {v for v, _ in KelasType.choices}:
-            class_type = KelasType.REGULAR
+            class_type = KelasType.GROUP
         description = (request.POST.get('description') or '').strip()
         start_date_raw = request.POST.get('start_date') or ''
         day = (request.POST.get('day') or '').strip().upper()
@@ -411,8 +411,8 @@ def teacher_class_create(request):
             if request.method == 'POST' else []
         ),
         'selected_class_type': (
-            request.POST.get('class_type') or KelasType.REGULAR
-            if request.method == 'POST' else KelasType.REGULAR
+            request.POST.get('class_type') or KelasType.GROUP
+            if request.method == 'POST' else KelasType.GROUP
         ),
     })
 
@@ -659,7 +659,7 @@ def teacher_class_edit(request, pk):
         selected_levels = kelas.get_jenjang_list()
     selected_class_type = (
         form_data.get('class_type') if form_data else kelas.class_type
-    ) or KelasType.REGULAR
+    ) or KelasType.GROUP
 
     return render(request, 'academics/teacher_class_edit.html', {
         'kelas': kelas,
