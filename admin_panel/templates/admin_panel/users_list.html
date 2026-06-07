@@ -46,14 +46,17 @@
     </a>
   </div>
 
-  {# Toolbar: search + role chips + status select. All HTMX-driven; the role
-     chips are rendered as buttons sharing one hidden input so a single
-     "value" travels with every other request via hx-include. #}
+  {% comment %}
+    Toolbar: search + role chips + status select. All HTMX-driven; the role
+    chips are rendered as buttons sharing one hidden input so a single
+    "value" travels with every other request via hx-include.
+  {% endcomment %}
   <div id="users-controls" class="dp-toolbar"
-       x-data="{ role: '' }">
+       x-data="{ role: '{{ role_filter|escapejs }}' }">
     <div class="dp-search">
       <i class="ti ti-search"></i>
       <input type="text" name="q" placeholder="Cari nama, email, atau username…"
+             value="{{ q }}"
              hx-get="/admin-panel/users/partial/"
              hx-target="#users-table-wrapper"
              hx-swap="innerHTML"
@@ -86,16 +89,20 @@
             hx-swap="innerHTML"
             hx-trigger="change"
             hx-include="#users-controls">
-      <option value="">Semua Status</option>
-      <option value="active">Aktif</option>
-      <option value="inactive">Tidak Aktif</option>
-      <option value="rejected">Ditolak</option>
-      <option value="deleted">Dihapus</option>
+      <option value=""        {% if status_filter == ''         %}selected{% endif %}>Semua Status</option>
+      <option value="active"  {% if status_filter == 'active'   %}selected{% endif %}>Aktif</option>
+      <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Tidak Aktif</option>
+      <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Ditolak</option>
+      <option value="deleted"  {% if status_filter == 'deleted'  %}selected{% endif %}>Dihapus</option>
     </select>
   </div>
 
+  {% comment %}
+    Preserve deep-link querystring: pass q / role / status into the initial
+    HTMX request so /admin-panel/users/?q=gracia paints already filtered.
+  {% endcomment %}
   <div id="users-table-wrapper"
-       hx-get="/admin-panel/users/partial/"
+       hx-get="/admin-panel/users/partial/?q={{ q|urlencode }}&role={{ role_filter|urlencode }}&status={{ status_filter|urlencode }}"
        hx-trigger="load"
        hx-swap="innerHTML">
     <div class="dp-loading">Memuat data…</div>

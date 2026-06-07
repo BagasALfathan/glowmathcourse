@@ -168,7 +168,24 @@ def change_status_view(request, user_id):
 
 @role_required('ADMIN')
 def users_list(request):
-    return render(request, 'admin_panel/users_list.html')
+    """Full /admin-panel/users/ page. Reads the same q / role / status
+    querystring as users_list_partial so deep links like
+    /admin-panel/users/?q=gracia land already filtered on first paint.
+    """
+    valid_roles = {Role.STUDENT, Role.TEACHER, Role.ADMIN}
+    valid_statuses = {'', 'active', 'inactive', 'rejected', 'deleted'}
+    q = request.GET.get('q', '').strip()
+    role_filter = request.GET.get('role', '')
+    if role_filter not in valid_roles:
+        role_filter = ''
+    status_filter = request.GET.get('status', '')
+    if status_filter not in valid_statuses:
+        status_filter = ''
+    return render(request, 'admin_panel/users_list.html', {
+        'q': q,
+        'role_filter': role_filter,
+        'status_filter': status_filter,
+    })
 
 
 @role_required('ADMIN')
