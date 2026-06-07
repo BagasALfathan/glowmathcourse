@@ -37,8 +37,10 @@
         </svg>
         Export PDF
       </a>
-      {# Phase 9: shortcut to write/edit the monthly journal for THIS enrollment
-         + the current calendar (year, month). Single endpoint handles both. #}
+      {% comment %}
+        Phase 9: shortcut to write/edit the monthly journal for THIS enrollment
+        + the current calendar (year, month). Single endpoint handles both.
+      {% endcomment %}
       {% now "Y" as cur_year %}{% now "n" as cur_month %}
       <a href="{% url 'journals:teacher_journal_write' enrollment_id=enrollment.pk year=cur_year month=cur_month %}"
          class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white

@@ -1,6 +1,7 @@
-{# Data Pro ratings table — swap target: #ratings-table-wrapper
-   Context: page_obj (TeacherRating or ClassRating), type_filter, q, score_filter.
-#}
+{% comment %}
+  Data Pro ratings table - swap target: #ratings-table-wrapper.
+  Context: page_obj (TeacherRating or ClassRating), type_filter, q, score_filter.
+{% endcomment %}
 {% load dashboard_filters %}
 
 {% if page_obj.object_list %}

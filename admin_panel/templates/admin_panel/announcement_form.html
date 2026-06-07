@@ -42,8 +42,10 @@
 {% endblock %}
 
 {% block content %}
-{# Alpine state: hide jenjang select unless target_role == STUDENT, since
-   the model coerces level to ALL for non-student targets anyway. #}
+{% comment %}
+  Alpine state: hide jenjang select unless target_role == STUDENT, since
+  the model coerces level to ALL for non-student targets anyway.
+{% endcomment %}
 <div class="dp-page"
      x-data="{ target_role: '{% if form_data %}{{ form_data.target_role }}{% elif ann %}{{ ann.target_role }}{% else %}ALL{% endif %}' }">
 

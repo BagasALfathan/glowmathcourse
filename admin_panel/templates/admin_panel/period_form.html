@@ -36,9 +36,11 @@
 {% endblock %}
 
 {% block content %}
-{# Alpine state: which sub-period (quarter/semester) field is shown
-   depends on period_type. Initial value comes from the form_data round-trip
-   on POST error, or from the persisted period instance on edit. #}
+{% comment %}
+  Alpine state: which sub-period (quarter/semester) field is shown depends
+  on period_type. Initial value comes from the form_data round-trip on POST
+  error, or from the persisted period instance on edit.
+{% endcomment %}
 <div class="dp-page"
      x-data="{ period_type: '{% if form_data %}{{ form_data.period_type }}{% elif period %}{{ period.period_type }}{% else %}QUARTER{% endif %}' }">
 

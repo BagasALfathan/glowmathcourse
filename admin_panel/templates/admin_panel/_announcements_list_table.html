@@ -1,6 +1,7 @@
-{# Data Pro announcements table — swap target: #anns-table-wrapper
-   Context: page_obj (Announcement), q, role_filter, status_filter.
-#}
+{% comment %}
+  Data Pro announcements table - swap target: #anns-table-wrapper.
+  Context: page_obj (Announcement), q, role_filter, status_filter.
+{% endcomment %}
 {% if page_obj.object_list %}
 <style>
 .dp-table { width: 100%; border-collapse: collapse; font-size: 13px; }

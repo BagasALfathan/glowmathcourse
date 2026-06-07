@@ -41,9 +41,11 @@
     </a>
   </div>
 
-  {# Toolbar: search + level + status + period + show_deleted toggle. All
-     HTMX-driven via hx-include="#classes-controls" so each control reloads
-     the table partial with the union of current filters. #}
+  {% comment %}
+    Toolbar: search + level + status + period + show_deleted toggle. All
+    HTMX-driven via hx-include="#classes-controls" so each control reloads
+    the table partial with the union of current filters.
+  {% endcomment %}
   <form id="classes-controls" class="dp-toolbar" onsubmit="return false;">
     <div class="dp-search">
       <i class="ti ti-search"></i>

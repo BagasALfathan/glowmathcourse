@@ -95,9 +95,11 @@
     </label>
   </form>
 
-  {# Bulk-action bar. Hidden until at least one checkbox is ticked. The
-     form POSTs selected_ids[] + bulk_action; the view wraps the update in
-     transaction.atomic(). #}
+  {% comment %}
+    Bulk-action bar. Hidden until at least one checkbox is ticked. The form
+    POSTs selected_ids[] + bulk_action; the view wraps the update in
+    transaction.atomic().
+  {% endcomment %}
   <form id="dp-bulk-bar" class="dp-bulk-bar"
         method="post" action="{% url 'admin_panel:enrollment_bulk_action' %}"
         onsubmit="return dpCollectBulkIds();">

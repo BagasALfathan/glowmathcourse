@@ -1,6 +1,7 @@
-{# Data Pro logs table — swap target: #logs-table-wrapper
-   Context: page_obj (ActivityLog), q, action_filter, type_filter.
-#}
+{% comment %}
+  Data Pro logs table - swap target: #logs-table-wrapper.
+  Context: page_obj (ActivityLog), q, action_filter, type_filter.
+{% endcomment %}
 {% if page_obj.object_list %}
 <style>
 .dp-table { width: 100%; border-collapse: collapse; font-size: 13px; }

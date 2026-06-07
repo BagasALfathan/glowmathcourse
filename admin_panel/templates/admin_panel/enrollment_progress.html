@@ -52,8 +52,10 @@
     </div>
   </div>
 
-  {# Shared progress body (grades, attendance, etc.) — also used by teachers,
-     don't customize it here. #}
+  {% comment %}
+    Shared progress body (grades, attendance, etc.) - also used by teachers,
+    don't customize it here.
+  {% endcomment %}
   {% include "grades/_progress_report_body.html" %}
 
   {% if is_admin_view and enrollment %}

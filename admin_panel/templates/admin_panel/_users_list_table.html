@@ -1,6 +1,8 @@
-{# Data Pro users table — HTMX partial swapped into #users-table-wrapper.
-   Sender: admin_panel.views.users_list_partial
-   Inputs in context: page_obj, q, role_filter, status_filter           #}
+{% comment %}
+  Data Pro users table - HTMX partial swapped into #users-table-wrapper.
+  Sender: admin_panel.views.users_list_partial.
+  Inputs in context: page_obj, q, role_filter, status_filter.
+{% endcomment %}
 
 {% if page_obj.object_list %}
 <style>
